@@ -6,37 +6,16 @@ import { Bug, ShieldAlert } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-export function Navbar() {
-    const [mounted, setMounted] = useState(false);
+function NavbarContent() {
     const [devToken, setDevToken] = useState<string | null>(null);
 
     useEffect(() => {
-        setMounted(true);
-        // Sync in case another tab updated localStorage
         const stored = localStorage.getItem("bugscribe_dev_token");
         setDevToken(stored);
     }, []);
 
     const user = useQuery(api.users.currentUser, { devToken: devToken || undefined });
     const isSuperAdmin = user?.role === "super_admin";
-
-    if (!mounted) {
-        return (
-            <nav className="h-14 border-b border-surface-border glass sticky top-0 z-50">
-                <div className="max-w-[1600px] mx-auto px-4 h-full flex items-center justify-between">
-                    <Link href="/" className="flex items-center gap-2.5 group">
-                        <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center
-                              group-hover:bg-brand-400 transition-colors">
-                            <Bug className="w-4 h-4 text-white" />
-                        </div>
-                        <span className="font-bold text-white text-lg tracking-tight">
-                            Bug<span className="text-gradient">Scribe</span>
-                        </span>
-                    </Link>
-                </div>
-            </nav>
-        );
-    }
 
     return (
         <nav className="h-14 border-b border-surface-border glass sticky top-0 z-50">
@@ -94,4 +73,32 @@ export function Navbar() {
             </div>
         </nav>
     );
+}
+
+export function Navbar() {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return (
+            <nav className="h-14 border-b border-surface-border glass sticky top-0 z-50">
+                <div className="max-w-[1600px] mx-auto px-4 h-full flex items-center justify-between">
+                    <Link href="/" className="flex items-center gap-2.5 group">
+                        <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center
+                              group-hover:bg-brand-400 transition-colors">
+                            <Bug className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="font-bold text-white text-lg tracking-tight">
+                            Bug<span className="text-gradient">Scribe</span>
+                        </span>
+                    </Link>
+                </div>
+            </nav>
+        );
+    }
+
+    return <NavbarContent />;
 }

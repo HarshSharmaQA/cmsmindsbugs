@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -9,8 +7,9 @@ import Link from "next/link";
 import { Plus, Bug, Globe, Key, Trash2, ArrowRight, Mail, User } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 
-export default function HomePage() {
-    const [mounted, setMounted] = useState(false);
+export const dynamic = 'force-dynamic';
+
+function HomePageContent() {
     const [devToken, setDevToken] = useState<string | null>(null);
     const [email, setEmail] = useState("");
     const [emailToCheck, setEmailToCheck] = useState("");
@@ -25,7 +24,6 @@ export default function HomePage() {
     );
 
     useEffect(() => {
-        setMounted(true);
         const stored = localStorage.getItem("bugscribe_dev_token");
         if (stored) setDevToken(stored);
     }, []);
@@ -83,10 +81,6 @@ export default function HomePage() {
             setCreating(false);
         }
     };
-
-    if (!mounted) {
-        return <div className="min-h-screen bg-[#0A0A0A]"></div>;
-    }
 
     return (
         <div className="min-h-screen">
@@ -268,7 +262,7 @@ export default function HomePage() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {projects.map((project) => (
+                                {projects.map((project: any) => (
                                     <ProjectCard
                                         key={project._id}
                                         project={project}
@@ -355,4 +349,18 @@ function ProjectCard({
             </div>
         </div>
     );
+}
+
+export default function HomePage() {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return <div className="min-h-screen bg-[#0A0A0A]"></div>;
+    }
+
+    return <HomePageContent />;
 }

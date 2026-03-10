@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
-
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navbar } from "@/components/Navbar";
@@ -10,12 +8,12 @@ import { Users, Layout, Bug, ShieldAlert, BarChart3, Clock, ArrowLeft, Key } fro
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
-export default function AdminDashboard() {
+export const dynamic = 'force-dynamic';
+
+function AdminDashboardContent() {
     const [devToken, setDevToken] = useState<string | null>(null);
-    const [pageMounted, setPageMounted] = useState(false);
 
     useEffect(() => {
-        setPageMounted(true);
         const stored = localStorage.getItem("bugscribe_dev_token");
         if (stored) setDevToken(stored);
     }, []);
@@ -52,8 +50,6 @@ export default function AdminDashboard() {
             setSettingPassword(false);
         }
     };
-
-    if (!pageMounted) return null;
 
     if (stats === undefined) {
         return (
@@ -256,4 +252,26 @@ export default function AdminDashboard() {
             )}
         </div>
     );
+}
+
+export default function AdminDashboard() {
+    const [pageMounted, setPageMounted] = useState(false);
+
+    useEffect(() => {
+        setPageMounted(true);
+    }, []);
+
+    if (!pageMounted) {
+        return (
+            <div className="min-h-screen bg-surface">
+                <Navbar />
+                <div className="max-w-7xl mx-auto px-4 py-24 flex flex-col items-center">
+                    <div className="skeleton w-16 h-16 rounded-full mb-4" />
+                    <p className="text-slate-500 animate-pulse">Initializing Admin Session...</p>
+                </div>
+            </div>
+        );
+    }
+
+    return <AdminDashboardContent />;
 }
