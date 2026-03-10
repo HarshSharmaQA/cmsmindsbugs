@@ -22,6 +22,7 @@ export default defineSchema({
         password: v.optional(v.string()),
         name: v.optional(v.string()),
         role: v.union(v.literal("super_admin"), v.literal("user")),
+        isApproved: v.optional(v.boolean()),
     })
         .index("by_token_identifier", ["tokenIdentifier"])
         .index("by_email", ["email"]),
@@ -130,4 +131,30 @@ export default defineSchema({
         permissions: v.array(v.string()), // e.g. ["view_api", "view_users", "manage_settings", "delete_bugs", "move_bugs"]
     })
         .index("by_role", ["role"]),
+
+    // ── Map Locations (managed by super admin) ────────────────────────────────
+    mapLocations: defineTable({
+        name: v.string(),
+        subtitle: v.optional(v.string()),
+        image: v.optional(v.string()),
+        price: v.number(),
+        priceLabel: v.optional(v.string()),
+        priceSubtext: v.optional(v.string()),
+        rating: v.optional(v.number()),
+        lat: v.number(),
+        lng: v.number(),
+        purchases: v.optional(v.number()),
+        state: v.optional(v.string()),
+        city: v.optional(v.string()),
+        buyLink: v.optional(v.string()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    }),
+
+    // ── Global System Settings (managed by super admin) ──────────────────────
+    globalSettings: defineTable({
+        key: v.string(),
+        value: v.any(),
+        updatedAt: v.number(),
+    }).index("by_key", ["key"]),
 });

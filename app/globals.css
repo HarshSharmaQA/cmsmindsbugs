@@ -1,114 +1,474 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── Base ─────────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   THEME: Deep Carbon + Electric Cyan
+   Palette:
+     Background  #09090E  (near-black, warm carbon)
+     Card        #111118  (elevated surface)
+     Card-2      #16161F  (secondary surface)
+     Border      #1E1E2E  (subtle boundary)
+     Border-hi   #2A2A40  (highlighted boundary)
+     Brand       #00D4FF  (electric cyan)
+     Brand-dim   #0099CC  (darker cyan)
+     Brand-glow  rgba(0, 212, 255, 0.12)
+     Accent      #FF6B35  (signal orange — for critical)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Base ─────────────────────────────────────────────────────── */
 @layer base {
   :root {
-    --color-brand: 79 93 255;
-    --color-surface: 15 17 23;
-    --color-card: 26 29 39;
-    --color-border: 42 45 62;
+    /* shadcn/radix CSS var surface — mapped to our dark palette */
+    --background: 225 15% 5%;
+    --foreground: 210 20% 96%;
+    --card: 225 15% 7%;
+    --card-foreground: 210 20% 92%;
+    --popover: 225 15% 6%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 194 100% 50%;
+    --primary-foreground: 225 15% 5%;
+    --secondary: 225 12% 12%;
+    --secondary-foreground: 210 20% 80%;
+    --muted: 225 12% 10%;
+    --muted-foreground: 215 15% 50%;
+    --accent: 225 12% 14%;
+    --accent-foreground: 210 20% 92%;
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 225 12% 14%;
+    --input: 225 12% 11%;
+    --ring: 194 100% 50%;
+    --radius: 0.5rem;
   }
 
-  * { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+  }
 
   html {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     color-scheme: dark;
+    scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-surface text-slate-100 min-h-screen;
+    background-color: #09090E;
+    color: #E8EAF0;
+    min-height: 100vh;
+    /* Subtle noise texture overlay for depth */
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 212, 255, 0.06) 0%, transparent 60%);
+    background-attachment: fixed;
   }
 
   ::selection {
-    @apply bg-brand-500/30 text-white;
+    background: rgba(0, 212, 255, 0.25);
+    color: #fff;
   }
 
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-surface; }
-  ::-webkit-scrollbar-thumb { @apply bg-surface-border rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-brand-500/50; }
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #09090E;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1E1E2E;
+    border-radius: 99px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00D4FF33;
+  }
+
+  /* Focus ring */
+  *:focus-visible {
+    outline: 2px solid rgba(0, 212, 255, 0.5);
+    outline-offset: 2px;
+  }
 }
 
-/* ── Components ──────────────────────────────────────────────────────────── */
+/* ── Component Primitives ─────────────────────────────────────── */
 @layer components {
-  /* Card */
+
+  /* ── Card ── */
   .card {
-    @apply bg-surface-card border border-surface-border rounded-xl;
+    background: #111118;
+    border: 1px solid #1E1E2E;
+    border-radius: 12px;
+    transition: border-color 0.2s;
   }
 
-  /* Button variants */
+  .card:hover {
+    border-color: #2A2A40;
+  }
+
+  .card-glow:hover {
+    border-color: rgba(0, 212, 255, 0.25);
+    box-shadow: 0 0 24px rgba(0, 212, 255, 0.06), 0 4px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  /* ── Buttons ── */
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
-           bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm
-           transition-all duration-150 hover:shadow-lg hover:shadow-brand-500/25
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #09090E;
+    background: linear-gradient(135deg, #00D4FF 0%, #0099E6 100%);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 0 0 0 rgba(0, 212, 255, 0);
+    letter-spacing: 0.01em;
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #1AD8FF 0%, #00AAFF 100%);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
-           text-slate-400 hover:text-white hover:bg-surface-hover font-medium text-sm
-           transition-all duration-150;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6B7280;
+    background: transparent;
+    border: 1px solid #1E1E2E;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn-ghost:hover {
+    color: #E8EAF0;
+    background: #1A1A24;
+    border-color: #2A2A40;
   }
 
   .btn-danger {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
-           text-red-400 hover:text-white hover:bg-red-500/20 font-medium text-sm
-           transition-all duration-150;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #F87171;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
 
-  /* Input */
+  .btn-danger:hover {
+    color: #fff;
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  /* ── Input ── */
   .input {
-    @apply w-full px-3 py-2 rounded-lg bg-surface border border-surface-border
-           text-slate-100 placeholder-slate-500 text-sm
-           focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50
-           transition-all duration-150;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: #0D0D14;
+    border: 1px solid #1E1E2E;
+    color: #E8EAF0;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    outline: none;
+    caret-color: #00D4FF;
   }
 
-  /* Badge */
+  .input::placeholder {
+    color: #3A3A55;
+  }
+
+  .input:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+    background: #0F0F18;
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.08);
+  }
+
+  /* ── Select dropdowns — force visibility on all OS/browser combos ── */
+  select,
+  select.input {
+    color: #E8EAF0 !important;
+    background-color: #0D0D14 !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    padding-right: 32px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    cursor: pointer;
+    color-scheme: dark;
+    border: 1px solid #1E1E2E !important;
+    border-radius: 8px !important;
+    font-family: inherit;
+    font-size: 13px;
+  }
+
+  select:focus,
+  select.input:focus {
+    border-color: rgba(0, 212, 255, 0.4) !important;
+    background-color: #0F0F18 !important;
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.08);
+    outline: none;
+  }
+
+  select:disabled,
+  select.input:disabled {
+    color: #6B7280 !important;
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Option list — controls the dropdown popup */
+  select option {
+    background-color: #111118 !important;
+    color: #E8EAF0 !important;
+  }
+
+  select option:checked {
+    background-color: rgba(0, 212, 255, 0.15) !important;
+    color: #00D4FF !important;
+  }
+
+  /* Textarea */
+  textarea.input {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
+  }
+
+
+  /* ── Badge base ── */
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
   }
 
   /* Status badges */
-  .status-open       { @apply badge bg-blue-500/15 text-blue-400 border border-blue-500/20; }
-  .status-in_progress { @apply badge bg-amber-500/15 text-amber-400 border border-amber-500/20; }
-  .status-resolved   { @apply badge bg-green-500/15 text-green-400 border border-green-500/20; }
-  .status-closed     { @apply badge bg-slate-500/15 text-slate-400 border border-slate-500/20; }
+  .status-open {
+    @apply badge;
+    background: rgba(56, 189, 248, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+  }
+
+  .status-in_progress {
+    @apply badge;
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.2);
+  }
+
+  .status-resolved {
+    @apply badge;
+    background: rgba(52, 211, 153, 0.12);
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.2);
+  }
+
+  .status-closed {
+    @apply badge;
+    background: rgba(107, 114, 128, 0.12);
+    color: #6b7280;
+    border: 1px solid rgba(107, 114, 128, 0.2);
+  }
 
   /* Priority badges */
-  .priority-low      { @apply badge bg-slate-500/15 text-slate-400 border border-slate-500/20; }
-  .priority-medium   { @apply badge bg-blue-500/15 text-blue-400 border border-blue-500/20; }
-  .priority-high     { @apply badge bg-orange-500/15 text-orange-400 border border-orange-500/20; }
-  .priority-critical { @apply badge bg-red-500/15 text-red-400 border border-red-500/20; }
-
-  /* Skeleton loader */
-  .skeleton {
-    @apply animate-pulse bg-surface-hover rounded;
+  .priority-low {
+    @apply badge;
+    background: rgba(107, 114, 128, 0.12);
+    color: #9ca3af;
+    border: 1px solid rgba(107, 114, 128, 0.2);
   }
 
-  /* Divider */
-  .divider { @apply border-t border-surface-border; }
+  .priority-medium {
+    @apply badge;
+    background: rgba(56, 189, 248, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+  }
+
+  .priority-high {
+    @apply badge;
+    background: rgba(251, 146, 60, 0.12);
+    color: #fb923c;
+    border: 1px solid rgba(251, 146, 60, 0.2);
+  }
+
+  .priority-critical {
+    @apply badge;
+    background: rgba(248, 113, 113, 0.12);
+    color: #f87171;
+    border: 1px solid rgba(248, 113, 113, 0.2);
+  }
+
+  /* ── Skeleton ── */
+  .skeleton {
+    background: linear-gradient(90deg, #111118 0%, #1A1A28 50%, #111118 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 6px;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    border-top: 1px solid #1E1E2E;
+  }
 }
 
-/* ── Utilities ────────────────────────────────────────────────────────────── */
+/* ── Utilities ────────────────────────────────────────────────── */
 @layer utilities {
+
+  /* Brand gradient text */
   .text-gradient {
-    @apply bg-gradient-to-r from-brand-400 to-brand-200 bg-clip-text text-transparent;
+    background: linear-gradient(135deg, #00D4FF 0%, #7EEEFF 60%, #00D4FF 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: text-shimmer 4s linear infinite;
   }
 
+  /* Glass surface */
   .glass {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    background: rgba(26, 29, 39, 0.8);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    background: rgba(17, 17, 24, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
+  /* Cyan glow */
   .glow {
-    box-shadow: 0 0 20px rgba(79, 93, 255, 0.15);
+    box-shadow: 0 0 24px rgba(0, 212, 255, 0.18), 0 2px 8px rgba(0, 0, 0, 0.5);
   }
+
+  /* Glow ring on focus/active */
+  .glow-ring {
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.5), 0 0 16px rgba(0, 212, 255, 0.15);
+  }
+}
+
+/* ── Keyframes ────────────────────────────────────────────────── */
+@keyframes text-shimmer {
+  0% {
+    background-position: 0% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
+  }
+
+  50% {
+    box-shadow: 0 0 28px rgba(0, 212, 255, 0.35);
+  }
+}
+
+/* ── Animation Utilities ──────────────────────────────────────── */
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.25s ease-out both;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2.5s ease-in-out infinite;
 }

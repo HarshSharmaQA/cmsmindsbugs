@@ -189,7 +189,7 @@ function ListView({ bugs, onSelect }: { bugs: any[]; onSelect: (id: Id<"bugs">) 
     }
 
     return (
-        <div className="card overflow-hidden">
+        <div className="card overflow-x-auto">
             <table className="w-full text-sm">
                 <thead>
                     <tr className="border-b border-surface-border text-[11px] text-slate-500 uppercase tracking-wider">
@@ -807,7 +807,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex gap-0 border-b border-surface-border px-5 shrink-0">
+                        <div className="flex gap-0 border-b border-surface-border px-5 shrink-0 overflow-x-auto whitespace-nowrap" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                             {(["details", "screenshot", "env", "activity"] as const).map((tab) => (
                                 <button
                                     key={tab}
@@ -827,7 +827,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                             {activeTab === "details" && (
                                 <>
                                     {/* Categorization & Assignment */}
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Type</label>
                                             <select
@@ -910,7 +910,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                     {/* Metadata */}
                                     <div className="space-y-2">
                                         <p className="text-[10px] text-slate-500 uppercase tracking-wider">Details</p>
-                                        <div className="grid grid-cols-2 gap-1.5">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                             {[
                                                 { label: "Source", value: bug.reporterName ? "User" : "Widget", icon: <Zap className="w-3 h-3" /> },
                                                 { label: "Reporter", value: bug.reporterEmail || bug.reporterName, icon: <Mail className="w-3 h-3" /> },
@@ -1373,8 +1373,8 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
                 {/* Toolbar */}
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                    <h2 className="font-semibold text-white">Issue Tracking</h2>
-                    <div className="flex gap-1 p-1 bg-surface-card border border-surface-border rounded-lg">
+                    <h2 className="font-semibold text-white w-full sm:w-auto">Issue Tracking</h2>
+                    <div className="flex gap-1 p-1 bg-surface-card border border-surface-border rounded-lg overflow-x-auto w-full sm:w-auto" style={{ scrollbarWidth: 'none' }}>
                         {(["kanban", "list", "team", "integrations", "settings"] as const).map((v) => {
                             if (v === "team" && !canManageUsers) return null;
                             if (v === "integrations" && !canViewApi) return null;
@@ -1383,7 +1383,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                 <button
                                     key={v}
                                     onClick={() => setView(v)}
-                                    className={`px-3 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-all ${view === v ? "bg-brand-500 text-white" : "text-slate-400 hover:text-white"}`}
+                                    className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md whitespace-nowrap transition-all ${view === v ? "bg-brand-500 text-white shadow-sm" : "text-slate-400 hover:text-white"}`}
                                 >
                                     {TAB_LABELS[v]}
                                 </button>
@@ -1409,11 +1409,11 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                 </button>
                             )}
                         </div>
-                        <div className="relative">
+                        <div className="relative w-full md:w-auto mt-2 md:mt-0">
                             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                             <input
                                 type="text"
-                                className="input pl-9 h-9 text-xs w-[220px]"
+                                className="input pl-9 h-9 text-xs w-full md:w-[220px]"
                                 placeholder="Search issues…"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}

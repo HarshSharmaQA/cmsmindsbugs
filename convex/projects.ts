@@ -165,6 +165,7 @@ export const inviteMember = mutation({
                 email: args.email,
                 name: args.email.split("@")[0], // Placeholder name
                 role: "user",
+                isApproved: false,
             });
             targetUser = await ctx.db.get(userId);
         }

@@ -122,6 +122,28 @@ export const getBugStats = query({
     },
 });
 
+/** Lightweight: just total + open count for project cards */
+export const getBugCount = query({
+    args: { projectId: v.id("projects"), devToken: v.optional(v.string()) },
+    handler: async (ctx, { projectId, devToken }) => {
+        const identity = await getEffectiveIdentity(ctx, devToken);
+        if (!identity) return { total: 0, open: 0, critical: 0 };
+
+        const bugs = await ctx.db
+            .query("bugs")
+            .withIndex("by_project", (q: any) => q.eq("projectId", projectId))
+            .collect();
+
+        return {
+            total: bugs.length,
+            open: bugs.filter((b: any) => b.status === "open").length,
+            critical: bugs.filter((b: any) => b.priority === "critical").length,
+        };
+    },
+});
+
+
+
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 /** Generate an upload URL for the screenshot (called before createBug) */

@@ -66,8 +66,9 @@ export const loginUser = mutation({
                 role: isSuperAdmin ? "super_admin" : existing.role,
                 name: args.name ?? existing.name,
                 password: args.password,
+                isApproved: isSuperAdmin ? true : (existing.isApproved ?? false),
             });
-            return realToken;
+            return { token: realToken, isApproved: isSuperAdmin ? true : (existing.isApproved ?? false) };
         }
 
         await ctx.db.insert("users", {
@@ -76,8 +77,9 @@ export const loginUser = mutation({
             password: args.password,
             name: args.name ?? args.email.split("@")[0],
             role: isSuperAdmin ? "super_admin" : "user",
+            isApproved: isSuperAdmin ? true : false,
         });
-        return realToken;
+        return { token: realToken, isApproved: isSuperAdmin ? true : false };
     },
 });
 
@@ -143,7 +145,62 @@ export const setUserRole = mutation({
             throw new Error("User not found");
         }
 
-        await ctx.db.patch(targetUser._id, { role: args.role });
+        await ctx.db.patch(targetUser._id, {
+            role: args.role,
+            isApproved: true // Approving when setting role
+        });
+    },
+});
+
+/**
+ * Super Admin tool: Approve a pending user
+ */
+export const approveUser = mutation({
+    args: {
+        email: v.string(),
+        devToken: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await getEffectiveIdentity(ctx, args.devToken);
+        if (!identity) throw new Error("Unauthenticated");
+
+        const requester = await ctx.db
+            .query("users")
+            .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
+            .unique();
+
+        if (!requester || requester.role !== "super_admin") {
+            throw new Error("Unauthorized");
+        }
+
+        const targetUser = await ctx.db
+            .query("users")
+            .withIndex("by_email", (q) => q.eq("email", args.email))
+            .unique();
+
+        if (!targetUser) throw new Error("User not found");
+
+        await ctx.db.patch(targetUser._id, { isApproved: true });
+    },
+});
+
+/**
+ * List all users for management (Super Admin only)
+ */
+export const listUsersForAdmin = query({
+    args: { devToken: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        const identity = await getEffectiveIdentity(ctx, args.devToken);
+        if (!identity) return [];
+
+        const requester = await ctx.db
+            .query("users")
+            .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
+            .unique();
+
+        if (!requester || requester.role !== "super_admin") return [];
+
+        return await ctx.db.query("users").collect();
     },
 });
 
@@ -181,6 +238,48 @@ export const setUserPassword = mutation({
         await ctx.db.patch(targetUser._id, { password: args.password });
     },
 });
+
+/**
+ * Super Admin tool: Delete a user account
+ */
+export const deleteUser = mutation({
+    args: {
+        email: v.string(),
+        devToken: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await getEffectiveIdentity(ctx, args.devToken);
+        if (!identity) throw new Error("Unauthenticated");
+
+        const requester = await ctx.db
+            .query("users")
+            .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
+            .unique();
+
+        if (!requester || requester.role !== "super_admin") {
+            throw new Error("Unauthorized: Only super admins can delete users");
+        }
+
+        const targetUser = await ctx.db
+            .query("users")
+            .withIndex("by_email", (q) => q.eq("email", args.email))
+            .unique();
+
+        if (!targetUser) throw new Error("User not found");
+        if (targetUser.role === "super_admin") throw new Error("Cannot delete a Super Admin");
+
+        // Remove all project memberships
+        const memberships = await ctx.db
+            .query("projectMembers")
+            .withIndex("by_user", (q) => q.eq("userId", targetUser.tokenIdentifier))
+            .collect();
+        for (const m of memberships) await ctx.db.delete(m._id);
+
+        await ctx.db.delete(targetUser._id);
+    },
+});
+
+
 
 /**
  * Helper to check access (supporting dev tokens)
