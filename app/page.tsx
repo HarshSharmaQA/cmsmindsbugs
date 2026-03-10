@@ -29,6 +29,8 @@ function HomePageContent() {
     }, []);
 
     const projects = useQuery(api.projects.listProjects, { devToken: devToken || undefined });
+    const currentUser = useQuery(api.users.currentUser, { devToken: devToken || undefined });
+    const isSuperAdmin = currentUser?.role === "super_admin";
     const loginMutation = useMutation(api.users.loginUser);
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -41,7 +43,8 @@ function HomePageContent() {
                 password: password,
             });
             localStorage.setItem("bugscribe_dev_token", token);
-            setDevToken(token);
+            // Force a full page reload so Navbar and all components re-read the new session
+            window.location.reload();
         } catch (error: any) {
             console.error(error);
             alert(error.message || "Login Failed. Please try again.");
@@ -266,6 +269,7 @@ function HomePageContent() {
                                     <ProjectCard
                                         key={project._id}
                                         project={project}
+                                        isSuperAdmin={isSuperAdmin}
                                         onDelete={() => deleteProject({
                                             projectId: project._id,
                                             devToken: devToken || undefined
@@ -285,31 +289,35 @@ function HomePageContent() {
 function ProjectCard({
     project,
     onDelete,
+    isSuperAdmin,
 }: {
     project: { _id: string; name: string; domain?: string; description?: string; apiKey: string; createdAt: number };
     onDelete: () => void;
+    isSuperAdmin: boolean;
 }) {
     const [confirmDelete, setConfirmDelete] = useState(false);
 
     return (
         <div className="card p-5 hover:border-brand-500/30 transition-all duration-200 group animate-fade-in relative overflow-hidden">
             <div className="absolute top-0 right-0 p-3">
-                {!confirmDelete ? (
-                    <button
-                        onClick={() => setConfirmDelete(true)}
-                        className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all p-1 rounded"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                ) : (
-                    <div className="flex gap-1 animate-slide-up">
-                        <button onClick={onDelete} className="text-[10px] text-red-100 px-2 py-0.5 rounded bg-red-600">
-                            Confirm
+                {isSuperAdmin && (
+                    !confirmDelete ? (
+                        <button
+                            onClick={() => setConfirmDelete(true)}
+                            className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all p-1 rounded"
+                        >
+                            <Trash2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => setConfirmDelete(false)} className="text-[10px] text-slate-500 px-2 py-0.5 rounded bg-surface">
-                            x
-                        </button>
-                    </div>
+                    ) : (
+                        <div className="flex gap-1 animate-slide-up">
+                            <button onClick={onDelete} className="text-[10px] text-red-100 px-2 py-0.5 rounded bg-red-600">
+                                Confirm
+                            </button>
+                            <button onClick={() => setConfirmDelete(false)} className="text-[10px] text-slate-500 px-2 py-0.5 rounded bg-surface">
+                                x
+                            </button>
+                        </div>
+                    )
                 )}
             </div>
 
