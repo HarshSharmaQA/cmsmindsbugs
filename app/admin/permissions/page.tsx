@@ -74,7 +74,7 @@ export default function GlobalPermissionsPage() {
             // Save each role sequentially
             for (const role of ALL_ROLES) {
                 const perms = localPermissions[role] || [];
-                await updateRolePermissions({ role, permissions: perms });
+                await updateRolePermissions({ role, permissions: perms, devToken: devToken || undefined });
             }
             alert("Permissions saved successfully!");
         } catch (err: any) {
