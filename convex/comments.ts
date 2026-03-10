@@ -64,6 +64,15 @@ export const addComment = mutation({
                     commentBody: args.body,
                 });
             }
+
+            // Log activity
+            await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+                bugId: args.bugId,
+                projectId: bug.projectId,
+                actorName: displayAuthor,
+                type: "comment_added",
+                detail: args.body.length > 50 ? `${args.body.substring(0, 50)}...` : args.body,
+            });
         }
 
         return commentId;

@@ -207,8 +207,20 @@ export const createBug = mutation({
             actorName,
             actorEmail: args.reporterEmail,
             type: "created",
-            detail: `Bug reported via widget`,
+            detail: `Created bug via widget`,
         });
+
+        // Log asset addition if applicable
+        if (args.screenshotStorageId) {
+            await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+                bugId,
+                projectId: args.projectId,
+                actorName,
+                actorEmail: args.reporterEmail,
+                type: "asset_added",
+                detail: `${args.mediaType === "video" ? "Video" : "Screenshot"} attached`,
+            });
+        }
 
         if (project.userId) {
             const owner = await ctx.db
@@ -274,7 +286,7 @@ export const dashboardManualCreateBug = mutation({
             actorName,
             actorEmail: user?.email || identity.email,
             type: "created",
-            detail: `Manually reported from dashboard`,
+            detail: `Created bug manually from dashboard`,
         });
 
         return bugId;
@@ -336,7 +348,7 @@ export const updateStatus = mutation({
                 actorName,
                 actorEmail: user?.email || identity.email,
                 type: "status_changed",
-                detail: `${statusLabels[oldStatus] ?? oldStatus} → ${statusLabels[status] ?? status}`,
+                detail: `Moved to ${statusLabels[status] ?? status}`,
             });
         }
     },

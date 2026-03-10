@@ -12,7 +12,7 @@ import {
     Calendar, Tag, Copy, Check, ChevronDown, Send,
     Globe, Settings, Key, Eye, EyeOff, Shield, Zap,
     MessageSquare, Bug, Image as ImageIcon, Video, LayoutList,
-    Kanban as KanbanIcon, X, Activity, Hash
+    Kanban as KanbanIcon, X, Activity, Hash, Download
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { formatDistanceToNow } from "date-fns";
@@ -572,6 +572,7 @@ const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
     tags_changed: <Hash className="w-3 h-3 text-slate-400" />,
     type_changed: <Tag className="w-3 h-3 text-slate-400" />,
     category_changed: <LayoutList className="w-3 h-3 text-slate-400" />,
+    asset_added: <ImageIcon className="w-3 h-3 text-brand-400" />,
 };
 
 function TagsInput({ tags, onChange, disabled }: { tags: string[]; onChange: (tags: string[]) => void; disabled?: boolean }) {
@@ -1085,7 +1086,8 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                                             <span className="text-xs font-medium text-white">{act.actorName}</span>
                                                             <span className="text-xs text-slate-500">
                                                                 {act.type === "created" && "created this bug"}
-                                                                {act.type === "status_changed" && `changed status`}
+                                                                {act.type === "asset_added" && "attached an asset"}
+                                                                {act.type === "status_changed" && `updated status`}
                                                                 {act.type === "priority_changed" && `changed priority`}
                                                                 {act.type === "comment_added" && "added a comment"}
                                                                 {act.type === "assignee_changed" && "changed assignee"}
@@ -1273,6 +1275,66 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         }
     };
 
+    const handleExport = () => {
+        if (!bugs || bugs.length === 0) {
+            alert("No issues to export.");
+            return;
+        }
+
+        // Header row
+        const headers = [
+            "ID", "Title", "Status", "Priority", "Type", "Category",
+            "Assignee", "Reporter Name", "Reporter Email", "Created At",
+            "URL", "Browser", "OS", "Screen Size", "Description", "Console Errors"
+        ];
+
+        // Map members for assignee lookup
+        const memberMap: Record<string, string> = {};
+        members?.forEach((m: any) => {
+            memberMap[m.userId] = m.name || m.email || m.userId;
+        });
+
+        // Rows
+        const rows = bugs.map((bug: any) => [
+            bug._id,
+            bug.title,
+            bug.status,
+            bug.priority,
+            bug.type || "general",
+            bug.category || "None",
+            bug.assigneeId ? (memberMap[bug.assigneeId] || bug.assigneeId) : "Unassigned",
+            bug.reporterName || "Widget",
+            bug.reporterEmail || "N/A",
+            new Date(bug.createdAt).toLocaleString(),
+            bug.url,
+            bug.browser,
+            bug.os || "N/A",
+            bug.screenWidth ? `${bug.screenWidth}x${bug.screenHeight}` : "N/A",
+            (bug.description || "").replace(/\n/g, " "),
+            (bug.consoleErrors || []).join(" | ")
+        ]);
+
+        // Build CSV string
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.map(val => {
+                const escaped = String(val).replace(/"/g, '""');
+                return `"${escaped}"`;
+            }).join(","))
+        ].join("\n");
+
+        // Download
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `bugscribe-export-${project?.name.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const TAB_LABELS: Record<string, string> = {
         kanban: "Kanban", list: "List", team: "Users", integrations: "API", settings: "Settings"
     };
@@ -1333,9 +1395,20 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 {/* Search / New Issue bar for list/kanban */}
                 {(view === "kanban" || view === "list") && (
                     <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between mb-6">
-                        <button onClick={() => setShowCreateBugModal(true)} className="btn-primary text-xs flex items-center gap-1.5 self-start">
-                            <Plus className="w-3.5 h-3.5" /> New Issue
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => setShowCreateBugModal(true)} className="btn-primary text-xs flex items-center gap-1.5 self-start">
+                                <Plus className="w-3.5 h-3.5" /> New Issue
+                            </button>
+                            {isProjectAdmin && (
+                                <button
+                                    onClick={handleExport}
+                                    className="btn-ghost border border-surface-border text-xs flex items-center gap-1.5 self-start px-3 h-8 hover:bg-surface-elevated transition-colors"
+                                    title="Export all issues to CSV"
+                                >
+                                    <Download className="w-3.5 h-3.5" /> Export CSV
+                                </button>
+                            )}
+                        </div>
                         <div className="relative">
                             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                             <input
