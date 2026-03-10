@@ -553,10 +553,12 @@ function IntegrationsView({ project, devToken }: { project: any; devToken: strin
 
 // ─── BugDetailDrawer ──────────────────────────────────────────────────────────
 
-function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken }: {
+function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, canUpdate }: {
     bugId: Id<"bugs">; onClose: () => void;
     onStatusChange: (s: Status) => Promise<void>;
     devToken: string | null;
+    canDelete: boolean;
+    canUpdate: boolean;
 }) {
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("bugscribe_dev_token") : null;
     const token = devToken || storedToken || undefined;
@@ -649,6 +651,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken }: {
                                     value={bug.status}
                                     onChange={(e) => onStatusChange(e.target.value as Status)}
                                     className="input text-xs h-8 w-full"
+                                    disabled={!canUpdate}
                                 >
                                     <option value="open">Open</option>
                                     <option value="in_progress">In Progress</option>
@@ -662,6 +665,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken }: {
                                     value={bug.priority}
                                     onChange={(e) => updatePriority({ bugId, priority: e.target.value as Priority, devToken: token })}
                                     className="input text-xs h-8 w-full"
+                                    disabled={!canUpdate}
                                 >
                                     <option value="low">Low</option>
                                     <option value="medium">Medium</option>
@@ -864,14 +868,18 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken }: {
 
                         {/* Footer Actions */}
                         <div className="border-t border-surface-border px-5 py-3 flex justify-between items-center">
-                            <button
-                                onClick={handleDelete}
-                                disabled={deleting}
-                                className="btn-ghost text-xs text-red-400 hover:text-red-300 flex items-center gap-1.5"
-                            >
-                                <Trash className="w-3.5 h-3.5" />
-                                {deleting ? "Deleting…" : "Delete Bug"}
-                            </button>
+                            {canDelete ? (
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={deleting}
+                                    className="btn-ghost text-xs text-red-400 hover:text-red-300 flex items-center gap-1.5"
+                                >
+                                    <Trash className="w-3.5 h-3.5" />
+                                    {deleting ? "Deleting…" : "Delete Bug"}
+                                </button>
+                            ) : (
+                                <div></div>
+                            )}
                             <button onClick={onClose} className="btn-ghost text-xs">
                                 Close
                             </button>
@@ -974,10 +982,17 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
     const currentUser = useQuery(api.users.currentUser, { devToken: devToken || undefined });
     const members = useQuery(api.projects.listMembers, projectId ? { projectId, devToken: devToken || undefined } : "skip");
+    const myPermissions = useQuery(api.permissions.getMyPermissions, projectId ? { projectId, devToken: devToken || undefined } : "skip");
 
     const isProjectAdmin = project?.userId === currentUser?.tokenIdentifier ||
         members?.find((m: any) => m.userId === currentUser?.tokenIdentifier && (m.role === "owner" || m.role === "admin")) ||
         currentUser?.role === "super_admin";
+
+    const canViewApi = myPermissions?.includes("view_api") || false;
+    const canViewSettings = myPermissions?.includes("view_settings") || false;
+    const canManageUsers = myPermissions?.includes("manage_users") || false;
+    const canDeleteBugs = myPermissions?.includes("delete_bugs") || false;
+    const canUpdateBugs = myPermissions?.includes("update_bugs") || false;
 
     if (project === undefined || bugs === undefined) return <LoadingSkeleton />;
     if (project === null) {
@@ -1001,6 +1016,11 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         if (!destination) return;
         if (destination.droppableId === source.droppableId && destination.index === source.index) return;
         const newStatus = destination.droppableId as Status;
+        if (!canUpdateBugs) {
+            alert("You don't have permission to move bugs.");
+            return;
+        }
+
         const token = devToken || localStorage.getItem("bugscribe_dev_token") || undefined;
         try {
             await updateStatus({ bugId: draggableId as Id<"bugs">, status: newStatus, devToken: token });
@@ -1049,15 +1069,20 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <h2 className="font-semibold text-white">Issue Tracking</h2>
                     <div className="flex gap-1 p-1 bg-surface-card border border-surface-border rounded-lg">
-                        {(["kanban", "list", "team", "integrations", "settings"] as const).map((v) => (
-                            <button
-                                key={v}
-                                onClick={() => setView(v)}
-                                className={`px-3 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-all ${view === v ? "bg-brand-500 text-white" : "text-slate-400 hover:text-white"}`}
-                            >
-                                {TAB_LABELS[v]}
-                            </button>
-                        ))}
+                        {(["kanban", "list", "team", "integrations", "settings"] as const).map((v) => {
+                            if (v === "team" && !canManageUsers) return null;
+                            if (v === "integrations" && !canViewApi) return null;
+                            if (v === "settings" && !canViewSettings) return null;
+                            return (
+                                <button
+                                    key={v}
+                                    onClick={() => setView(v)}
+                                    className={`px-3 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-all ${view === v ? "bg-brand-500 text-white" : "text-slate-400 hover:text-white"}`}
+                                >
+                                    {TAB_LABELS[v]}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -1117,6 +1142,8 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                         await updateStatus({ bugId: selectedBugId, status: s, devToken: devToken || undefined });
                     }}
                     devToken={devToken}
+                    canDelete={canDeleteBugs}
+                    canUpdate={canUpdateBugs}
                 />
             )}
             {showCreateBugModal && projectId && (

@@ -92,9 +92,14 @@ function AdminDashboardContent() {
                         <h1 className="text-3xl font-bold text-white tracking-tight">Super Admin Dashboard</h1>
                         <p className="text-slate-400 mt-1">Platform-wide overview and system health.</p>
                     </div>
-                    <Link href="/" className="btn-ghost flex items-center gap-2">
-                        <ArrowLeft className="w-4 h-4" /> Back to My Projects
-                    </Link>
+                    <div className="flex items-center gap-4">
+                        <Link href="/admin/permissions" className="btn-primary flex items-center gap-2 text-sm px-4 py-2">
+                            <ShieldAlert className="w-4 h-4" /> Global Permissions
+                        </Link>
+                        <Link href="/" className="btn-ghost flex items-center gap-2">
+                            <ArrowLeft className="w-4 h-4" /> Back to My Projects
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Stat Grid */}

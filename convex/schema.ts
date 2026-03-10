@@ -108,4 +108,11 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_bug", ["bugId"]),
+
+    // ── Global Role Permissions ───────────────────────────────────────────────
+    rolePermissions: defineTable({
+        role: v.string(), // "admin", "editor", "viewer", "owner"
+        permissions: v.array(v.string()), // e.g. ["view_api", "view_users", "manage_settings", "delete_bugs", "move_bugs"]
+    })
+        .index("by_role", ["role"]),
 });

@@ -12,6 +12,7 @@ import type * as admin from "../admin.js";
 import type * as bugs from "../bugs.js";
 import type * as comments from "../comments.js";
 import type * as emails from "../emails.js";
+import type * as permissions from "../permissions.js";
 import type * as projects from "../projects.js";
 import type * as temp from "../temp.js";
 import type * as users from "../users.js";
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   bugs: typeof bugs;
   comments: typeof comments;
   emails: typeof emails;
+  permissions: typeof permissions;
   projects: typeof projects;
   temp: typeof temp;
   users: typeof users;
