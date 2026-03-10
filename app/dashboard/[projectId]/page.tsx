@@ -115,37 +115,48 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect }: {
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         onClick={() => onSelect(bug._id)}
-                                        className={`group relative rounded-lg border p-3 cursor-pointer transition-all ${snapshot.isDragging
-                                            ? "border-brand-500 shadow-lg shadow-brand-500/20 rotate-1 bg-surface-elevated"
-                                            : "border-surface-border bg-surface-elevated hover:border-slate-600"
+                                        className={`group relative rounded-lg border flex flex-col overflow-hidden cursor-pointer transition-all ${snapshot.isDragging
+                                            ? "border-brand-500 shadow-xl shadow-brand-500/20 rotate-2 bg-surface-elevated scale-[1.02] z-50"
+                                            : "border-surface-border bg-surface-elevated hover:border-slate-600 hover:shadow-md hover:-translate-y-0.5"
                                             }`}
                                     >
-                                        <div
-                                            {...provided.dragHandleProps}
-                                            className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-600"
-                                        >
-                                            <GripVertical className="w-4 h-4" />
-                                        </div>
-                                        <div className="flex items-start gap-2 mb-2 pr-5">
-                                            <Bug className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
-                                            <p className="text-sm font-medium text-white leading-tight line-clamp-2">{bug.title}</p>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                            <PriorityBadge priority={bug.priority} />
-                                            {bug.screenshotUrl && (
-                                                <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-500">
-                                                    {bug.mediaType === "video" ? <Video className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="mt-2 pt-2 border-t border-surface-border flex items-center gap-1.5 text-[10px] text-slate-500">
-                                            <Clock className="w-3 h-3" />
-                                            {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
-                                            {bug.url && bug.url !== "Unknown" && (
-                                                <span className="ml-auto truncate max-w-[80px]" title={bug.url}>
-                                                    {new URL(bug.url).hostname}
-                                                </span>
-                                            )}
+                                        {bug.screenshotUrl && bug.mediaType !== "video" && (
+                                            <div className="w-full h-32 border-b border-surface-border bg-slate-900/50 relative overflow-hidden shrink-0">
+                                                <img
+                                                    src={bug.screenshotUrl}
+                                                    alt={bug.title}
+                                                    className="w-full h-full object-cover object-top opacity-80 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-300"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="p-3 relative flex-1 flex flex-col">
+                                            <div
+                                                {...provided.dragHandleProps}
+                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-white p-1 bg-surface-elevated/80 rounded backdrop-blur-sm"
+                                            >
+                                                <GripVertical className="w-3.5 h-3.5" />
+                                            </div>
+                                            <div className="flex items-start gap-2 mb-2 pr-6">
+                                                <Bug className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
+                                                <p className="text-sm font-medium text-white leading-tight line-clamp-2">{bug.title}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <PriorityBadge priority={bug.priority} />
+                                                {bug.screenshotUrl && bug.mediaType === "video" && (
+                                                    <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 bg-surface-border px-1.5 py-0.5 rounded font-medium">
+                                                        <Video className="w-3 h-3" /> Video
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="mt-3 pt-2 border-t border-surface-border flex items-center gap-1.5 text-[10px] text-slate-500 mt-auto">
+                                                <Clock className="w-3 h-3 text-slate-600" />
+                                                {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                                                {bug.url && bug.url !== "Unknown" && (
+                                                    <span className="ml-auto truncate max-w-[80px]" title={bug.url}>
+                                                        {new URL(bug.url).hostname}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -600,7 +611,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken }: {
                 ) : (
                     <>
                         {/* Header */}
-                        <div className="flex items-start gap-3 px-5 py-4 border-b border-surface-border">
+                        <div className="flex items-start gap-3 px-5 py-4 border-b border-surface-border shrink-0">
                             <Bug className="w-4 h-4 text-brand-400 mt-0.5 shrink-0" />
                             <div className="flex-1 min-w-0">
                                 <h2 className="text-sm font-semibold text-white leading-snug">{bug.title}</h2>
@@ -612,10 +623,23 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken }: {
                                     </span>
                                 </div>
                             </div>
-                            <button onClick={onClose} className="btn-ghost p-1.5 text-slate-500 hover:text-white">
+                            <button onClick={onClose} className="btn-ghost p-1.5 text-slate-500 hover:text-white shrink-0 bg-surface-elevated/50 rounded shadow-sm border border-surface-border">
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
+
+                        {/* Large Image Preview (Cover) */}
+                        {bug.screenshotUrl && bug.mediaType !== "video" && (
+                            <div className="w-full border-b border-surface-border bg-black/40 shrink-0 relative flex items-center justify-center overflow-hidden" style={{ maxHeight: '220px' }}>
+                                <img
+                                    src={bug.screenshotUrl}
+                                    alt="Preview"
+                                    className="w-full h-full object-contain backdrop-blur-sm"
+                                />
+                                {/* Optional: add a subtle gradient at bottom if you want to bleed nicely into the next section */}
+                                <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-surface-card/20 to-transparent pointer-events-none" />
+                            </div>
+                        )}
 
                         {/* Status & Priority Controls */}
                         <div className="flex items-center gap-2 px-5 py-3 border-b border-surface-border bg-surface-elevated">

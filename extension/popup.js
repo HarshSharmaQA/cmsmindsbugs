@@ -322,7 +322,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --- Submit Bug Report ---
     submitBtn.addEventListener("click", async () => {
         if (!bugTitle.value.trim()) {
             errorMessage.textContent = "Title is required";
@@ -334,103 +333,110 @@ document.addEventListener("DOMContentLoaded", () => {
         submitBtn.textContent = "Sending...";
         errorMessage.style.display = "none";
 
-        chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey"], async (creds) => {
-            try {
-                const formData = new FormData();
-                formData.append("projectId", creds.bugscribeProjectId);
-                formData.append("apiKey", creds.bugscribeApiKey);
-                formData.append("title", bugTitle.value.trim());
-                formData.append("description", bugDescription.value.trim());
-                formData.append("priority", bugPriority.value);
-                formData.append("url", pageUrl);
+        try {
+            const creds = await chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey"]);
+            const formData = new FormData();
+            formData.append("projectId", creds.bugscribeProjectId);
+            formData.append("apiKey", creds.bugscribeApiKey);
+            formData.append("title", bugTitle.value.trim());
+            formData.append("description", bugDescription.value.trim());
+            formData.append("priority", bugPriority.value);
+            formData.append("url", pageUrl);
 
-                // Ask content.js for environment data
-                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                if (tab && tab.id) {
-                    try {
-                        const envData = await new Promise((resolve) => {
-                            chrome.tabs.sendMessage(tab.id, { action: "GET_ENV_DATA" }, (res) => {
-                                // Consume lastError to prevent uncaught Chrome runtime errors
-                                if (chrome.runtime.lastError) {
-                                    resolve(null);
-                                    return;
-                                }
-                                resolve(res);
-                            });
+            // Ask content.js for environment data
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab && tab.id) {
+                try {
+                    const envData = await new Promise((resolve) => {
+                        chrome.tabs.sendMessage(tab.id, { action: "GET_ENV_DATA" }, (res) => {
+                            // Consume lastError to prevent uncaught Chrome runtime errors
+                            if (chrome.runtime.lastError) {
+                                resolve(null);
+                                return;
+                            }
+                            resolve(res);
                         });
-                        if (envData) {
-                            formData.append("environmentData", JSON.stringify(envData));
-                        }
-                    } catch (e) {
-                        console.log("Could not get environment data", e);
+                    });
+                    if (envData) {
+                        formData.append("environmentData", JSON.stringify(envData));
                     }
+                } catch (e) {
+                    console.log("Could not get environment data", e);
                 }
-                formData.append("mediaType", currentMediaType);
-                formData.append("steps", JSON.stringify(currentSteps));
+            }
+            formData.append("mediaType", currentMediaType);
+            formData.append("steps", JSON.stringify(currentSteps));
 
-                formData.append("browser", navigator.userAgent);
-                formData.append("os", navigator.platform);
+            formData.append("browser", navigator.userAgent);
+            formData.append("os", navigator.platform);
 
-                // If using image, extract the latest drawn blob from canvas
-                if (currentMediaType === "image") {
-                    const canvas = document.getElementById("screenshotCanvas");
-                    if (canvas && canvas.style.display !== "none") {
-                        currentMediaBlob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
-                    }
+            // If using image, extract the latest drawn blob from canvas
+            if (currentMediaType === "image") {
+                const canvas = document.getElementById("screenshotCanvas");
+                if (canvas && canvas.style.display !== "none") {
+                    currentMediaBlob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
                 }
+            }
 
-                if (currentMediaBlob) {
-                    const filename = currentMediaType === "video" ? "recording.webm" : "screenshot.png";
-                    formData.append("screenshot", currentMediaBlob, filename);
-                }
+            if (currentMediaBlob) {
+                const filename = currentMediaType === "video" ? "recording.webm" : "screenshot.png";
+                formData.append("screenshot", currentMediaBlob, filename);
+            }
 
-                // In Production, this URL should be your hosted Next.js API route
-                // For local dev with extension:
-                // IMPORTANT: Change to production URL if deployed
-                const response = await fetch("/api/reports", {
-                    method: "POST",
-                    body: formData
-                });
+            // In Production, this URL should be your hosted Next.js API route
+            // For local dev with extension:
+            // IMPORTANT: Change to production URL if deployed
+            // Used the absolute URL instead of a relative URL because the extension is running relative to chrome-extension:// domain
+            const API_URL = "https://bugscripe.vercel.app/api/reports";
+            // Note: If you are testing locally, replace the URL above with "http://localhost:3000/api/reports"
 
-                if (!response.ok) {
-                    const errObj = await response.json().catch(() => ({}));
-                    throw new Error(errObj.error || "Failed to submit report");
-                }
+            const response = await fetch(API_URL, {
+                method: "POST",
+                body: formData
+            });
 
-                // Clear pending recording
-                chrome.storage.local.remove(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"]);
+            if (!response.ok) {
+                const errObj = await response.json().catch(() => ({}));
+                throw new Error(errObj.error || "Failed to submit report");
+            }
 
-                reportView.style.display = "none";
-                settingsBtn.style.display = "none";
-                successView.style.display = "block";
+            // Clear pending recording
+            chrome.storage.local.remove(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"]);
 
-                // Auto-reset to allow reporting another bug after 3 seconds
-                setTimeout(() => {
-                    successView.style.display = "none";
-                    reportView.style.display = "block";
-                    settingsBtn.style.display = "block";
-                    bugTitle.value = "";
-                    bugDescription.value = "";
-                    bugPriority.value = "medium";
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = "Submit Bug Report";
-                    currentMediaBlob = null;
-                    currentMediaType = "image";
-                    currentSteps = [];
-                    document.getElementById("stepsContainer").style.display = "none";
-                    document.getElementById("annotationToolbar").style.display = "none";
-                    // Take a fresh screenshot for the next bug
-                    captureScreenshot();
-                }, 3000);
+            reportView.style.display = "none";
+            settingsBtn.style.display = "none";
+            successView.style.display = "block";
 
-            } catch (err) {
-                console.error(err);
-                errorMessage.textContent = err.message || "Failed to send bug report";
-                errorMessage.style.display = "block";
+            // Auto-reset to allow reporting another bug after 3 seconds
+            setTimeout(() => {
+                successView.style.display = "none";
+                reportView.style.display = "block";
+                settingsBtn.style.display = "block";
+                bugTitle.value = "";
+                bugDescription.value = "";
+                bugPriority.value = "medium";
                 submitBtn.disabled = false;
                 submitBtn.textContent = "Submit Bug Report";
+                currentMediaBlob = null;
+                currentMediaType = "image";
+                currentSteps = [];
+                document.getElementById("stepsContainer").style.display = "none";
+                document.getElementById("annotationToolbar").style.display = "none";
+                // Take a fresh screenshot for the next bug
+                captureScreenshot();
+            }, 3000);
+
+        } catch (err) {
+            console.error(err);
+            if (err.message && err.message.includes("Extension context invalidated")) {
+                errorMessage.textContent = "Extension updated. Please refresh the web page and try again.";
+            } else {
+                errorMessage.textContent = err.message || "Failed to send bug report";
             }
-        });
+            errorMessage.style.display = "block";
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Submit Bug Report";
+        }
     });
 
     function resetFormForNewBug() {
