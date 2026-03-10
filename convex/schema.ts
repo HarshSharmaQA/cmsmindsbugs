@@ -57,6 +57,8 @@ export default defineSchema({
         // Core fields
         title: v.string(),
         description: v.optional(v.string()),
+        type: v.optional(v.string()),     // "general" | "ui" | "performance" | "security" | "crash"
+        category: v.optional(v.string()), // Free-form category label
 
         // Workflow
         status: v.union(
@@ -108,6 +110,19 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_bug", ["bugId"]),
+
+    // ── Bug Activity / Audit Log ───────────────────────────────────────────────
+    activities: defineTable({
+        bugId: v.id("bugs"),
+        projectId: v.id("projects"),
+        actorName: v.string(),          // display name (e.g. "Harsh Sharma")
+        actorEmail: v.optional(v.string()),
+        type: v.string(),               // "status_changed" | "priority_changed" | "comment_added" | "assignee_changed" | "created" | "tags_changed" | "type_changed" | "category_changed"
+        detail: v.optional(v.string()), // human-readable description, e.g. "Open → In Progress"
+        createdAt: v.number(),
+    })
+        .index("by_bug", ["bugId"])
+        .index("by_project", ["projectId"]),
 
     // ── Global Role Permissions ───────────────────────────────────────────────
     rolePermissions: defineTable({

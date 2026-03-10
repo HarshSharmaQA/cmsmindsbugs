@@ -166,6 +166,8 @@ export const createBug = mutation({
                 v.literal("critical")
             )
         ),
+        type: v.optional(v.string()),
+        category: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const project = await ctx.db.get(args.projectId);
@@ -189,10 +191,23 @@ export const createBug = mutation({
             environmentData: args.environmentData,
             reporterName: args.reporterName,
             reporterEmail: args.reporterEmail,
+            type: args.type ?? "general",
+            category: args.category,
             status: "open",
             priority: args.priority ?? "medium",
             createdAt: now,
             updatedAt: now,
+        });
+
+        // Log creation activity
+        const actorName = args.reporterName || args.reporterEmail || "Widget";
+        await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+            bugId,
+            projectId: args.projectId,
+            actorName,
+            actorEmail: args.reporterEmail,
+            type: "created",
+            detail: `Bug reported via widget`,
         });
 
         if (project.userId) {
@@ -238,12 +253,28 @@ export const dashboardManualCreateBug = mutation({
             title: args.title,
             description: args.description || "Manual bug report created from dashboard.",
             browser: "Manual",
-            os: "Manual",
-            url: "http://dashboard.bugscribe.io",
+            os: "Dashboard",
+            url: "Dashboard",
             status: "open",
             priority: args.priority || "medium",
             createdAt: now,
             updatedAt: now,
+        });
+
+        // Resolve actor for activity log
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_token_identifier", (q: any) => q.eq("tokenIdentifier", identity.subject))
+            .unique();
+        const actorName = user?.name || user?.email || identity.email || "Team";
+
+        await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+            bugId,
+            projectId: args.projectId,
+            actorName,
+            actorEmail: user?.email || identity.email,
+            type: "created",
+            detail: `Manually reported from dashboard`,
         });
 
         return bugId;
@@ -286,7 +317,28 @@ export const updateStatus = mutation({
 
         if (!canEdit) throw new Error("Unauthorized");
 
+        const oldStatus = bug.status;
         await ctx.db.patch(bugId, { status, updatedAt: Date.now() });
+
+        // Log activity
+        if (oldStatus !== status) {
+            const user = await ctx.db
+                .query("users")
+                .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
+                .unique();
+            const actorName = user?.name || user?.email || identity.email || "Team";
+            const statusLabels: Record<string, string> = {
+                open: "Open", in_progress: "In Progress", resolved: "Resolved", closed: "Closed"
+            };
+            await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+                bugId,
+                projectId: bug.projectId,
+                actorName,
+                actorEmail: user?.email || identity.email,
+                type: "status_changed",
+                detail: `${statusLabels[oldStatus] ?? oldStatus} → ${statusLabels[status] ?? status}`,
+            });
+        }
     },
 });
 
@@ -326,19 +378,39 @@ export const updatePriority = mutation({
 
         if (!canEdit) throw new Error("Unauthorized");
 
+        const oldPriority = bug.priority;
         await ctx.db.patch(bugId, { priority, updatedAt: Date.now() });
+
+        // Log activity
+        if (oldPriority !== priority) {
+            const user = await ctx.db
+                .query("users")
+                .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
+                .unique();
+            const actorName = user?.name || user?.email || identity.email || "Team";
+            await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+                bugId,
+                projectId: bug.projectId,
+                actorName,
+                actorEmail: user?.email || identity.email,
+                type: "priority_changed",
+                detail: `${oldPriority} → ${priority}`,
+            });
+        }
     },
 });
 
-/** Update bug details (title, description) */
+/** Update bug details (title, description, tags, assignee, due date, type, category) */
 export const updateBug = mutation({
     args: {
         bugId: v.id("bugs"),
         title: v.optional(v.string()),
         description: v.optional(v.string()),
-        assigneeId: v.optional(v.union(v.string(), v.null())), // allow null to clear assignee
+        assigneeId: v.optional(v.union(v.string(), v.null())),
         tags: v.optional(v.array(v.string())),
-        dueDate: v.optional(v.union(v.number(), v.null())), // allow null to clear
+        dueDate: v.optional(v.union(v.number(), v.null())),
+        type: v.optional(v.string()),
+        category: v.optional(v.string()),
         devToken: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
@@ -375,10 +447,72 @@ export const updateBug = mutation({
         if (args.dueDate !== undefined) {
             patch.dueDate = args.dueDate === null ? undefined : args.dueDate;
         }
+        if (args.type !== undefined) patch.type = args.type;
+        if (args.category !== undefined) patch.category = args.category;
 
         await ctx.db.patch(args.bugId, patch);
+
+        // Log assignee change
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_token_identifier", (q: any) => q.eq("tokenIdentifier", identity.subject))
+            .unique();
+        const actorName = user?.name || user?.email || identity.email || "Team";
+
+        if (args.assigneeId !== undefined && args.assigneeId !== bug.assigneeId) {
+            let assigneeName = "Unassigned";
+            if (args.assigneeId) {
+                const assignee = await ctx.db
+                    .query("users")
+                    .withIndex("by_token_identifier", (q: any) => q.eq("tokenIdentifier", args.assigneeId as string))
+                    .unique();
+                assigneeName = assignee?.name || assignee?.email || args.assigneeId;
+            }
+            await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+                bugId: args.bugId,
+                projectId: bug.projectId,
+                actorName,
+                actorEmail: user?.email || identity.email,
+                type: "assignee_changed",
+                detail: `Assigned to ${assigneeName}`,
+            });
+        }
+
+        if (args.tags !== undefined) {
+            await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+                bugId: args.bugId,
+                projectId: bug.projectId,
+                actorName,
+                actorEmail: user?.email || identity.email,
+                type: "tags_changed",
+                detail: args.tags.length > 0 ? args.tags.join(", ") : "Tags cleared",
+            });
+        }
+
+        if (args.type !== undefined && args.type !== bug.type) {
+            await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+                bugId: args.bugId,
+                projectId: bug.projectId,
+                actorName,
+                actorEmail: user?.email || identity.email,
+                type: "type_changed",
+                detail: `Type set to ${args.type}`,
+            });
+        }
+
+        if (args.category !== undefined && args.category !== bug.category) {
+            await ctx.scheduler.runAfter(0, internal.activities.logActivity, {
+                bugId: args.bugId,
+                projectId: bug.projectId,
+                actorName,
+                actorEmail: user?.email || identity.email,
+                type: "category_changed",
+                detail: `Category set to ${args.category || "None"}`,
+            });
+        }
     },
 });
+
 
 /** Delete a bug and its comments */
 export const deleteBug = mutation({

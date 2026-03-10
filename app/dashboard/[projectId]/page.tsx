@@ -12,7 +12,7 @@ import {
     Calendar, Tag, Copy, Check, ChevronDown, Send,
     Globe, Settings, Key, Eye, EyeOff, Shield, Zap,
     MessageSquare, Bug, Image as ImageIcon, Video, LayoutList,
-    Kanban as KanbanIcon, X
+    Kanban as KanbanIcon, X, Activity, Hash
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { formatDistanceToNow } from "date-fns";
@@ -553,32 +553,117 @@ function IntegrationsView({ project, devToken }: { project: any; devToken: strin
 
 // ─── BugDetailDrawer ──────────────────────────────────────────────────────────
 
-function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, canUpdate }: {
+const BUG_TYPES = [
+    { value: "general", label: "General" },
+    { value: "ui", label: "UI / Visual" },
+    { value: "performance", label: "Performance" },
+    { value: "security", label: "Security" },
+    { value: "crash", label: "Crash" },
+    { value: "network", label: "Network" },
+    { value: "accessibility", label: "Accessibility" },
+];
+
+const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
+    created: <Bug className="w-3 h-3 text-brand-400" />,
+    status_changed: <CircleDot className="w-3 h-3 text-blue-400" />,
+    priority_changed: <AlertTriangle className="w-3 h-3 text-amber-400" />,
+    comment_added: <MessageSquare className="w-3 h-3 text-green-400" />,
+    assignee_changed: <User className="w-3 h-3 text-indigo-400" />,
+    tags_changed: <Hash className="w-3 h-3 text-slate-400" />,
+    type_changed: <Tag className="w-3 h-3 text-slate-400" />,
+    category_changed: <LayoutList className="w-3 h-3 text-slate-400" />,
+};
+
+function TagsInput({ tags, onChange, disabled }: { tags: string[]; onChange: (tags: string[]) => void; disabled?: boolean }) {
+    const [input, setInput] = useState("");
+    const addTag = () => {
+        const val = input.trim().toLowerCase().replace(/\s+/g, "-");
+        if (val && !tags.includes(val)) onChange([...tags, val]);
+        setInput("");
+    };
+    return (
+        <div className="flex flex-wrap gap-1.5 items-center border border-surface-border rounded-lg px-2 py-1.5 bg-surface-elevated min-h-[36px]">
+            {tags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-900/40 text-brand-300 border border-brand-800">
+                    #{tag}
+                    {!disabled && (
+                        <button onClick={() => onChange(tags.filter(t => t !== tag))} className="hover:text-red-400 transition-colors">
+                            <X className="w-2.5 h-2.5" />
+                        </button>
+                    )}
+                </span>
+            ))}
+            {!disabled && (
+                <input
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTag(); } }}
+                    onBlur={addTag}
+                    placeholder={tags.length === 0 ? "Add tags..." : ""}
+                    className="flex-1 min-w-[80px] bg-transparent text-xs text-white outline-none placeholder:text-slate-600"
+                />
+            )}
+        </div>
+    );
+}
+
+function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, canUpdate, projectMembers }: {
     bugId: Id<"bugs">; onClose: () => void;
     onStatusChange: (s: Status) => Promise<void>;
     devToken: string | null;
     canDelete: boolean;
     canUpdate: boolean;
+    projectMembers: any[];
 }) {
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("bugscribe_dev_token") : null;
     const token = devToken || storedToken || undefined;
 
     const bug = useQuery(api.bugs.getBug, { bugId, devToken: token });
+    const activities = useQuery(api.activities.getActivities, { bugId, devToken: token });
     const addComment = useMutation(api.comments.addComment);
     const deleteBug = useMutation(api.bugs.deleteBug);
     const updatePriority = useMutation(api.bugs.updatePriority);
+    const updateBug = useMutation(api.bugs.updateBug);
 
     const [comment, setComment] = useState("");
     const [posting, setPosting] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [activeTab, setActiveTab] = useState<"details" | "screenshot" | "env">("details");
+    const [activeTab, setActiveTab] = useState<"details" | "screenshot" | "env" | "activity">("details");
+
+    // Editable field states
+    const [tagInput, setTagInput] = useState<string[]>([]);
+    const [savingTags, setSavingTags] = useState(false);
+    const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null);
+    const [savingAssignee, setSavingAssignee] = useState(false);
+    const [dueDate, setDueDate] = useState("");
+    const [savingDue, setSavingDue] = useState(false);
+    const [bugType, setBugType] = useState("general");
+    const [savingType, setSavingType] = useState(false);
+    const [bugCategory, setBugCategory] = useState("");
+    const [savingCategory, setSavingCategory] = useState(false);
+
+    // Sync local state when bug loads
+    useEffect(() => {
+        if (bug) {
+            setTagInput(bug.tags ?? []);
+            setSelectedAssignee(bug.assigneeId ?? null);
+            setBugType(bug.type ?? "general");
+            setBugCategory(bug.category ?? "");
+            if (bug.dueDate) {
+                const d = new Date(bug.dueDate);
+                setDueDate(d.toISOString().split("T")[0]);
+            } else {
+                setDueDate("");
+            }
+        }
+    }, [bug?._id]);
 
     const handleComment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!comment.trim() || !bug) return;
         setPosting(true);
         try {
-            await addComment({ bugId, author: "Team", body: comment.trim() });
+            await addComment({ bugId, author: "Team", body: comment.trim(), devToken: token });
             setComment("");
         } catch (err: any) {
             alert(err.message);
@@ -597,6 +682,52 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
             alert(err.message);
             setDeleting(false);
         }
+    };
+
+    const handleSaveTags = async (newTags: string[]) => {
+        setTagInput(newTags);
+        setSavingTags(true);
+        try {
+            await updateBug({ bugId, tags: newTags, devToken: token });
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setSavingTags(false);
+        }
+    };
+
+    const handleAssigneeChange = async (val: string) => {
+        const newVal = val === "" ? null : val;
+        setSelectedAssignee(newVal);
+        setSavingAssignee(true);
+        try {
+            await updateBug({ bugId, assigneeId: newVal, devToken: token });
+        } catch (err: any) { alert(err.message); } finally { setSavingAssignee(false); }
+    };
+
+    const handleDueDateChange = async (val: string) => {
+        setDueDate(val);
+        setSavingDue(true);
+        try {
+            const ts = val ? new Date(val).getTime() : null;
+            await updateBug({ bugId, dueDate: ts, devToken: token });
+        } catch (err: any) { alert(err.message); } finally { setSavingDue(false); }
+    };
+
+    const handleTypeChange = async (val: string) => {
+        setBugType(val);
+        setSavingType(true);
+        try {
+            await updateBug({ bugId, type: val, devToken: token });
+        } catch (err: any) { alert(err.message); } finally { setSavingType(false); }
+    };
+
+    const handleCategoryChange = async (val: string) => {
+        setBugCategory(val);
+        setSavingCategory(true);
+        try {
+            await updateBug({ bugId, category: val, devToken: token });
+        } catch (err: any) { alert(err.message); } finally { setSavingCategory(false); }
     };
 
     return (
@@ -638,7 +769,6 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                     alt="Preview"
                                     className="w-full h-full object-contain backdrop-blur-sm"
                                 />
-                                {/* Optional: add a subtle gradient at bottom if you want to bleed nicely into the next section */}
                                 <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-surface-card/20 to-transparent pointer-events-none" />
                             </div>
                         )}
@@ -676,8 +806,8 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex gap-0 border-b border-surface-border px-5">
-                            {(["details", "screenshot", "env"] as const).map((tab) => (
+                        <div className="flex gap-0 border-b border-surface-border px-5 shrink-0">
+                            {(["details", "screenshot", "env", "activity"] as const).map((tab) => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
@@ -686,7 +816,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                         : "border-transparent text-slate-500 hover:text-slate-300"
                                         }`}
                                 >
-                                    {tab === "env" ? "Environment" : tab}
+                                    {tab === "env" ? "Environment" : tab === "activity" ? "Activity" : tab}
                                 </button>
                             ))}
                         </div>
@@ -695,6 +825,68 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                             {activeTab === "details" && (
                                 <>
+                                    {/* Categorization & Assignment */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Type</label>
+                                            <select
+                                                value={bugType}
+                                                onChange={(e) => handleTypeChange(e.target.value)}
+                                                className="input text-xs h-8 w-full"
+                                                disabled={!canUpdate || savingType}
+                                            >
+                                                {BUG_TYPES.map(t => (
+                                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Category</label>
+                                            <input
+                                                value={bugCategory}
+                                                onChange={(e) => setBugCategory(e.target.value)}
+                                                onBlur={() => handleCategoryChange(bugCategory)}
+                                                placeholder="e.g. Authentication"
+                                                className="input text-xs h-8 w-full"
+                                                disabled={!canUpdate || savingCategory}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Due Date</label>
+                                            <input
+                                                type="date"
+                                                value={dueDate}
+                                                onChange={(e) => handleDueDateChange(e.target.value)}
+                                                className="input text-xs h-8 w-full"
+                                                disabled={!canUpdate || savingDue}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Assignee</label>
+                                            <select
+                                                value={selectedAssignee ?? ""}
+                                                onChange={(e) => handleAssigneeChange(e.target.value)}
+                                                className="input text-xs h-8 w-full"
+                                                disabled={!canUpdate || savingAssignee}
+                                            >
+                                                <option value="">Unassigned</option>
+                                                {projectMembers.map((m: any) => (
+                                                    <option key={m.userId} value={m.userId}>
+                                                        {m.name || m.email || m.userId}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Tags */}
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1.5">Tags {savingTags && <span className="text-slate-600">(saving…)</span>}</label>
+                                        <TagsInput tags={tagInput} onChange={handleSaveTags} disabled={!canUpdate} />
+                                    </div>
+
+                                    <div className="divider" />
+
                                     {bug.description && (
                                         <div>
                                             <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Description</p>
@@ -714,29 +906,35 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                         </div>
                                     )}
 
-                                    {/* Meta */}
+                                    {/* Metadata */}
                                     <div className="space-y-2">
                                         <p className="text-[10px] text-slate-500 uppercase tracking-wider">Details</p>
-                                        {[
-                                            { label: "URL", value: bug.url, icon: <Globe className="w-3 h-3" />, link: true },
-                                            { label: "Browser", value: bug.browser, icon: <Monitor className="w-3 h-3" /> },
-                                            { label: "OS", value: bug.os, icon: <Monitor className="w-3 h-3" /> },
-                                            { label: "Reporter", value: bug.reporterEmail || bug.reporterName, icon: <Mail className="w-3 h-3" /> },
-                                            { label: "Screen", value: bug.screenWidth ? `${bug.screenWidth}×${bug.screenHeight}` : null, icon: <Monitor className="w-3 h-3" /> },
-                                        ].filter(r => r.value && r.value !== "Unknown").map((row) => (
-                                            <div key={row.label} className="flex items-start gap-2 text-xs">
-                                                <span className="text-slate-600 shrink-0">{row.icon}</span>
-                                                <span className="text-slate-500 w-16 shrink-0">{row.label}</span>
-                                                {row.link ? (
-                                                    <a href={row.value} target="_blank" rel="noopener noreferrer"
-                                                        className="text-brand-400 hover:underline truncate flex-1" title={row.value}>
-                                                        {row.value!.replace(/^https?:\/\//, "").substring(0, 50)}
-                                                    </a>
-                                                ) : (
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            {[
+                                                { label: "Source", value: bug.reporterName ? "User" : "Widget", icon: <Zap className="w-3 h-3" /> },
+                                                { label: "Reporter", value: bug.reporterEmail || bug.reporterName, icon: <Mail className="w-3 h-3" /> },
+                                                { label: "Browser", value: bug.browser?.split(" ").slice(0, 3).join(" "), icon: <Monitor className="w-3 h-3" /> },
+                                                { label: "OS", value: bug.os, icon: <Monitor className="w-3 h-3" /> },
+                                                { label: "Screen", value: bug.screenWidth ? `${bug.screenWidth}×${bug.screenHeight}` : null, icon: <Monitor className="w-3 h-3" /> },
+                                                { label: "DPI", value: null, icon: null },
+                                            ].filter(r => r.value && r.icon).map((row) => (
+                                                <div key={row.label} className="flex items-start gap-2 text-xs">
+                                                    <span className="text-slate-600 shrink-0 mt-0.5">{row.icon}</span>
+                                                    <span className="text-slate-500 w-16 shrink-0">{row.label}</span>
                                                     <span className="text-slate-300 truncate flex-1" title={row.value ?? undefined}>{row.value}</span>
-                                                )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {bug.url && bug.url !== "Unknown" && (
+                                            <div className="flex items-start gap-2 text-xs">
+                                                <Globe className="w-3 h-3 text-slate-600 mt-0.5 shrink-0" />
+                                                <span className="text-slate-500 w-16 shrink-0">Page</span>
+                                                <a href={bug.url} target="_blank" rel="noopener noreferrer"
+                                                    className="text-brand-400 hover:underline truncate flex-1" title={bug.url}>
+                                                    {bug.url.replace(/^https?:\/\//, "").substring(0, 50)}
+                                                </a>
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
 
                                     {/* Console Errors */}
@@ -761,12 +959,15 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                                 {bug.comments.map((c: any) => (
                                                     <div key={c._id} className="bg-surface-elevated rounded-lg p-3 border border-surface-border">
                                                         <div className="flex items-center gap-1.5 mb-1">
+                                                            <div className="w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
+                                                                <User className="w-2.5 h-2.5 text-brand-400" />
+                                                            </div>
                                                             <span className="text-xs font-medium text-white">{c.author}</span>
                                                             <span className="text-[10px] text-slate-600">
                                                                 {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
                                                             </span>
                                                         </div>
-                                                        <p className="text-xs text-slate-300">{c.body}</p>
+                                                        <p className="text-xs text-slate-300 pl-6.5">{c.body}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -864,6 +1065,48 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                     )}
                                 </div>
                             )}
+
+                            {activeTab === "activity" && (
+                                <div className="space-y-2">
+                                    {!activities || activities.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-12 text-slate-600">
+                                            <Activity className="w-10 h-10 mb-3" />
+                                            <p className="text-sm">No activity yet</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-0">
+                                            {activities.map((act: any, idx: number) => (
+                                                <div key={act._id} className="flex items-start gap-3 py-3 border-b border-surface-border/50 last:border-0">
+                                                    <div className="w-6 h-6 rounded-full bg-surface-elevated border border-surface-border flex items-center justify-center shrink-0 mt-0.5">
+                                                        {ACTIVITY_ICONS[act.type] ?? <Activity className="w-3 h-3 text-slate-500" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="text-xs font-medium text-white">{act.actorName}</span>
+                                                            <span className="text-xs text-slate-500">
+                                                                {act.type === "created" && "created this bug"}
+                                                                {act.type === "status_changed" && `changed status`}
+                                                                {act.type === "priority_changed" && `changed priority`}
+                                                                {act.type === "comment_added" && "added a comment"}
+                                                                {act.type === "assignee_changed" && "changed assignee"}
+                                                                {act.type === "tags_changed" && "updated tags"}
+                                                                {act.type === "type_changed" && "changed type"}
+                                                                {act.type === "category_changed" && "changed category"}
+                                                            </span>
+                                                        </div>
+                                                        {act.detail && (
+                                                            <p className="text-[11px] text-slate-400 mt-0.5 bg-surface-elevated rounded px-2 py-0.5 inline-block font-mono">{act.detail}</p>
+                                                        )}
+                                                        <p className="text-[10px] text-slate-600 mt-1">
+                                                            {formatDistanceToNow(new Date(act.createdAt), { addSuffix: true })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Footer Actions */}
@@ -892,6 +1135,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
 }
 
 // ─── Create Bug Modal ─────────────────────────────────────────────────────────
+
 
 function CreateBugModal({ projectId, devToken, onClose }: {
     projectId: Id<"projects">; devToken: string | null; onClose: () => void;
@@ -1144,6 +1388,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                     devToken={devToken}
                     canDelete={canDeleteBugs}
                     canUpdate={canUpdateBugs}
+                    projectMembers={members ?? []}
                 />
             )}
             {showCreateBugModal && projectId && (

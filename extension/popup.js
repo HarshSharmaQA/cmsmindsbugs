@@ -341,6 +341,10 @@ document.addEventListener("DOMContentLoaded", () => {
             formData.append("title", bugTitle.value.trim());
             formData.append("description", bugDescription.value.trim());
             formData.append("priority", bugPriority.value);
+            formData.append("type", document.getElementById("bugType").value);
+            formData.append("category", document.getElementById("bugCategory").value.trim());
+            formData.append("reporterName", document.getElementById("bugReporterName").value.trim());
+            formData.append("reporterEmail", document.getElementById("bugReporterEmail").value.trim());
             formData.append("url", pageUrl);
 
             // Ask content.js for environment data
@@ -415,6 +419,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 bugTitle.value = "";
                 bugDescription.value = "";
                 bugPriority.value = "medium";
+                document.getElementById("bugType").value = "general";
+                document.getElementById("bugCategory").value = "";
+                document.getElementById("bugReporterName").value = "";
+                document.getElementById("bugReporterEmail").value = "";
                 submitBtn.disabled = false;
                 submitBtn.textContent = "Submit Bug Report";
                 currentMediaBlob = null;
@@ -446,6 +454,10 @@ document.addEventListener("DOMContentLoaded", () => {
         bugTitle.value = "";
         bugDescription.value = "";
         bugPriority.value = "medium";
+        document.getElementById("bugType").value = "general";
+        document.getElementById("bugCategory").value = "";
+        document.getElementById("bugReporterName").value = "";
+        document.getElementById("bugReporterEmail").value = "";
         submitBtn.disabled = false;
         submitBtn.textContent = "Submit Bug Report";
         currentMediaBlob = null;

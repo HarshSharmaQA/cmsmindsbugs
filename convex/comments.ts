@@ -15,22 +15,36 @@ export const getComments = query({
     },
 });
 
-/** Add a comment to a bug */
+/** Add a comment to a bug (author resolved from devToken if provided) */
 export const addComment = mutation({
     args: {
         bugId: v.id("bugs"),
-        author: v.string(),
+        author: v.string(),  // fallback display name
         body: v.string(),
+        devToken: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
+        // Resolve actual user name from session token
+        let displayAuthor = args.author;
+        if (args.devToken) {
+            const identity = await getEffectiveIdentity(ctx, args.devToken);
+            if (identity) {
+                const user = await ctx.db
+                    .query("users")
+                    .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
+                    .unique();
+                if (user) displayAuthor = user.name || user.email || args.author;
+            }
+        }
+
         const commentId = await ctx.db.insert("comments", {
             bugId: args.bugId,
-            author: args.author,
+            author: displayAuthor,
             body: args.body,
             createdAt: Date.now(),
         });
 
-        // Fetch context to notify owner
+        // Notify project owner
         const bug = await ctx.db.get(args.bugId);
         if (bug) {
             const project = await ctx.db.get(bug.projectId);
@@ -46,7 +60,7 @@ export const addComment = mutation({
                     toEmail,
                     projectName: project.name,
                     bugTitle: bug.title,
-                    commentAuthor: args.author,
+                    commentAuthor: displayAuthor,
                     commentBody: args.body,
                 });
             }

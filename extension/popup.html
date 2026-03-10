@@ -335,16 +335,48 @@
 
         <label>Title *</label>
         <input type="text" id="bugTitle" placeholder="What went wrong?" />
+
         <label>Description</label>
         <textarea id="bugDescription" rows="3" placeholder="Steps to reproduce..."></textarea>
-        <label>Priority</label>
-        <select id="bugPriority">
-            <option value="low">Low</option>
-            <option value="medium" selected>Medium</option>
-            <option value="high">High</option>
-            <option value="critical">Critical</option>
-        </select>
-        <button id="submitBtn" class="btn-primary">Submit Bug Report</button>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0;">
+            <div>
+                <label>Type</label>
+                <select id="bugType">
+                    <option value="general">General</option>
+                    <option value="ui">UI/UX</option>
+                    <option value="performance">Performance</option>
+                    <option value="security">Security</option>
+                    <option value="crash">Crash</option>
+                    <option value="network">Network</option>
+                </select>
+            </div>
+            <div>
+                <label>Priority</label>
+                <select id="bugPriority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                </select>
+            </div>
+        </div>
+
+        <label>Category</label>
+        <input type="text" id="bugCategory" placeholder="e.g. Header, Checkout" />
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0;">
+            <div>
+                <label>Your Name</label>
+                <input type="text" id="bugReporterName" placeholder="Name" />
+            </div>
+            <div>
+                <label>Your Email</label>
+                <input type="email" id="bugReporterEmail" placeholder="Email" />
+            </div>
+        </div>
+
+        <button id="submitBtn" class="btn-primary" style="margin-top: 10px;">Submit Bug Report</button>
     </div>
 
     <div id="successView" style="text-align: center; padding: 20px 0;">
