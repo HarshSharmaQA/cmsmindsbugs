@@ -382,7 +382,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // In Production, this URL should be your hosted Next.js API route
                 // For local dev with extension:
                 // IMPORTANT: Change to production URL if deployed
-                const response = await fetch("/api/reports", {
+                const response = await fetch("https://bugscripe.vercel.app/api/reports", {
                     method: "POST",
                     body: formData
                 });
