@@ -18,8 +18,17 @@ const ALL_PERMISSIONS = [
 ];
 
 export default function GlobalPermissionsPage() {
-    const defaultStats = useQuery(api.admin.getStats, {}); // We can use this to check Super Admin access
-    const rolePermissions = useQuery(api.permissions.getGlobal, {});
+    const [devToken, setDevToken] = useState<string | null>(null);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        const stored = localStorage.getItem("bugscribe_dev_token");
+        if (stored) setDevToken(stored);
+        setMounted(true);
+    }, []);
+
+    const defaultStats = useQuery(api.admin.getStats, mounted ? { devToken: devToken || undefined } : "skip");
+    const rolePermissions = useQuery(api.permissions.getGlobal, mounted ? { devToken: devToken || undefined } : "skip");
     const updateRolePermissions = useMutation(api.permissions.setGlobal);
     const router = useRouter();
 
@@ -34,13 +43,17 @@ export default function GlobalPermissionsPage() {
         }
     }, [rolePermissions]);
 
-    // Simple auth check via getStats (it throws if not SuperAdmin)
-    if (defaultStats === undefined || rolePermissions === undefined) {
+    if (!mounted) {
+        return <div className="min-h-screen bg-[#0F1117] text-gray-100 flex items-center justify-center">Loading...</div>;
+    }
+
+    // Simple auth check via getStats (it throws if not SuperAdmin, but if it's undefined it's loading)
+    if ((defaultStats === undefined || rolePermissions === undefined) && devToken) {
         return <div className="min-h-screen bg-[#0F1117] text-gray-100 flex items-center justify-center">Loading Permissions...</div>;
     }
 
-    if (defaultStats === null) {
-        return <div className="min-h-screen bg-[#0F1117] text-red-500 p-8">Unauthorized. Super Admin access required.</div>;
+    if (!devToken || defaultStats === null || rolePermissions === null) {
+        return <div className="min-h-screen bg-[#0F1117] text-red-500 p-8">Unauthorized. Please log in as Super Admin.</div>;
     }
 
     const togglePermission = (role: string, permissionId: string) => {

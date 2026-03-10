@@ -17,7 +17,7 @@ export const getStats = query({
         const isSuperAdmin = user?.role === "super_admin" || hardcodedAdmins.includes(identity.email ?? "");
 
         if (!isSuperAdmin) {
-            throw new Error("Unauthorized: Super Admin access required");
+            return null;
         }
 
         const projects = await ctx.db.query("projects").collect();

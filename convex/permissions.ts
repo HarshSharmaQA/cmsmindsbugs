@@ -13,6 +13,21 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
 export const getGlobal = query({
     args: { devToken: v.optional(v.string()) },
     handler: async (ctx, args) => {
+        const identity = await getEffectiveIdentity(ctx, args.devToken);
+        if (!identity) return null;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
+            .unique();
+
+        const hardcodedAdmins = ["harshsharmaqa@gmail.com"];
+        const isSuperAdmin = user?.role === "super_admin" || hardcodedAdmins.includes(identity.email ?? "");
+
+        if (!isSuperAdmin) {
+            return null;
+        }
+
         // Fetch all current permissions
         const savedPermissions = await ctx.db.query("rolePermissions").collect();
         const rolePermissionsMap: Record<string, string[]> = {};
