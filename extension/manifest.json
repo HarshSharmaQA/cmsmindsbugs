@@ -8,11 +8,13 @@
         "tabs",
         "storage",
         "scripting",
-        "unlimitedStorage"
+        "unlimitedStorage",
+        "captureVisibleTab"
     ],
     "host_permissions": [
         "http://*/*",
-        "https://*/*"
+        "https://*/*",
+        "https://bugscripe.vercel.app/*"
     ],
     "action": {
         "default_popup": "popup.html",

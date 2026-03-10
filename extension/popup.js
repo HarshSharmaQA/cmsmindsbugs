@@ -350,6 +350,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     try {
                         const envData = await new Promise((resolve) => {
                             chrome.tabs.sendMessage(tab.id, { action: "GET_ENV_DATA" }, (res) => {
+                                // Consume lastError to prevent uncaught Chrome runtime errors
+                                if (chrome.runtime.lastError) {
+                                    resolve(null);
+                                    return;
+                                }
                                 resolve(res);
                             });
                         });
@@ -382,7 +387,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // In Production, this URL should be your hosted Next.js API route
                 // For local dev with extension:
                 // IMPORTANT: Change to production URL if deployed
-                const response = await fetch("https://bugscripe.vercel.app/api/reports", {
+                const response = await fetch("/api/reports", {
                     method: "POST",
                     body: formData
                 });
