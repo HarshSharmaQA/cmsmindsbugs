@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>BugScribe Reporter</title>
+    <style>
+        body {
+            width: 350px;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 16px;
+            margin: 0;
+            background-color: #0c0a1a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            font-size: 16px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .settings-btn:hover {
+            color: white;
+        }
+
+        label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            margin-bottom: 12px;
+            border-radius: 6px;
+            border: 1px solid #1e293b;
+            background: #0f172a;
+            color: white;
+            font-size: 12px;
+            resize: none;
+        }
+
+        button.btn-primary {
+            width: 100%;
+            padding: 10px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button.btn-primary:hover:not(:disabled) {
+            background: #4338ca;
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        button.btn-cancel {
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #1e293b;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .saved-message,
+        .error-message,
+        .success-message {
+            display: none;
+            font-size: 11px;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .saved-message {
+            color: #4ade80;
+        }
+
+        .success-message {
+            color: #4ade80;
+            margin-bottom: 10px;
+        }
+
+        .error-message {
+            color: #ef4444;
+            margin-bottom: 10px;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .action-buttons button {
+            padding: 8px;
+            font-size: 11px;
+            background: transparent;
+            border: 1px solid #1e293b;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: 0.2s;
+        }
+
+        .action-buttons button:hover {
+            background: #1e293b;
+        }
+
+        .action-buttons button.record {
+            color: #ef4444;
+            border-color: #ef4444;
+        }
+
+        .action-buttons button.record:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .steps-container {
+            display: none;
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .steps-container h4 {
+            margin: 0 0 8px 0;
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+
+        .steps-container ol {
+            margin: 0;
+            padding-left: 16px;
+            font-size: 11px;
+            color: #cbd5e1;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        #setupView,
+        #reportView,
+        #successView {
+            display: none;
+        }
+
+        .preview-container {
+            width: 100%;
+            height: 180px;
+            background: #000;
+            border-radius: 6px;
+            border: 1px solid #1e293b;
+            overflow: hidden;
+            margin-bottom: 4px;
+            position: relative;
+        }
+
+        .preview-container img,
+        .preview-container canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .annotation-toolbar {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+            padding: 6px 8px;
+            background: #1e293b;
+            border-radius: 6px;
+            border: 1px solid #334155;
+        }
+
+        .annotation-toolbar .color-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+
+        .annotation-toolbar .color-dot:hover,
+        .annotation-toolbar .color-dot.active {
+            border-color: white;
+            transform: scale(1.15);
+        }
+
+        .annotation-toolbar .tool-btn {
+            background: #334155;
+            border: 1px solid #475569;
+            color: #e2e8f0;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.15s;
+        }
+
+        .annotation-toolbar .tool-btn:hover {
+            background: #475569;
+        }
+
+        .annotation-toolbar .separator {
+            width: 1px;
+            height: 18px;
+            background: #475569;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>
+        <div class="header-left">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m8 2 1.88 1.88" />
+                <path d="M14.12 3.88 16 2" />
+                <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+                <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" />
+                <path d="M12 20v-9" />
+                <path d="M6.53 9C4.6 8.8 3 7.1 3 5" />
+                <path d="M6 13H2" />
+                <path d="M3 21c0-2.1 1.7-3.9 3.8-4" />
+                <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4" />
+                <path d="M22 13h-4" />
+                <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4" />
+            </svg>
+            BugScribe Reporter
+        </div>
+        <button id="settingsBtn" class="settings-btn" title="Settings" style="display: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path
+                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+            </svg>
+        </button>
+    </h1>
+
+    <div id="setupView">
+        <label>Connection Key</label>
+        <p style="font-size: 10px; color:#94a3b8; margin-top:0; margin-bottom:8px;">Copy the single key from your
+            dashboard's Integrations page.</p>
+        <input type="text" id="setupConnectionKey" placeholder="Paste connection key here..." />
+        <button id="saveBtn" class="btn-primary">Connect Extension</button>
+        <div class="error-message" id="setupErrorMsg" style="margin-top:8px;"></div>
+        <div class="saved-message" id="savedMsg">Connected successfully!</div>
+    </div>
+
+    <div id="reportView">
+        <div class="error-message" id="errorMessage"></div>
+        <div class="preview-container" id="screenshotPreviewContainer">
+            <img id="screenshotPreview" src="" alt="Screenshot" draggable="false" />
+            <canvas id="screenshotCanvas"
+                style="display: none; width: 100%; height: 100%; object-fit: contain; cursor: crosshair; touch-action: none; position: absolute; top:0; left:0;"></canvas>
+            <video id="videoPreview" src="" style="display: none; width: 100%; height: 100%; object-fit: contain;"
+                controls autoplay muted loop></video>
+        </div>
+        <div class="annotation-toolbar" id="annotationToolbar">
+            <span style="font-size:10px; color:#94a3b8; font-weight:600; margin-right:2px;">✏️ Draw:</span>
+            <span class="color-dot active" data-color="#ef4444" style="background:#ef4444;" title="Red"></span>
+            <span class="color-dot" data-color="#facc15" style="background:#facc15;" title="Yellow"></span>
+            <span class="color-dot" data-color="#22c55e" style="background:#22c55e;" title="Green"></span>
+            <span class="color-dot" data-color="#3b82f6" style="background:#3b82f6;" title="Blue"></span>
+            <span class="color-dot" data-color="#ffffff" style="background:#ffffff;" title="White"></span>
+            <span class="separator"></span>
+            <button class="tool-btn" id="undoBtn" title="Undo last stroke">↩ Undo</button>
+            <button class="tool-btn" id="clearBtn" title="Clear all drawings">🗑 Clear</button>
+        </div>
+
+        <div class="action-buttons" style="flex-wrap: wrap; gap: 6px;">
+            <button id="captureBtn" title="Take a static screenshot" style="flex:1; min-width:0;">📷 Screenshot</button>
+            <button id="annotatePageBtn" class="record" title="Draw on the page, then screenshot"
+                style="flex:1; min-width:0; background:#22c55e; border-color:#16a34a;">✏️ Annotate</button>
+            <button id="recordBtn" class="record" title="Record video &amp; auto-track steps"
+                style="flex:1; min-width:0;">🔴 Record</button>
+        </div>
+
+        <div class="steps-container" id="stepsContainer">
+            <h4>Dynamic Tracking Steps</h4>
+            <ol id="stepsList"></ol>
+        </div>
+
+        <label>Title *</label>
+        <input type="text" id="bugTitle" placeholder="What went wrong?" />
+        <label>Description</label>
+        <textarea id="bugDescription" rows="3" placeholder="Steps to reproduce..."></textarea>
+        <label>Priority</label>
+        <select id="bugPriority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+        </select>
+        <button id="submitBtn" class="btn-primary">Submit Bug Report</button>
+    </div>
+
+    <div id="successView" style="text-align: center; padding: 20px 0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4ade80"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 12px;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <path d="m9 11 3 3L22 4" />
+        </svg>
+        <h2 style="font-size: 16px; margin-bottom: 4px;">Report Sent!</h2>
+        <p style="font-size: 12px; color: #94a3b8;">Resetting in 3s for your next report...</p>
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+            <button id="reportAnotherBtn" class="btn-primary"
+                style="flex: 1; background: #22c55e; border-color: #16a34a;">🐛 Report Another</button>
+            <button id="closeBtn"
+                style="flex: 1; background: #334155; border: 1px solid #475569; color: #e2e8f0; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px;">✕
+                Close</button>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

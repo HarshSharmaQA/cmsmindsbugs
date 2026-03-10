@@ -1,0 +1,34 @@
+{
+    "manifest_version": 3,
+    "name": "BugScribe Exporter",
+    "version": "1.0",
+    "description": "Capture screenshots, record bugs, and send visual feedback directly into your BugScribe workspace.",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage",
+        "webRequest",
+        "sidePanel"
+    ],
+    "host_permissions": [
+        "http://*/*",
+        "https://*/*"
+    ],
+    "side_panel": {
+        "default_path": "popup.html"
+    },
+    "action": {},
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ],
+    "background": {
+        "service_worker": "background.js"
+    }
+}
