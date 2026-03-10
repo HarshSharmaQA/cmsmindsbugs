@@ -149,18 +149,32 @@ export const inviteMember = mutation({
 
         if (!canInvite) throw new Error("Unauthorized to invite members");
 
-        // Find user by email
-        const targetUser = await ctx.db
+        // Find user by email — or create a pending placeholder so they can be invited
+        let targetUser = await ctx.db
             .query("users")
             .withIndex("by_email", (q) => q.eq("email", args.email))
             .unique();
 
-        if (!targetUser) throw new Error("User not found in BugScribe. They must log in once first.");
+        if (!targetUser) {
+            // Create a pending user record keyed by email
+            // When this user logs in for the first time, the upsertUser mutation
+            // will merge their auth token with this existing record.
+            const pendingTokenId = `pending:${args.email}`;
+            const userId = await ctx.db.insert("users", {
+                tokenIdentifier: pendingTokenId,
+                email: args.email,
+                name: args.email.split("@")[0], // Placeholder name
+                role: "user",
+            });
+            targetUser = await ctx.db.get(userId);
+        }
+
+        if (!targetUser) throw new Error("Failed to create pending user record.");
 
         // Check if already a member
         const existingMember = await ctx.db
             .query("projectMembers")
-            .withIndex("by_project_user", (q) => q.eq("projectId", args.projectId).eq("userId", targetUser.tokenIdentifier))
+            .withIndex("by_project_user", (q) => q.eq("projectId", args.projectId).eq("userId", targetUser!.tokenIdentifier))
             .unique();
 
         if (existingMember) {

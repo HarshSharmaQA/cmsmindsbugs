@@ -39,27 +39,45 @@ export const loginUser = mutation({
             .map((e) => e.trim());
 
         const isSuperAdmin = superAdminEmails.includes(args.email);
+        const realToken = `user:${args.email}`;
 
         if (existing) {
-            if (existing.password !== args.password) {
+            // If this was a pending-invited user, they may have no password yet
+            const isPending = existing.tokenIdentifier.startsWith("pending:");
+
+            if (!isPending && existing.password !== args.password) {
                 throw new Error("Invalid password");
             }
+
+            // Migrate pending token → real token for all project memberships
+            if (isPending) {
+                const pendingToken = existing.tokenIdentifier;
+                const memberships = await ctx.db
+                    .query("projectMembers")
+                    .withIndex("by_user", (q) => q.eq("userId", pendingToken))
+                    .collect();
+                for (const m of memberships) {
+                    await ctx.db.patch(m._id, { userId: realToken });
+                }
+            }
+
             await ctx.db.patch(existing._id, {
+                tokenIdentifier: realToken,
                 role: isSuperAdmin ? "super_admin" : existing.role,
                 name: args.name ?? existing.name,
+                password: args.password,
             });
-            return existing.tokenIdentifier;
+            return realToken;
         }
 
-        const tokenIdentifier = `user:${args.email}`;
         await ctx.db.insert("users", {
-            tokenIdentifier,
+            tokenIdentifier: realToken,
             email: args.email,
             password: args.password,
             name: args.name ?? args.email.split("@")[0],
             role: isSuperAdmin ? "super_admin" : "user",
         });
-        return tokenIdentifier;
+        return realToken;
     },
 });
 
