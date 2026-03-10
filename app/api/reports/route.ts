@@ -3,9 +3,25 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+/**
+ * Lazily initializes the ConvexHttpClient to prevent build-time evaluation errors.
+ * Next.js evaluates API routes during `npm run build`, but environment variables
+ * like `NEXT_PUBLIC_CONVEX_URL` are not available in the server process at build time.
+ * This function ensures the client is only created when a request is actually received.
+ */
+function getConvexClient() {
+    const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!url) {
+        throw new Error(
+            "NEXT_PUBLIC_CONVEX_URL is not set. Check your .env.local file or Vercel Environment Variables."
+        );
+    }
+    return new ConvexHttpClient(url);
+}
 
 export async function POST(req: Request) {
+    // Initialize client at runtime for each request
+    const convex = getConvexClient();
     try {
         const formData = await req.formData();
 
