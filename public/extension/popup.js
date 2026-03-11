@@ -51,9 +51,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function showBanner(type, message) {
         const el = banners[type];
-        el.textContent = message;
+        el.textContent = message; // Safe: textContent not innerHTML
         el.style.display = "block";
         setTimeout(() => { el.style.display = "none"; }, 5000);
+    }
+
+    // Sanitize user-supplied strings before inserting into DOM
+    function escapeHtml(str) {
+        if (typeof str !== "string") return String(str ?? "");
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
     }
 
     async function convexRequest(type, path, args) {
@@ -121,16 +132,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function fetchAndShowProjects() {
         if (!currentUser) return;
         try {
+            // Safe: use innerHTML only for static strings (no user data)
             projectSelect.innerHTML = '<option value="" disabled selected>Loading projects...</option>';
             projects = await query("projects:listProjects", { devToken: currentUser.tokenIdentifier });
 
-            projectSelect.innerHTML = projects.length === 0
-                ? '<option value="" disabled>No projects found</option>'
-                : projects.map(p => `<option value="${p._id}">${p.name}</option>`).join("");
-
-            if (projects.length > 0) {
+            // Build options safely using DOM API to prevent XSS from server data
+            projectSelect.innerHTML = "";
+            if (projects.length === 0) {
+                const opt = document.createElement("option");
+                opt.value = "";
+                opt.disabled = true;
+                opt.textContent = "No projects found";
+                projectSelect.appendChild(opt);
+            } else {
+                projects.forEach(p => {
+                    const opt = document.createElement("option");
+                    opt.value = escapeHtml(p._id);   // IDs are safe, but escape anyway
+                    opt.textContent = p.name;         // textContent auto-escapes
+                    projectSelect.appendChild(opt);
+                });
                 projectSelect.selectedIndex = 0;
             }
+
             switchView("project");
         } catch (err) {
             showBanner("error", "Failed to load projects: " + err.message);
@@ -140,6 +163,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function fetchAndShowBugs() {
         if (!selectedProject || !currentUser) return;
         try {
+            // Safe: static HTML string (no user data)
             bugListContainer.innerHTML = '<div class="text-center" style="padding:20px; color:var(--text-muted); font-size:12px;">Loading reports...</div>';
             const bugs = await query("bugs:getBugs", {
                 projectId: selectedProject.id,
@@ -151,16 +175,39 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            bugListContainer.innerHTML = bugs.map(bug => `
-                <div class="bug-item">
-                    <div class="bug-title" title="${bug.title}">${bug.title}</div>
-                    <div class="bug-meta">
-                        <span class="status-pill status-${bug.status}">${bug.status.replace("_", " ")}</span>
-                        <span style="opacity: 0.6;">${bug.reporterName || "Anon"}</span>
-                        <span style="margin-left:auto">${new Date(bug.createdAt).toLocaleDateString()}</span>
-                    </div>
-                </div>
-            `).join("");
+            // Build bug list using safe DOM API — no innerHTML with server data
+            bugListContainer.innerHTML = "";
+            bugs.forEach(bug => {
+                const item = document.createElement("div");
+                item.className = "bug-item";
+
+                const titleEl = document.createElement("div");
+                titleEl.className = "bug-title";
+                titleEl.title = bug.title;      // title attr is safe
+                titleEl.textContent = bug.title; // textContent auto-escapes XSS
+
+                const metaEl = document.createElement("div");
+                metaEl.className = "bug-meta";
+
+                const statusSpan = document.createElement("span");
+                statusSpan.className = `status-pill status-${escapeHtml(bug.status)}`;
+                statusSpan.textContent = bug.status.replace("_", " ");
+
+                const reporterSpan = document.createElement("span");
+                reporterSpan.style.opacity = "0.6";
+                reporterSpan.textContent = bug.reporterName || "Anon"; // safe
+
+                const dateSpan = document.createElement("span");
+                dateSpan.style.marginLeft = "auto";
+                dateSpan.textContent = new Date(bug.createdAt).toLocaleDateString();
+
+                metaEl.appendChild(statusSpan);
+                metaEl.appendChild(reporterSpan);
+                metaEl.appendChild(dateSpan);
+                item.appendChild(titleEl);
+                item.appendChild(metaEl);
+                bugListContainer.appendChild(item);
+            });
         } catch (err) {
             showBanner("error", "Failed to load bugs: " + err.message);
         }

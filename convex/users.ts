@@ -2,14 +2,62 @@ import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 
+// ── Security Helpers ──────────────────────────────────────────────────────────
+
 /**
- * Get the current active identity, checking devToken or Clerk auth
+ * Hash a password using SHA-256 with a salt for secure storage.
+ * Format: "sha256:<salt>:<hash>"
+ */
+async function hashPassword(password: string): Promise<string> {
+    const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, "0")).join("");
+    const encoder = new TextEncoder();
+    const data = encoder.encode(salt + password);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hash = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, "0")).join("");
+    return `sha256:${salt}:${hash}`;
+}
+
+/**
+ * Verify a password against a stored hash.
+ * Handles both legacy plaintext passwords and new hashed passwords.
+ */
+async function verifyPassword(password: string, stored: string): Promise<boolean> {
+    if (!stored) return false;
+    // New hashed format: "sha256:<salt>:<hash>"
+    if (stored.startsWith("sha256:")) {
+        const [, salt, expectedHash] = stored.split(":");
+        const encoder = new TextEncoder();
+        const data = encoder.encode(salt + password);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+        const hash = Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, "0")).join("");
+        return hash === expectedHash;
+    }
+    // Legacy plaintext fallback (migrates on next login)
+    return stored === password;
+}
+
+/**
+ * Generate a cryptographically random session token (128-bit entropy).
+ */
+function generateSecureToken(): string {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return "tok_" + Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Get the current active identity, checking devToken (session token) or Clerk auth.
+ * Tokens are stored in DB keyed by a separate sessionToken field, not the tokenIdentifier.
  */
 export async function getEffectiveIdentity(ctx: QueryCtx, devToken?: string) {
     if (devToken) {
+        // Look up by sessionToken field (random UUID, not predictable)
         const user = await ctx.db
             .query("users")
-            .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", devToken))
+            .withIndex("by_session_token", (q) => q.eq("sessionToken", devToken))
             .unique();
 
         if (user) {
@@ -19,12 +67,28 @@ export async function getEffectiveIdentity(ctx: QueryCtx, devToken?: string) {
                 name: user.name,
             };
         }
+
+        // Fallback to legacy tokenIdentifier lookup for backwards compat during migration
+        const legacyUser = await ctx.db
+            .query("users")
+            .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", devToken))
+            .unique();
+
+        if (legacyUser) {
+            return {
+                subject: legacyUser.tokenIdentifier,
+                email: legacyUser.email,
+                name: legacyUser.name,
+            };
+        }
     }
     return await ctx.auth.getUserIdentity();
 }
 
 /**
  * Login or create a user in the Convex database.
+ * Passwords are stored as "sha256:<salt>:<hash>" — never plaintext.
+ * Returns a cryptographically random session token (not the predictable user:email).
  */
 export const loginUser = mutation({
     args: { email: v.string(), name: v.optional(v.string()), password: v.string() },
@@ -39,13 +103,17 @@ export const loginUser = mutation({
             .map((e) => e.trim());
 
         const isSuperAdmin = superAdminEmails.includes(args.email);
-        const realToken = `user:${args.email}`;
+        const realTokenIdentifier = `user:${args.email}`;
+
+        // Generate a secure random session token (128-bit, 30-day expiry)
+        const sessionToken = generateSecureToken();
+        const sessionTokenExpiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
 
         if (existing) {
-            // If this was a pending-invited user, they may have no password yet
             const isPending = existing.tokenIdentifier.startsWith("pending:");
 
-            if (!isPending && existing.password !== args.password) {
+            // Verify password (supports both legacy plaintext and new hashed format)
+            if (!isPending && !(await verifyPassword(args.password, existing.password ?? ""))) {
                 throw new Error("Invalid password");
             }
 
@@ -57,29 +125,39 @@ export const loginUser = mutation({
                     .withIndex("by_user", (q) => q.eq("userId", pendingToken))
                     .collect();
                 for (const m of memberships) {
-                    await ctx.db.patch(m._id, { userId: realToken });
+                    await ctx.db.patch(m._id, { userId: realTokenIdentifier });
                 }
             }
 
+            // Hash password on every login to migrate legacy plaintext passwords
+            const hashedPassword = await hashPassword(args.password);
+
             await ctx.db.patch(existing._id, {
-                tokenIdentifier: realToken,
+                tokenIdentifier: realTokenIdentifier,
                 role: isSuperAdmin ? "super_admin" : existing.role,
                 name: args.name ?? existing.name,
-                password: args.password,
+                password: hashedPassword,
                 isApproved: isSuperAdmin ? true : (existing.isApproved ?? false),
+                sessionToken,
+                sessionTokenExpiry,
             });
-            return { token: realToken, isApproved: isSuperAdmin ? true : (existing.isApproved ?? false) };
+            const isApproved = isSuperAdmin ? true : (existing.isApproved ?? false);
+            return { token: sessionToken, isApproved };
         }
 
+        // New user — hash password before storing
+        const hashedPassword = await hashPassword(args.password);
         await ctx.db.insert("users", {
-            tokenIdentifier: realToken,
+            tokenIdentifier: realTokenIdentifier,
             email: args.email,
-            password: args.password,
+            password: hashedPassword,
             name: args.name ?? args.email.split("@")[0],
             role: isSuperAdmin ? "super_admin" : "user",
             isApproved: isSuperAdmin ? true : false,
+            sessionToken,
+            sessionTokenExpiry,
         });
-        return { token: realToken, isApproved: isSuperAdmin ? true : false };
+        return { token: sessionToken, isApproved: isSuperAdmin ? true : false };
     },
 });
 

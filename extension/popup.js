@@ -18,7 +18,18 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentDrawTool = "pen"; // "pen", "arrow", "box", "circle", "text"
     let annotationColor = "#ef4444";
     let strokeHistory = []; 
-    let baseImageData = null; 
+    let baseImageData = null;
+
+    // Sanitize user-supplied strings before inserting into DOM
+    function escapeHtml(str) {
+        if (typeof str !== "string") return String(str ?? "");
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    } 
 
     // --- Loading State & Auth Check ---
     chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey", "bugscribeConnectionKey"], (result) => {
@@ -82,7 +93,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         const stepsContainer = document.getElementById("stepsContainer");
                         const stepsList = document.getElementById("stepsList");
                         stepsContainer.style.display = "block";
-                        stepsList.innerHTML = currentSteps.map(s => `<li>${s}</li>`).join("");
+                        // Build steps safely via DOM — never innerHTML with user data
+                        stepsList.innerHTML = "";
+                        currentSteps.forEach(s => {
+                            const li = document.createElement("li");
+                            li.textContent = s; // textContent auto-escapes
+                            stepsList.appendChild(li);
+                        });
                     }
                 } else {
                     captureScreenshot();

@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
 import { useState, use, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import {
     ArrowLeft, Clock, ExternalLink, User, Mail,
     Monitor, AlertTriangle, CheckCircle2, CircleDot, XCircle,
@@ -248,7 +249,17 @@ function ListView({ bugs, onSelect }: { bugs: any[]; onSelect: (id: Id<"bugs">) 
                                 {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
                             </td>
                             <td className="px-4 py-3">
-                                <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-colors" />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const href = typeof window !== "undefined" ? `${window.location.origin}/dashboard/${bug.projectId}?bugId=${bug._id}` : "";
+                                        if (href) navigator.clipboard.writeText(href);
+                                    }}
+                                    className="p-1.5 rounded hover:bg-surface-elevated transition-colors"
+                                    title="Copy shareable link"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-colors" />
+                                </button>
                             </td>
                         </tr>
                     ))}
@@ -659,6 +670,8 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
         }
     }, [bug?._id]);
 
+    const shareUrl = typeof window !== "undefined" && bug ? `${window.location.origin}/dashboard/${bug.projectId}?bugId=${bug._id}` : "";
+
     const handleComment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!comment.trim() || !bug) return;
@@ -757,6 +770,9 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                     </span>
                                 </div>
                             </div>
+                            {shareUrl && (
+                                <CopyButton text={shareUrl} label="Copy Link" />
+                            )}
                             <button onClick={onClose} className="btn-ghost p-1.5 text-slate-500 hover:text-white shrink-0 bg-surface-elevated/50 rounded shadow-sm border border-surface-border">
                                 <X className="w-4 h-4" />
                             </button>
@@ -1207,6 +1223,7 @@ function CreateBugModal({ projectId, devToken, onClose }: {
 
 function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const [devToken, setDevToken] = useState<string | null>(null);
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         const stored = localStorage.getItem("bugscribe_dev_token");
@@ -1225,6 +1242,13 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const [showCreateBugModal, setShowCreateBugModal] = useState(false);
     const [view, setView] = useState<"kanban" | "list" | "team" | "settings" | "integrations">("kanban");
     const [searchQuery, setSearchQuery] = useState("");
+
+    useEffect(() => {
+        const param = searchParams?.get("bugId");
+        if (param) {
+            setSelectedBugId(param as Id<"bugs">);
+        }
+    }, [searchParams]);
 
     const currentUser = useQuery(api.users.currentUser, { devToken: devToken || undefined });
     const members = useQuery(api.projects.listMembers, projectId ? { projectId, devToken: devToken || undefined } : "skip");

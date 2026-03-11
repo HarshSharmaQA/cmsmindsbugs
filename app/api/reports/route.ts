@@ -3,11 +3,44 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+// Simple in-memory rate limiter (resets per serverless function instance)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 20;        // max requests
+const RATE_WINDOW = 60_000;   // per 60 seconds
+
+function checkRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW });
+        return true;
+    }
+    if (entry.count >= RATE_LIMIT) return false;
+    entry.count++;
+    return true;
+}
+
+// Allowed CORS origins for the bug report endpoint
+const ALLOWED_ORIGINS = [
+    "chrome-extension://",     // Chrome extension (any extension ID)
+    "https://bugscripe.vercel.app",
+    process.env.NEXT_PUBLIC_CONVEX_SITE_URL ?? "",
+].filter(Boolean);
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+    const isAllowed = !origin ||
+        ALLOWED_ORIGINS.some(o => origin.startsWith(o));
+    return {
+        "Access-Control-Allow-Origin": isAllowed ? (origin ?? "*") : "null",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Vary": "Origin",
+    };
+}
+
 /**
  * Lazily initializes the ConvexHttpClient to prevent build-time evaluation errors.
- * Next.js evaluates API routes during `npm run build`, but environment variables
- * like `NEXT_PUBLIC_CONVEX_URL` are not available in the server process at build time.
- * This function ensures the client is only created when a request is actually received.
  */
 function getConvexClient() {
     const url = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -20,6 +53,18 @@ function getConvexClient() {
 }
 
 export async function POST(req: Request) {
+    // Rate limiting — block abusive IPs
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+    const origin = req.headers.get("origin");
+    const corsHeaders = getCorsHeaders(origin);
+
+    if (!checkRateLimit(ip)) {
+        return NextResponse.json(
+            { error: "Too many requests. Please slow down." },
+            { status: 429, headers: { ...corsHeaders, "Retry-After": "60" } }
+        );
+    }
+
     // Initialize client at runtime for each request
     const convex = getConvexClient();
     try {
@@ -133,32 +178,20 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({ success: true, bugId }, {
-            headers: {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type",
-            }
+            headers: getCorsHeaders(req.headers.get("origin"))
         });
 
     } catch (error: any) {
         console.error("Error creating bug report:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, {
             status: 500,
-            headers: {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type",
-            }
+            headers: getCorsHeaders(req.headers.get("origin"))
         });
     }
 }
 
-export async function OPTIONS() {
+export async function OPTIONS(req: Request) {
     return NextResponse.json({}, {
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        }
+        headers: getCorsHeaders(req.headers.get("origin"))
     });
 }

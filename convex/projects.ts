@@ -93,13 +93,11 @@ export const createProject = mutation({
     handler: async (ctx, args) => {
         const identity = await getEffectiveIdentity(ctx, args.devToken);
         if (!identity) {
-            console.error("Ident failed. devToken:", args.devToken);
             throw new Error("Unauthenticated");
         }
 
-        // Generate a simple UUID-like API key
-        const apiKey = Math.random().toString(36).substring(2, 15) +
-            Math.random().toString(36).substring(2, 15);
+        // Generate a cryptographically random API key (128-bit entropy)
+        const apiKey = crypto.randomUUID().replace(/-/g, "");
 
         const projectId = await ctx.db.insert("projects", {
             userId: identity.subject,

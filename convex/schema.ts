@@ -17,15 +17,18 @@ import { v } from "convex/values";
 export default defineSchema({
     // ── Users ─────────────────────────────────────────────────────────────────
     users: defineTable({
-        tokenIdentifier: v.string(),      // Unique user ID (e.g. user:email)
+        tokenIdentifier: v.string(),          // Unique user ID (e.g. user:email)
         email: v.string(),
-        password: v.optional(v.string()),
+        password: v.optional(v.string()),      // Stored as "sha256:<salt>:<hash>" (never plaintext)
         name: v.optional(v.string()),
         role: v.union(v.literal("super_admin"), v.literal("user")),
         isApproved: v.optional(v.boolean()),
+        sessionToken: v.optional(v.string()), // Cryptographically random session token (128-bit)
+        sessionTokenExpiry: v.optional(v.number()), // Unix timestamp (ms) when token expires
     })
         .index("by_token_identifier", ["tokenIdentifier"])
-        .index("by_email", ["email"]),
+        .index("by_email", ["email"])
+        .index("by_session_token", ["sessionToken"]),
 
     // ── Project Memberships ──────────────────────────────────────────────────
     projectMembers: defineTable({
