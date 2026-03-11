@@ -180,7 +180,7 @@ function HotelCard({
           </h3>
         )}
         {location.subtitle && (
-          <p className="text-xs text-muted-foreground truncate">
+          <p className="text-xs text-muted-foreground line-clamp-2 overflow-hidden text-ellipsis leading-snug">
             {location.subtitle}
           </p>
         )}
@@ -251,7 +251,7 @@ function LocationListCard({
           <p className="text-sm font-medium mt-1 line-clamp-1">{location.name}</p>
         )}
         {location.subtitle && (
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 overflow-hidden text-ellipsis leading-snug">
             {location.subtitle}
           </p>
         )}

@@ -4,11 +4,32 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navbar } from "@/components/Navbar";
 import { useState, useEffect } from "react";
-import { Users, Layout, Bug, ShieldAlert, BarChart3, Clock, ArrowLeft, Key } from "lucide-react";
+import { Map as MapIcon, Users, Layout, Bug, ShieldAlert, BarChart3, Clock, ArrowLeft, Key, FileText, ChevronRight, CalendarDays, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
 export const dynamic = 'force-dynamic';
+
+// ─── Live pending bookings badge ──────────────────────────────────────────────
+
+function AdminBookingsBadge() {
+    const [devToken, setDevToken] = useState<string | null>(null);
+    useEffect(() => {
+        const stored = localStorage.getItem("bugscribe_dev_token");
+        if (stored) setDevToken(stored);
+    }, []);
+
+    const bookings = useQuery(api.bookings.list, devToken ? { devToken } : "skip") ?? [];
+    const pending = (bookings as any[]).filter((b: any) => b.status === "pending").length;
+    if (!pending) return null;
+
+    return (
+        <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            {pending} pending
+        </div>
+    );
+}
 
 function AdminDashboardContent() {
     const [devToken, setDevToken] = useState<string | null>(null);
@@ -93,6 +114,15 @@ function AdminDashboardContent() {
                         <p className="text-slate-400 mt-1">Platform-wide overview and system health.</p>
                     </div>
                     <div className="flex items-center gap-4">
+                        <Link href="/admin/locations" className="btn-ghost flex items-center gap-2 text-sm px-4 py-2">
+                            <MapIcon className="w-4 h-4" /> Map Settings
+                        </Link>
+                        <Link href="/admin/bookings" className="btn-ghost flex items-center gap-2 text-sm px-4 py-2">
+                            <CalendarDays className="w-4 h-4" /> Bookings
+                        </Link>
+                        <Link href="/admin/pages" className="btn-ghost flex items-center gap-2 text-sm px-4 py-2">
+                            <FileText className="w-4 h-4" /> Page Builder
+                        </Link>
                         <Link href="/admin/permissions" className="btn-primary flex items-center gap-2 text-sm px-4 py-2">
                             <ShieldAlert className="w-4 h-4" /> Global Permissions
                         </Link>
@@ -100,6 +130,52 @@ function AdminDashboardContent() {
                             <ArrowLeft className="w-4 h-4" /> Back to My Projects
                         </Link>
                     </div>
+                </div>
+
+                {/* Quick Access Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10 animate-slide-up">
+                    <Link href="/admin/pages" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 group-hover:bg-brand-500/20 transition-all">
+                            <FileText className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">Page Builder</p>
+                            <p className="text-slate-500 text-xs mt-0.5">Create and publish custom pages</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-brand-400 transition-colors" />
+                    </Link>
+                    <Link href="/admin/bookings" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group relative overflow-hidden">
+                        <div className="w-12 h-12 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400 group-hover:bg-green-500/20 transition-all">
+                            <CalendarDays className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">Appointment Bookings</p>
+                            <p className="text-slate-500 text-xs mt-0.5">Review and approve booking requests</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-green-400 transition-colors" />
+                        {/* Live pending indicator */}
+                        <AdminBookingsBadge />
+                    </Link>
+                    <Link href="/admin/permissions" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:bg-amber-500/20 transition-all">
+                            <ShieldAlert className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">Global Permissions</p>
+                            <p className="text-slate-500 text-xs mt-0.5">Configure role-based access</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-amber-400 transition-colors" />
+                    </Link>
+                    <Link href="/admin/locations" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:bg-purple-500/20 transition-all">
+                            <MapIcon className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">Map Settings</p>
+                            <p className="text-slate-500 text-xs mt-0.5">Manage interactive map locations</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-purple-400 transition-colors" />
+                    </Link>
                 </div>
 
                 {/* Stat Grid */}

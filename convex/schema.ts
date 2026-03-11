@@ -135,6 +135,7 @@ export default defineSchema({
     // ── Map Locations (managed by super admin) ────────────────────────────────
     mapLocations: defineTable({
         name: v.string(),
+        productBy: v.optional(v.string()),
         subtitle: v.optional(v.string()),
         image: v.optional(v.string()),
         price: v.number(),
@@ -157,4 +158,42 @@ export default defineSchema({
         value: v.any(),
         updatedAt: v.number(),
     }).index("by_key", ["key"]),
+
+    // ── Admin-Created Pages (Page Builder) ────────────────────────────────
+    pages: defineTable({
+        slug: v.string(),           // URL-safe slug e.g. "about", "team"
+        title: v.string(),
+        metaDescription: v.optional(v.string()),
+        isPublished: v.boolean(),
+        showInMenu: v.optional(v.boolean()),
+        createdBy: v.string(),      // user tokenIdentifier
+        blocks: v.array(v.object({
+            id: v.string(),
+            type: v.string(),       // "hero" | "text" | "two_col" | "cta" | "stats" | "divider" | "image"
+            data: v.any(),          // block-specific payload
+        })),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_slug", ["slug"])
+        .index("by_published", ["isPublished"]),
+
+    // ── Appointment Bookings (via Page Builder booking block) ─────────────
+    bookings: defineTable({
+        pageSlug: v.string(),           // which page the booking came from
+        service: v.string(),            // service/event type name
+        date: v.string(),               // ISO date string "YYYY-MM-DD"
+        time: v.string(),               // e.g. "10:00 AM"
+        timezone: v.string(),           // e.g. "America/New_York"
+        name: v.string(),
+        email: v.string(),
+        phone: v.optional(v.string()),
+        company: v.optional(v.string()),
+        message: v.optional(v.string()),
+        status: v.string(),             // "pending" | "confirmed" | "cancelled"
+        createdAt: v.number(),
+    })
+        .index("by_page", ["pageSlug"])
+        .index("by_status", ["status"])
+        .index("by_date", ["date"]),
 });

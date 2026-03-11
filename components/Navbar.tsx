@@ -1,21 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Bug, ShieldAlert, Zap } from "lucide-react";
+import { Bug, ShieldAlert, Zap, FileText, ChevronDown } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 function NavbarContent() {
     const [devToken, setDevToken] = useState<string | null>(null);
+    const [pagesOpen, setPagesOpen] = useState(false);
+    const pagesRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const stored = localStorage.getItem("bugscribe_dev_token");
         setDevToken(stored);
     }, []);
 
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (pagesRef.current && !pagesRef.current.contains(e.target as Node)) setPagesOpen(false);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
     const user = useQuery(api.users.currentUser, { devToken: devToken || undefined });
     const isSuperAdmin = user?.role === "super_admin";
+    const publishedPages = useQuery(api.pages.list, { devToken: undefined }) ?? [];
+    const menuPages = (publishedPages as any[]).filter(p => p.showInMenu && p.slug !== "home");
 
     return (
         <nav
@@ -54,6 +66,17 @@ function NavbarContent() {
                             Projects
                         </Link>
 
+                        {/* Custom Menu Pages */}
+                        {menuPages.map(page => (
+                            <Link
+                                key={`menu-${page._id}`}
+                                href={`/${page.slug}`}
+                                className="text-xs text-slate-400 hover:text-brand-400 hover:bg-brand-500/10 px-3 py-1.5 rounded-md transition-all font-medium"
+                            >
+                                {page.title}
+                            </Link>
+                        ))}
+
                         {isSuperAdmin && (
                             <Link
                                 href="/admin"
@@ -67,6 +90,35 @@ function NavbarContent() {
                                 <ShieldAlert className="w-3.5 h-3.5" />
                                 Admin
                             </Link>
+                        )}
+
+                        {/* Pages dropdown */}
+                        {publishedPages.length > 0 && (
+                            <div ref={pagesRef} className="relative">
+                                <button
+                                    onClick={() => setPagesOpen(p => !p)}
+                                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-md hover:bg-surface-hover transition-all font-medium"
+                                >
+                                    <FileText className="w-3 h-3" />
+                                    Pages
+                                    <ChevronDown className={`w-3 h-3 transition-transform ${pagesOpen ? "rotate-180" : ""}`} />
+                                </button>
+                                {pagesOpen && (
+                                    <div className="absolute top-9 left-0 w-52 card p-1.5 shadow-2xl ring-1 ring-surface-border z-50 animate-slide-down">
+                                        {(publishedPages as any[]).map((page: any) => (
+                                            <Link
+                                                key={page._id}
+                                                href={`/${page.slug}`}
+                                                onClick={() => setPagesOpen(false)}
+                                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-surface-hover transition-all"
+                                            >
+                                                <FileText className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                                                <span className="truncate">{page.title}</span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         <a
@@ -112,9 +164,25 @@ function NavbarContent() {
                             </button>
                         </div>
                     ) : (
-                        <Link href="/" className="btn-primary text-xs shrink-0">
+                        <a
+                            href="/#login-form"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const el = document.getElementById("login-form");
+                                if (el) {
+                                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    // Focus the email input for UX
+                                    const emailInput = el.querySelector<HTMLInputElement>("input[type='email']");
+                                    setTimeout(() => emailInput?.focus(), 500);
+                                } else {
+                                    // We're on a different page, navigate home
+                                    window.location.href = "/#login-form";
+                                }
+                            }}
+                            className="btn-primary text-xs shrink-0"
+                        >
                             Log In
-                        </Link>
+                        </a>
                     )}
                 </div>
             </div>

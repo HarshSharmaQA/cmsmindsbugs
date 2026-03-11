@@ -31,6 +31,7 @@ export const list = query({
 export const create = mutation({
     args: {
         name: v.string(),
+        productBy: v.optional(v.string()),
         subtitle: v.optional(v.string()),
         image: v.optional(v.string()),
         price: v.number(),
@@ -50,6 +51,7 @@ export const create = mutation({
         const now = Date.now();
         return await ctx.db.insert("mapLocations", {
             name: args.name,
+            productBy: args.productBy,
             subtitle: args.subtitle,
             image: args.image,
             price: args.price,
@@ -73,6 +75,7 @@ export const update = mutation({
     args: {
         id: v.id("mapLocations"),
         name: v.optional(v.string()),
+        productBy: v.optional(v.string()),
         subtitle: v.optional(v.string()),
         image: v.optional(v.string()),
         price: v.optional(v.number()),
