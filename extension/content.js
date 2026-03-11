@@ -181,6 +181,7 @@ function startAnnotation() {
     if (widgetContainer) widgetContainer.style.display = 'none';
 
     let annotationColor = '#ef4444';
+    let currentTool = 'pen'; // 'pen', 'arrow', 'box', 'circle', 'text'
     let strokeHistory = [];
 
     // Create fullscreen overlay
@@ -200,12 +201,13 @@ function startAnnotation() {
 
     // Floating annotation toolbar
     const toolbar = document.createElement('div');
-    toolbar.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:8px;padding:8px 16px;background:#1e293b;border-radius:999px;border:1px solid #334155;box-shadow:0 8px 32px rgba(0,0,0,0.5);font-family:-apple-system,sans-serif;';
+    toolbar.id = 'bugscribe-floating-toolbar';
+    toolbar.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:6px;padding:8px 14px;background:#1e293b;border-radius:999px;border:1px solid #334155;box-shadow:0 8px 32px rgba(0,0,0,0.5);font-family:-apple-system,sans-serif;user-select:none;';
 
     const colors = ['#ef4444', '#facc15', '#22c55e', '#3b82f6', '#ffffff'];
     colors.forEach(color => {
         const dot = document.createElement('span');
-        dot.style.cssText = `width:22px;height:22px;border-radius:50%;background:${color};cursor:pointer;border:2px solid ${color === annotationColor ? 'white' : 'transparent'};transition:0.15s;`;
+        dot.style.cssText = `width:22px;height:22px;border-radius:50%;background:${color};cursor:pointer;border:2px solid ${color === annotationColor ? 'white' : 'transparent'};transition:0.15s;flex-shrink:0;`;
         dot.addEventListener('click', () => {
             annotationColor = color;
             toolbar.querySelectorAll('span[data-type="color"]').forEach(d => d.style.borderColor = 'transparent');
@@ -215,11 +217,45 @@ function startAnnotation() {
         toolbar.appendChild(dot);
     });
 
-    const sep = document.createElement('div');
-    sep.style.cssText = 'width:1px;height:22px;background:#475569;margin:0 4px;';
-    toolbar.appendChild(sep);
+    const makeSep = () => {
+        const s = document.createElement('div');
+        s.style.cssText = 'width:1px;height:22px;background:#475569;margin:0 4px;flex-shrink:0;';
+        return s;
+    };
+    toolbar.appendChild(makeSep());
 
-    const btnStyle = 'background:#334155;border:1px solid #475569;color:#e2e8f0;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;transition:0.15s;font-family:inherit;';
+    const btnStyle = 'background:#334155;border:1px solid #475569;color:#e2e8f0;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-weight:600;transition:0.15s;font-family:inherit;white-space:nowrap;';
+    const activeBtnStyle = 'background:#4f46e5;color:white;border-color:#4338ca;';
+
+    const tools = [
+        { id: 'pen',    emoji: '✏️', label: 'Pen'    },
+        { id: 'arrow',  emoji: '↗',  label: 'Arrow'  },
+        { id: 'box',    emoji: '⬜', label: 'Box'    },
+        { id: 'circle', emoji: '⭕', label: 'Circle' },
+        { id: 'text',   emoji: 'T',  label: 'Text'   }
+    ];
+
+    tools.forEach(t => {
+        const btn = document.createElement('button');
+        btn.innerHTML = `${t.emoji} <span style="margin-left:2px">${t.label}</span>`;
+        btn.style.cssText = btnStyle + (t.id === currentTool ? activeBtnStyle : '');
+        btn.dataset.toolId = t.id;
+        btn.addEventListener('click', () => {
+            currentTool = t.id;
+            toolbar.querySelectorAll('button[data-tool-id]').forEach(b => {
+                b.style.background = '#334155';
+                b.style.color = '#e2e8f0';
+                if (b.dataset.toolId === currentTool) {
+                    b.style.background = '#4f46e5';
+                    b.style.color = 'white';
+                }
+            });
+            canvas.style.cursor = currentTool === 'text' ? 'text' : 'crosshair';
+        });
+        toolbar.appendChild(btn);
+    });
+
+    toolbar.appendChild(makeSep());
 
     const undoBtn = document.createElement('button');
     undoBtn.textContent = '↩ Undo';
@@ -233,29 +269,20 @@ function startAnnotation() {
     toolbar.appendChild(undoBtn);
 
     const doneBtn = document.createElement('button');
-    doneBtn.textContent = '✅ Done - Take Screenshot';
+    doneBtn.textContent = '✅ Done';
     doneBtn.style.cssText = btnStyle + 'background:#22c55e;border-color:#16a34a;color:white;';
     doneBtn.addEventListener('click', async () => {
-        // Remove toolbar but keep canvas visible for screenshot
         toolbar.remove();
-
-        // Capture screenshot with annotations visible
         await new Promise(r => setTimeout(r, 100));
         chrome.runtime.sendMessage({ action: "CAPTURE_SCREENSHOT" }, (response) => {
-            // Remove overlay
             overlay.remove();
-
-            // Show widget again
             if (widgetContainer) widgetContainer.style.display = '';
-
             if (response && response.dataUrl) {
-                // Store the annotated screenshot
                 chrome.storage.local.set({
                     bugscribe_pending_media: response.dataUrl,
                     bugscribe_pending_mediatype: "image",
                     bugscribe_pending_steps: ["Annotated screenshot on page"]
                 }, () => {
-                    // Reload the iframe to show the annotated screenshot
                     if (widgetContainer) {
                         const shadow = widgetContainer.shadowRoot;
                         if (shadow) {
@@ -277,8 +304,8 @@ function startAnnotation() {
     toolbar.appendChild(doneBtn);
 
     const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = '✕ Cancel';
-    cancelBtn.style.cssText = btnStyle + 'background:#ef4444;border-color:#dc2626;color:white;';
+    cancelBtn.textContent = '✕';
+    cancelBtn.style.cssText = btnStyle + 'background:#ef4444;border-color:#dc2626;color:white;padding-left:10px;padding-right:10px;';
     cancelBtn.addEventListener('click', () => {
         overlay.remove();
         toolbar.remove();
@@ -291,21 +318,77 @@ function startAnnotation() {
 
     // Drawing logic
     let isDrawing = false;
+    let startX, startY;
+    let snapshot = null;
+
+    const drawArrow = (x1, y1, x2, y2) => {
+        const headlen = 15;
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - headlen * Math.cos(angle - Math.PI / 6), y2 - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(x2 - headlen * Math.cos(angle + Math.PI / 6), y2 - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+    };
+
     canvas.addEventListener('mousedown', (e) => {
+        startX = e.clientX;
+        startY = e.clientY;
         isDrawing = true;
         strokeHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-        ctx.beginPath();
-        ctx.moveTo(e.clientX, e.clientY);
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        if (currentTool === 'pen') {
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+        } else if (currentTool === 'text') {
+            const text = prompt("Enter text to add:");
+            if (text) {
+                ctx.fillStyle = annotationColor;
+                ctx.font = 'bold 24px sans-serif';
+                ctx.strokeStyle = "rgba(0,0,0,0.4)";
+                ctx.lineWidth = 3;
+                ctx.strokeText(text, startX, startY);
+                ctx.fillText(text, startX, startY);
+                isDrawing = false;
+            }
+        }
     });
+
     canvas.addEventListener('mousemove', (e) => {
         if (!isDrawing) return;
-        ctx.lineTo(e.clientX, e.clientY);
+        
         ctx.strokeStyle = annotationColor;
+        ctx.fillStyle = annotationColor;
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.stroke();
+
+        if (currentTool === 'pen') {
+            ctx.lineTo(e.clientX, e.clientY);
+            ctx.stroke();
+        } else {
+            ctx.putImageData(snapshot, 0, 0);
+            const w = e.clientX - startX;
+            const h = e.clientY - startY;
+
+            if (currentTool === 'arrow') {
+                drawArrow(startX, startY, e.clientX, e.clientY);
+            } else if (currentTool === 'box') {
+                ctx.strokeRect(startX, startY, w, h);
+            } else if (currentTool === 'circle') {
+                ctx.beginPath();
+                ctx.ellipse(startX + w/2, startY + h/2, Math.abs(w/2), Math.abs(h/2), 0, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+        }
     });
+
     canvas.addEventListener('mouseup', () => isDrawing = false);
     canvas.addEventListener('mouseout', () => isDrawing = false);
 }

@@ -252,6 +252,11 @@
             background: #475569;
         }
 
+        .annotation-toolbar .tool-btn.active-tool {
+            background: #4f46e5;
+            color: white;
+        }
+
         .annotation-toolbar .separator {
             width: 1px;
             height: 18px;
@@ -309,15 +314,26 @@
                 controls autoplay muted loop></video>
         </div>
         <div class="annotation-toolbar" id="annotationToolbar">
-            <span style="font-size:10px; color:#94a3b8; font-weight:600; margin-right:2px;">✏️ Draw:</span>
-            <span class="color-dot active" data-color="#ef4444" style="background:#ef4444;" title="Red"></span>
-            <span class="color-dot" data-color="#facc15" style="background:#facc15;" title="Yellow"></span>
-            <span class="color-dot" data-color="#22c55e" style="background:#22c55e;" title="Green"></span>
-            <span class="color-dot" data-color="#3b82f6" style="background:#3b82f6;" title="Blue"></span>
-            <span class="color-dot" data-color="#ffffff" style="background:#ffffff;" title="White"></span>
-            <span class="separator"></span>
-            <button class="tool-btn" id="undoBtn" title="Undo last stroke">↩ Undo</button>
-            <button class="tool-btn" id="clearBtn" title="Clear all drawings">🗑 Clear</button>
+            <!-- Row 1: Tools -->
+            <div style="display:flex; gap:4px; flex-wrap:wrap; width:100%; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:6px;">
+                <button class="tool-btn active-tool" data-draw-tool="pen" title="Pen">✏️ Pen</button>
+                <button class="tool-btn" data-draw-tool="arrow" title="Arrow">↗ Arrow</button>
+                <button class="tool-btn" data-draw-tool="box" title="Box">⬜ Box</button>
+                <button class="tool-btn" data-draw-tool="circle" title="Circle">⭕ Circle</button>
+                <button class="tool-btn" data-draw-tool="text" title="Text">T Text</button>
+            </div>
+            <!-- Row 2: Colors + Actions -->
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span style="font-size:10px; color:#94a3b8; font-weight:600;">Color:</span>
+                <span class="color-dot active" data-color="#ef4444" style="background:#ef4444;" title="Red"></span>
+                <span class="color-dot" data-color="#facc15" style="background:#facc15;" title="Yellow"></span>
+                <span class="color-dot" data-color="#22c55e" style="background:#22c55e;" title="Green"></span>
+                <span class="color-dot" data-color="#3b82f6" style="background:#3b82f6;" title="Blue"></span>
+                <span class="color-dot" data-color="#ffffff" style="background:#ffffff;" title="White"></span>
+                <span class="separator"></span>
+                <button class="tool-btn" id="undoBtn" title="Undo last stroke">↩ Undo</button>
+                <button class="tool-btn" id="clearBtn" title="Clear all drawings">🗑 Clear</button>
+            </div>
         </div>
 
         <div class="action-buttons" style="flex-wrap: wrap; gap: 6px;">
@@ -335,16 +351,14 @@
 
         <label>Title *</label>
         <input type="text" id="bugTitle" placeholder="What went wrong?" />
-
         <label>Description</label>
         <textarea id="bugDescription" rows="3" placeholder="Steps to reproduce..."></textarea>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
             <div>
                 <label>Type</label>
                 <select id="bugType">
                     <option value="general">General</option>
-                    <option value="ui">UI/UX</option>
+                    <option value="ui_ux">UI/UX</option>
                     <option value="performance">Performance</option>
                     <option value="security">Security</option>
                     <option value="crash">Crash</option>
@@ -361,22 +375,7 @@
                 </select>
             </div>
         </div>
-
-        <label>Category</label>
-        <input type="text" id="bugCategory" placeholder="e.g. Header, Checkout" />
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0;">
-            <div>
-                <label>Your Name</label>
-                <input type="text" id="bugReporterName" placeholder="Name" />
-            </div>
-            <div>
-                <label>Your Email</label>
-                <input type="email" id="bugReporterEmail" placeholder="Email" />
-            </div>
-        </div>
-
-        <button id="submitBtn" class="btn-primary" style="margin-top: 10px;">Submit Bug Report</button>
+        <button id="submitBtn" class="btn-primary">Submit Bug Report</button>
     </div>
 
     <div id="successView" style="text-align: center; padding: 20px 0;">

@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const successView = document.getElementById("successView");
     const settingsBtn = document.getElementById("settingsBtn");
 
+    const bugType = document.getElementById("bugType");
     const bugTitle = document.getElementById("bugTitle");
     const bugDescription = document.getElementById("bugDescription");
     const bugPriority = document.getElementById("bugPriority");
@@ -14,6 +15,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentMediaType = "image";
     let currentSteps = [];
     let pageUrl = "Unknown";
+    let currentDrawTool = "pen"; // "pen", "arrow", "box", "circle", "text"
+    let annotationColor = "#ef4444";
+    let strokeHistory = []; 
+    let baseImageData = null; 
 
     // --- Loading State & Auth Check ---
     chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey", "bugscribeConnectionKey"], (result) => {
@@ -54,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     currentSteps = data.bugscribe_pending_steps || [];
 
                     if (currentMediaType === "video") {
-                        // Show video player
                         document.getElementById("screenshotPreview").style.display = "none";
                         document.getElementById("screenshotCanvas").style.display = "none";
                         document.getElementById("annotationToolbar").style.display = "none";
@@ -62,65 +66,18 @@ document.addEventListener("DOMContentLoaded", () => {
                         videoEl.style.display = "block";
                         videoEl.src = data.bugscribe_pending_media;
                     } else {
-                        // Show image preview with annotation canvas
                         document.getElementById("videoPreview").style.display = "none";
                         const imgEl = document.getElementById("screenshotPreview");
                         imgEl.src = data.bugscribe_pending_media;
                         imgEl.style.display = "block";
                         document.getElementById("screenshotPreviewContainer").style.display = "block";
-
-                        // Set up canvas for annotation
-                        const canvas = document.getElementById("screenshotCanvas");
-                        const toolbar = document.getElementById("annotationToolbar");
-                        const ctx = canvas.getContext("2d");
-                        strokeHistory = [];
-
-                        const imgObj = new Image();
-                        imgObj.onload = () => {
-                            canvas.width = imgObj.width;
-                            canvas.height = imgObj.height;
-                            ctx.drawImage(imgObj, 0, 0);
-                            baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                            canvas.style.display = "block";
-                            imgEl.style.display = "none";
-                            toolbar.style.display = "flex";
-
-                            let isDrawing = false;
-                            const getMousePos = (e) => {
-                                const rect = canvas.getBoundingClientRect();
-                                return {
-                                    x: (e.clientX - rect.left) * (canvas.width / rect.width),
-                                    y: (e.clientY - rect.top) * (canvas.height / rect.height)
-                                };
-                            };
-                            canvas.onmousedown = (e) => {
-                                isDrawing = true;
-                                strokeHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-                                ctx.beginPath();
-                                const pos = getMousePos(e);
-                                ctx.moveTo(pos.x, pos.y);
-                            };
-                            canvas.onmousemove = (e) => {
-                                if (!isDrawing) return;
-                                const pos = getMousePos(e);
-                                ctx.lineTo(pos.x, pos.y);
-                                ctx.strokeStyle = annotationColor;
-                                ctx.lineWidth = Math.max(4, canvas.width * 0.003);
-                                ctx.lineCap = "round";
-                                ctx.lineJoin = "round";
-                                ctx.stroke();
-                            };
-                            canvas.onmouseup = () => isDrawing = false;
-                            canvas.onmouseout = () => isDrawing = false;
-                        };
-                        imgObj.src = data.bugscribe_pending_media;
+                        initCanvas(data.bugscribe_pending_media);
                     }
 
                     fetch(data.bugscribe_pending_media)
                         .then(res => res.blob())
                         .then(blob => currentMediaBlob = blob);
 
-                    // Show steps
                     if (currentSteps.length > 0) {
                         const stepsContainer = document.getElementById("stepsContainer");
                         const stepsList = document.getElementById("stepsList");
@@ -128,7 +85,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         stepsList.innerHTML = currentSteps.map(s => `<li>${s}</li>`).join("");
                     }
                 } else {
-                    // Standard screenshot
                     captureScreenshot();
                 }
             });
@@ -137,9 +93,114 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    let annotationColor = "#ef4444";
-    let strokeHistory = []; // array of ImageData snapshots for undo
-    let baseImageData = null; // the original screenshot without annotations
+    function initCanvas(mediaUrl) {
+        const canvas = document.getElementById("screenshotCanvas");
+        const toolbar = document.getElementById("annotationToolbar");
+        const ctx = canvas.getContext("2d");
+        const imgEl = document.getElementById("screenshotPreview");
+        
+        strokeHistory = [];
+        const imgObj = new Image();
+        imgObj.onload = () => {
+            canvas.width = imgObj.width;
+            canvas.height = imgObj.height;
+            ctx.drawImage(imgObj, 0, 0);
+            baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            canvas.style.display = "block";
+            imgEl.style.display = "none";
+            toolbar.style.display = "block";
+
+            let isDrawing = false;
+            let startX, startY;
+            let snapshot = null;
+
+            const getMousePos = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: (e.clientX - rect.left) * (canvas.width / rect.width),
+                    y: (e.clientY - rect.top) * (canvas.height / rect.height)
+                };
+            };
+
+            const drawArrow = (x1, y1, x2, y2) => {
+                const headlen = Math.max(10, canvas.width * 0.015);
+                const angle = Math.atan2(y2 - y1, x2 - x1);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 - headlen * Math.cos(angle - Math.PI / 6), y2 - headlen * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(x2 - headlen * Math.cos(angle + Math.PI / 6), y2 - headlen * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+            };
+
+            canvas.onmousedown = (e) => {
+                const pos = getMousePos(e);
+                startX = pos.x;
+                startY = pos.y;
+                isDrawing = true;
+                
+                strokeHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                if (currentDrawTool === "pen") {
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                } else if (currentDrawTool === "text") {
+                    const text = prompt("Enter text to add:");
+                    if (text) {
+                        ctx.fillStyle = annotationColor;
+                        const fontSize = Math.max(20, canvas.width * 0.03);
+                        ctx.font = `bold ${fontSize}px sans-serif`;
+                        // Simple outline for visibility
+                        ctx.strokeStyle = "white";
+                        ctx.lineWidth = 2;
+                        ctx.strokeText(text, startX, startY);
+                        ctx.fillText(text, startX, startY);
+                        isDrawing = false;
+                    }
+                }
+            };
+
+            canvas.onmousemove = (e) => {
+                if (!isDrawing) return;
+                const pos = getMousePos(e);
+                
+                ctx.strokeStyle = annotationColor;
+                ctx.fillStyle = annotationColor;
+                ctx.lineWidth = Math.max(4, canvas.width * 0.003);
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+
+                if (currentDrawTool === "pen") {
+                    ctx.lineTo(pos.x, pos.y);
+                    ctx.stroke();
+                } else {
+                    // Shapes need to restore snapshot for live preview
+                    ctx.putImageData(snapshot, 0, 0);
+                    const w = pos.x - startX;
+                    const h = pos.y - startY;
+
+                    if (currentDrawTool === "arrow") {
+                        drawArrow(startX, startY, pos.x, pos.y);
+                    } else if (currentDrawTool === "box") {
+                        ctx.strokeRect(startX, startY, w, h);
+                    } else if (currentDrawTool === "circle") {
+                        ctx.beginPath();
+                        ctx.ellipse(startX + w/2, startY + h/2, Math.abs(w/2), Math.abs(h/2), 0, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    }
+                }
+            };
+
+            canvas.onmouseup = () => isDrawing = false;
+            canvas.onmouseout = () => isDrawing = false;
+        };
+        imgObj.src = mediaUrl;
+    }
 
     async function captureScreenshot() {
         currentMediaType = "image";
@@ -150,7 +211,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const imgEl = document.getElementById("screenshotPreview");
         imgEl.style.display = "block";
 
-        // Background handles: hide widget → capture → show widget
         chrome.runtime.sendMessage({ action: "CAPTURE_SCREENSHOT" }, (response) => {
             if (chrome.runtime.lastError || !response || !response.dataUrl) {
                 console.error(chrome.runtime.lastError || response?.error);
@@ -159,62 +219,8 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 imgEl.src = response.dataUrl;
                 document.getElementById("screenshotPreviewContainer").style.display = "block";
-
-                // Initialize Canvas Annotation
-                const canvas = document.getElementById("screenshotCanvas");
-                const toolbar = document.getElementById("annotationToolbar");
-                const ctx = canvas.getContext("2d");
-                strokeHistory = [];
-
-                const imgObj = new Image();
-                imgObj.onload = () => {
-                    canvas.width = imgObj.width;
-                    canvas.height = imgObj.height;
-                    ctx.drawImage(imgObj, 0, 0);
-                    baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-                    canvas.style.display = "block";
-                    imgEl.style.display = "none";
-                    toolbar.style.display = "flex";
-
-                    // Drawing state
-                    let isDrawing = false;
-
-                    const getMousePos = (e) => {
-                        const rect = canvas.getBoundingClientRect();
-                        const scaleX = canvas.width / rect.width;
-                        const scaleY = canvas.height / rect.height;
-                        return {
-                            x: (e.clientX - rect.left) * scaleX,
-                            y: (e.clientY - rect.top) * scaleY
-                        };
-                    };
-
-                    canvas.onmousedown = (e) => {
-                        isDrawing = true;
-                        // Save state before this stroke for undo
-                        strokeHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-                        ctx.beginPath();
-                        const pos = getMousePos(e);
-                        ctx.moveTo(pos.x, pos.y);
-                    };
-
-                    canvas.onmousemove = (e) => {
-                        if (!isDrawing) return;
-                        const pos = getMousePos(e);
-                        ctx.lineTo(pos.x, pos.y);
-                        ctx.strokeStyle = annotationColor;
-                        ctx.lineWidth = Math.max(4, canvas.width * 0.003);
-                        ctx.lineCap = "round";
-                        ctx.lineJoin = "round";
-                        ctx.stroke();
-                    };
-
-                    canvas.onmouseup = () => isDrawing = false;
-                    canvas.onmouseout = () => isDrawing = false;
-                };
-                imgObj.src = response.dataUrl;
-
+                initCanvas(response.dataUrl);
+                
                 fetch(response.dataUrl)
                     .then(res => res.blob())
                     .then(blob => currentMediaBlob = blob);
@@ -228,6 +234,21 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelectorAll(".annotation-toolbar .color-dot").forEach(d => d.classList.remove("active"));
             dot.classList.add("active");
             annotationColor = dot.dataset.color;
+        });
+    });
+
+    document.querySelectorAll(".tool-btn[data-draw-tool]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".tool-btn[data-draw-tool]").forEach(b => b.classList.remove("active-tool"));
+            btn.classList.add("active-tool");
+            currentDrawTool = btn.dataset.drawTool;
+            
+            const canvas = document.getElementById("screenshotCanvas");
+            if (currentDrawTool === "text") {
+                canvas.style.cursor = "text";
+            } else {
+                canvas.style.cursor = "crosshair";
+            }
         });
     });
 
@@ -275,6 +296,8 @@ document.addEventListener("DOMContentLoaded", () => {
             chrome.tabs.sendMessage(tab.id, { action: "START_ANNOTATE" }, (res) => {
                 if (chrome.runtime.lastError) {
                     alert("Please refresh the page before annotating.");
+                } else {
+                    window.close();
                 }
             });
         }
@@ -322,6 +345,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // --- Submit Bug Report ---
     submitBtn.addEventListener("click", async () => {
         if (!bugTitle.value.trim()) {
             errorMessage.textContent = "Title is required";
@@ -333,118 +357,77 @@ document.addEventListener("DOMContentLoaded", () => {
         submitBtn.textContent = "Sending...";
         errorMessage.style.display = "none";
 
-        try {
-            const creds = await chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey"]);
-            const formData = new FormData();
-            formData.append("projectId", creds.bugscribeProjectId);
-            formData.append("apiKey", creds.bugscribeApiKey);
-            formData.append("title", bugTitle.value.trim());
-            formData.append("description", bugDescription.value.trim());
-            formData.append("priority", bugPriority.value);
-            formData.append("type", document.getElementById("bugType").value);
-            formData.append("category", document.getElementById("bugCategory").value.trim());
-            formData.append("reporterName", document.getElementById("bugReporterName").value.trim());
-            formData.append("reporterEmail", document.getElementById("bugReporterEmail").value.trim());
-            formData.append("url", pageUrl);
+        chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey"], async (creds) => {
+            try {
+                const formData = new FormData();
+                formData.append("projectId", creds.bugscribeProjectId);
+                formData.append("apiKey", creds.bugscribeApiKey);
+                formData.append("title", bugTitle.value.trim());
+                formData.append("description", bugDescription.value.trim());
+                formData.append("priority", bugPriority.value);
+                formData.append("type", bugType.value);
+                formData.append("url", pageUrl);
 
-            // Ask content.js for environment data
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tab && tab.id) {
-                try {
-                    const envData = await new Promise((resolve) => {
-                        chrome.tabs.sendMessage(tab.id, { action: "GET_ENV_DATA" }, (res) => {
-                            // Consume lastError to prevent uncaught Chrome runtime errors
-                            if (chrome.runtime.lastError) {
-                                resolve(null);
-                                return;
-                            }
-                            resolve(res);
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (tab && tab.id) {
+                    try {
+                        const envData = await new Promise((resolve) => {
+                            chrome.tabs.sendMessage(tab.id, { action: "GET_ENV_DATA" }, (res) => {
+                                resolve(res);
+                            });
                         });
-                    });
-                    if (envData) {
-                        formData.append("environmentData", JSON.stringify(envData));
+                        if (envData) {
+                            formData.append("environmentData", JSON.stringify(envData));
+                        }
+                    } catch (e) {
+                        console.log("Could not get environment data", e);
                     }
-                } catch (e) {
-                    console.log("Could not get environment data", e);
                 }
-            }
-            formData.append("mediaType", currentMediaType);
-            formData.append("steps", JSON.stringify(currentSteps));
+                formData.append("mediaType", currentMediaType);
+                formData.append("steps", JSON.stringify(currentSteps));
+                formData.append("browser", navigator.userAgent);
+                formData.append("os", navigator.platform);
 
-            formData.append("browser", navigator.userAgent);
-            formData.append("os", navigator.platform);
-
-            // If using image, extract the latest drawn blob from canvas
-            if (currentMediaType === "image") {
-                const canvas = document.getElementById("screenshotCanvas");
-                if (canvas && canvas.style.display !== "none") {
-                    currentMediaBlob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+                if (currentMediaType === "image") {
+                    const canvas = document.getElementById("screenshotCanvas");
+                    if (canvas && canvas.style.display !== "none") {
+                        currentMediaBlob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+                    }
                 }
-            }
 
-            if (currentMediaBlob) {
-                const filename = currentMediaType === "video" ? "recording.webm" : "screenshot.png";
-                formData.append("screenshot", currentMediaBlob, filename);
-            }
+                if (currentMediaBlob) {
+                    const filename = currentMediaType === "video" ? "recording.webm" : "screenshot.png";
+                    formData.append("screenshot", currentMediaBlob, filename);
+                }
 
-            // In Production, this URL should be your hosted Next.js API route
-            // For local dev with extension:
-            // IMPORTANT: Change to production URL if deployed
-            // Used the absolute URL instead of a relative URL because the extension is running relative to chrome-extension:// domain
-            const API_URL = "https://bugscripe.vercel.app/api/reports";
-            // Note: If you are testing locally, replace the URL above with "http://localhost:3000/api/reports"
+                const response = await fetch("https://bugscripe.vercel.app/api/reports", {
+                    method: "POST",
+                    body: formData
+                });
 
-            const response = await fetch(API_URL, {
-                method: "POST",
-                body: formData
-            });
+                if (!response.ok) {
+                    const errObj = await response.json().catch(() => ({}));
+                    throw new Error(errObj.error || "Failed to submit report");
+                }
 
-            if (!response.ok) {
-                const errObj = await response.json().catch(() => ({}));
-                throw new Error(errObj.error || "Failed to submit report");
-            }
+                chrome.storage.local.remove(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"]);
 
-            // Clear pending recording
-            chrome.storage.local.remove(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"]);
+                reportView.style.display = "none";
+                settingsBtn.style.display = "none";
+                successView.style.display = "block";
 
-            reportView.style.display = "none";
-            settingsBtn.style.display = "none";
-            successView.style.display = "block";
+                setTimeout(() => {
+                    resetFormForNewBug();
+                }, 3000);
 
-            // Auto-reset to allow reporting another bug after 3 seconds
-            setTimeout(() => {
-                successView.style.display = "none";
-                reportView.style.display = "block";
-                settingsBtn.style.display = "block";
-                bugTitle.value = "";
-                bugDescription.value = "";
-                bugPriority.value = "medium";
-                document.getElementById("bugType").value = "general";
-                document.getElementById("bugCategory").value = "";
-                document.getElementById("bugReporterName").value = "";
-                document.getElementById("bugReporterEmail").value = "";
+            } catch (err) {
+                console.error(err);
+                errorMessage.textContent = err.message || "Failed to send bug report";
+                errorMessage.style.display = "block";
                 submitBtn.disabled = false;
                 submitBtn.textContent = "Submit Bug Report";
-                currentMediaBlob = null;
-                currentMediaType = "image";
-                currentSteps = [];
-                document.getElementById("stepsContainer").style.display = "none";
-                document.getElementById("annotationToolbar").style.display = "none";
-                // Take a fresh screenshot for the next bug
-                captureScreenshot();
-            }, 3000);
-
-        } catch (err) {
-            console.error(err);
-            if (err.message && err.message.includes("Extension context invalidated")) {
-                errorMessage.textContent = "Extension updated. Please refresh the web page and try again.";
-            } else {
-                errorMessage.textContent = err.message || "Failed to send bug report";
             }
-            errorMessage.style.display = "block";
-            submitBtn.disabled = false;
-            submitBtn.textContent = "Submit Bug Report";
-        }
+        });
     });
 
     function resetFormForNewBug() {
@@ -454,10 +437,7 @@ document.addEventListener("DOMContentLoaded", () => {
         bugTitle.value = "";
         bugDescription.value = "";
         bugPriority.value = "medium";
-        document.getElementById("bugType").value = "general";
-        document.getElementById("bugCategory").value = "";
-        document.getElementById("bugReporterName").value = "";
-        document.getElementById("bugReporterEmail").value = "";
+        bugType.value = "general";
         submitBtn.disabled = false;
         submitBtn.textContent = "Submit Bug Report";
         currentMediaBlob = null;
@@ -473,7 +453,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("closeBtn").addEventListener("click", () => {
-        window.parent.postMessage("CLOSE_BUGScribe_IFRAME", "*");
         window.close();
     });
 });

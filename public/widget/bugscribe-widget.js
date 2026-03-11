@@ -312,7 +312,10 @@
                 <div id="bs-canvas-wrapper">
                     <div id="bs-toolbar">
                         <button type="button" class="bs-tool active" data-tool="pen">✏️ Pen</button>
-                        <button type="button" class="bs-tool" data-tool="rect">⬜ Rect</button>
+                        <button type="button" class="bs-tool" data-tool="arrow">↗ Arrow</button>
+                        <button type="button" class="bs-tool" data-tool="rect">⬜ Box</button>
+                        <button type="button" class="bs-tool" data-tool="circle">⭕ Circle</button>
+                        <button type="button" class="bs-tool" data-tool="text">T Text</button>
                         <button type="button" class="bs-tool" data-tool="blur">💧 Blur</button>
                         <button type="button" class="bs-tool" data-tool="redact">⬛ Redact</button>
                         <div style="width:1px; background:rgba(255,255,255,0.1); height:16px; margin:0 4px;"></div>
@@ -327,6 +330,20 @@
                         <input id="bs-title" type="text" placeholder="What went wrong?" style="margin-bottom:0;" />
                     </div>
                     <div>
+                        <label>Bug Type</label>
+                        <select id="bs-type" style="margin-bottom:0;">
+                            <option value="general">General</option>
+                            <option value="ui_ux">UI/UX</option>
+                            <option value="performance">Performance</option>
+                            <option value="security">Security</option>
+                            <option value="crash">Crash</option>
+                            <option value="network">Network</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+                    <div>
                         <label>Priority</label>
                         <select id="bs-priority" style="margin-bottom:0;">
                             <option value="low">Low</option>
@@ -335,16 +352,15 @@
                             <option value="critical">Critical</option>
                         </select>
                     </div>
+                    <div>
+                        <label>Your Name</label>
+                        <input id="bs-reporter-name" type="text" placeholder="John Doe" style="margin-bottom:0;" />
+                    </div>
                 </div>
-
                 <label>Description</label>
                 <textarea id="bs-desc" placeholder="Steps to reproduce..." style="min-height:70px;"></textarea>
 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:0px;">
-                    <div>
-                        <label>Your Name</label>
-                        <input id="bs-reporter-name" type="text" placeholder="John Doe" />
-                    </div>
                     <div>
                         <label>Your Email</label>
                         <input id="bs-reporter-email" type="email" placeholder="john@example.com" />
@@ -381,15 +397,13 @@
             undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
         };
 
-        // Initial state
-        saveState();
+        saveState(); // Initial state
 
         document.getElementById("bs-undo").onclick = (e) => {
             e.stopPropagation();
             if (undoStack.length > 1) {
-                undoStack.pop(); // Remove current state
-                const prevState = undoStack[undoStack.length - 1];
-                ctx.putImageData(prevState, 0, 0);
+                undoStack.pop();
+                ctx.putImageData(undoStack[undoStack.length - 1], 0, 0);
             }
         };
 
@@ -398,6 +412,7 @@
                 document.querySelectorAll(".bs-tool[data-tool]").forEach(b => b.classList.remove("active"));
                 t.classList.add("active");
                 mode = t.dataset.tool;
+                canvas.style.cursor = mode === "text" ? "text" : "crosshair";
             };
         });
 
@@ -405,25 +420,36 @@
             const r = canvas.getBoundingClientRect();
             const clientX = (e.touches ? e.touches[0].clientX : e.clientX) || 0;
             const clientY = (e.touches ? e.touches[0].clientY : e.clientY) || 0;
-
-            const scaleX = canvas.width / r.width;
-            const scaleY = canvas.height / r.height;
-
             return {
-                x: (clientX - r.left) * scaleX,
-                y: (clientY - r.top) * scaleY
+                x: (clientX - r.left) * (canvas.width / r.width),
+                y: (clientY - r.top)  * (canvas.height / r.height)
             };
+        };
+
+        /** Draw filled-head arrow on ctx from (x1,y1) to (x2,y2) */
+        const drawArrow = (x1, y1, x2, y2) => {
+            const headLen = 20;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            ctx.strokeStyle = "#ef4444"; ctx.fillStyle = "#ef4444";
+            ctx.lineWidth = 5; ctx.lineCap = "round";
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath(); ctx.fill();
         };
 
         const start = (e) => {
             if (e.target.closest("#bs-toolbar")) return;
+            if (mode === "text") return; // handled via click
             const pos = getPos(e);
             drawing = true;
             startX = pos.x; startY = pos.y;
             snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
             if (mode === "pen") {
                 ctx.beginPath(); ctx.moveTo(startX, startY);
-                ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 6;
+                ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 5;
                 ctx.lineCap = "round"; ctx.lineJoin = "round";
             }
         };
@@ -435,12 +461,24 @@
             if (mode === "pen") {
                 ctx.lineTo(pos.x, pos.y); ctx.stroke();
             } else {
-                ctx.putImageData(snapshot, 0, 0);
-                if (mode === "rect") {
-                    ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 6;
+                ctx.putImageData(snapshot, 0, 0); // restore for live preview
+                if (mode === "arrow") {
+                    drawArrow(startX, startY, pos.x, pos.y);
+                } else if (mode === "rect") {
+                    ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 5;
                     ctx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
+                } else if (mode === "circle") {
+                    const rx = Math.abs(pos.x - startX) / 2;
+                    const ry = Math.abs(pos.y - startY) / 2;
+                    const cx = startX + (pos.x - startX) / 2;
+                    const cy = startY + (pos.y - startY) / 2;
+                    ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 5;
+                    ctx.beginPath();
+                    ctx.ellipse(cx, cy, Math.max(rx, 1), Math.max(ry, 1), 0, 0, 2 * Math.PI);
+                    ctx.stroke();
                 } else if (mode === "redact") {
-                    ctx.fillStyle = "#000"; ctx.fillRect(startX, startY, pos.x - startX, pos.y - startY);
+                    ctx.fillStyle = "#000";
+                    ctx.fillRect(startX, startY, pos.x - startX, pos.y - startY);
                 } else if (mode === "blur") {
                     ctx.filter = "blur(15px)";
                     ctx.drawImage(canvas, startX, startY, pos.x - startX, pos.y - startY, startX, startY, pos.x - startX, pos.y - startY);
@@ -450,11 +488,24 @@
         };
 
         const stop = () => {
-            if (drawing) {
-                drawing = false;
-                saveState();
-            }
+            if (drawing) { drawing = false; saveState(); }
         };
+
+        // Text tool – click to place
+        canvas.addEventListener("click", (e) => {
+            if (mode !== "text") return;
+            const text = prompt("Enter annotation text:");
+            if (!text) return;
+            saveState();
+            const pos = getPos(e);
+            ctx.font      = "bold 20px Inter, system-ui, sans-serif";
+            ctx.fillStyle = "#ef4444";
+            ctx.strokeStyle = "rgba(0,0,0,0.5)";
+            ctx.lineWidth   = 3;
+            ctx.strokeText(text, pos.x, pos.y);
+            ctx.fillText(text, pos.x, pos.y);
+            saveState();
+        });
 
         canvas.addEventListener("mousedown", start);
         canvas.addEventListener("touchstart", start, { passive: false });
@@ -466,7 +517,7 @@
         window.addEventListener("touchend", stop);
 
         // Cleanup on modal close
-        const observer = new MutationObserver((mutations) => {
+        const observer = new MutationObserver(() => {
             if (!document.getElementById("bugscribe-modal")) {
                 window.removeEventListener("mousemove", move);
                 window.removeEventListener("touchmove", move);
@@ -525,6 +576,7 @@
                 title,
                 description: document.getElementById("bs-desc").value,
                 priority: document.getElementById("bs-priority").value,
+                type: document.getElementById("bs-type").value,
                 reporterName: document.getElementById("bs-reporter-name").value,
                 reporterEmail: document.getElementById("bs-reporter-email").value,
                 screenshotStorageId,

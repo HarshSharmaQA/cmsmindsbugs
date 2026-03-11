@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw  # type: ignore
 
 def create_icon(size, filename):
     img = Image.new('RGBA', (size, size), color=(0, 0, 0, 0))

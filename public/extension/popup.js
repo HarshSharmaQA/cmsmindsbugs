@@ -88,6 +88,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         ]);
 
         if (storage.bugscribeTokenIdentifier) {
+            // Hotfix: if the token is secretly an object (from the old bug), clear it!
+            if (typeof storage.bugscribeTokenIdentifier === "object") {
+                await chrome.storage.local.remove(["bugscribeTokenIdentifier", "bugscribeUserEmail"]);
+                switchView("login");
+                return;
+            }
+
             currentUser = {
                 tokenIdentifier: storage.bugscribeTokenIdentifier,
                 email: storage.bugscribeUserEmail
@@ -173,7 +180,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         loginBtn.innerHTML = '<div class="loading-spinner"></div>';
 
         try {
-            const tokenIdentifier = await mutation("users:loginUser", { email, password });
+            const result = await mutation("users:loginUser", { email, password });
+            const tokenIdentifier = result.token;
+
+            if (!result.isApproved) {
+                showBanner("error", "Your account is pending approval. Please wait for an admin to approve your access.");
+                return;
+            }
 
             currentUser = { tokenIdentifier, email };
             userEmailText.textContent = email;
@@ -266,8 +279,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     openDashboardBtn.addEventListener("click", () => {
         const url = selectedProject
-            ? `http://localhost:3000/dashboard/${selectedProject.id}`
-            : "http://localhost:3000";
+            ? `https://bugscribe.com/dashboard/${selectedProject.id}`
+            : "https://bugscribe.com";
         window.open(url, "_blank");
     });
 
