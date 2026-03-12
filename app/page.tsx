@@ -83,7 +83,7 @@ function DashboardContent({ devToken }: { devToken: string }) {
             {/* Header */}
             <div className="flex items-center justify-between mb-8 animate-slide-up">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Projects</h1>
+                    <h2 className="text-2xl font-bold text-white">Projects</h2>
                     <p className="text-slate-400 text-sm mt-1">
                         Manage your tracked applications
                     </p>
@@ -139,8 +139,10 @@ function DashboardContent({ devToken }: { devToken: string }) {
                     {/* Search + Filter */}
                     <div className="flex flex-col sm:flex-row gap-3 mb-5">
                         <div className="relative flex-1">
+                            <label htmlFor="user-search" className="sr-only">Search users</label>
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                             <input
+                                id="user-search"
                                 className="input pl-9 text-sm"
                                 placeholder="Search by name or email…"
                                 value={userSearch}
@@ -311,6 +313,21 @@ function HomePageContent() {
     const [isPreview, setIsPreview] = useState(false);
 
     useEffect(() => {
+        if (mounted) {
+            document.title = "BugScribe | Visual Bug Tracking for Modern Dev Teams";
+            
+            // Update description meta tag
+            let metaDesc = document.querySelector('meta[name="description"]');
+            if (!metaDesc) {
+                metaDesc = document.createElement('meta');
+                metaDesc.setAttribute('name', 'description');
+                document.head.appendChild(metaDesc);
+            }
+            metaDesc.setAttribute('content', 'Track bugs visually, manage user feedback, and improve build quality with BugScribe. The ultimate visual bug reporting tool.');
+        }
+    }, [mounted]);
+
+    useEffect(() => {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
             if (params.get("preview") === "landing") {
@@ -370,6 +387,12 @@ function HomePageContent() {
         <div className="min-h-screen relative">
             <div className="fixed inset-0 grid-bg pointer-events-none opacity-50" />
             <Navbar />
+            
+            {!devToken && !isPreview && (
+                <div className="sr-only">
+                    <p>BugScribe - Visual Bug Tracking for Modern Dev Teams. Track bugs visually, manage user feedback, and improve your build quality with BugScribe.</p>
+                </div>
+            )}
             <ToastContainer toasts={toasts} onRemove={removeToast} />
 
             {/* Login Modal */}
@@ -530,7 +553,7 @@ function ProjectCard({
             {/* Header */}
             <div className="flex items-center gap-3 mb-3 pr-8">
                 <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
-                    <Bug className="w-5 h-5 text-brand-400" />
+                    <Bug className="w-5 h-5 text-brand-400" aria-label="Bug icon" />
                 </div>
                 <div className="min-w-0">
                     <h3 className="font-semibold text-white truncate">{project.name}</h3>

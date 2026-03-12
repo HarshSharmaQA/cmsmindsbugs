@@ -32,9 +32,16 @@ function NavbarContent() {
     
     // Split menu pages into two halves for the center logo layout
     const menuPages = (publishedPages as any[]).filter(p => p.showInMenu && p.slug !== "");
-    const half = Math.ceil(menuPages.length / 2);
-    const leftMenu = menuPages.slice(0, half);
-    const rightMenu = menuPages.slice(half);
+    
+    // Hick's Law: Limit visible items. Max 5 pages + Home + Admin = 7 items.
+    const visibleCount = 4;
+    const hasMore = menuPages.length > visibleCount;
+    const displayedPages = menuPages.slice(0, visibleCount);
+    const morePages = menuPages.slice(visibleCount);
+    
+    const half = Math.ceil(displayedPages.length / 2);
+    const leftMenu = displayedPages.slice(0, half);
+    const rightMenu = displayedPages.slice(half);
 
     return (
         <div className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-4 pointer-events-none">
@@ -145,6 +152,25 @@ function NavbarContent() {
                             {page.title}
                         </Link>
                     ))}
+
+                    {hasMore && (
+                        <div className="relative group/more hidden lg:block">
+                            <button className="nav-link text-[13px] font-semibold text-slate-400 hover:text-white transition-all px-3 py-2 flex items-center gap-1">
+                                More <ChevronDown className="w-3 h-3" />
+                            </button>
+                            <div className="absolute top-10 left-0 w-48 card p-2 opacity-0 translate-y-2 pointer-events-none group-hover/more:opacity-100 group-hover/more:translate-y-0 group-hover/more:pointer-events-auto transition-all z-50 bg-[#0d0d14]/95 backdrop-blur-md border border-white/10">
+                                {morePages.map(page => (
+                                    <Link
+                                        key={`more-${page._id}`}
+                                        href={`/${page.slug}`}
+                                        className="block px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/5"
+                                    >
+                                        {page.title}
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {isSuperAdmin && (
                         <Link

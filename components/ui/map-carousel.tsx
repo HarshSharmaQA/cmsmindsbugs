@@ -426,6 +426,7 @@ function FilterPanel({
           <Button
             className="w-full"
             onClick={onApply}
+            aria-label={`Apply filters showing ${resultCount} results`}
           >
             Show {resultCount} locations
           </Button>
@@ -903,6 +904,7 @@ export function MapCarousel({ data, actions, appearance }: MapCarouselProps) {
                 size="sm"
                 className="gap-2 flex-shrink-0"
                 onClick={handleFilterButtonClick}
+                aria-label="Open filter settings"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 <span className="hidden sm:inline">Filters</span>
@@ -924,6 +926,7 @@ export function MapCarousel({ data, actions, appearance }: MapCarouselProps) {
                   variant="link"
                   className="mt-2"
                   onClick={handleResetFilters}
+                  aria-label="Clear all applied filters"
                 >
                   Reset filters
                 </Button>

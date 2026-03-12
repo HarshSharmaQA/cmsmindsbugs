@@ -508,7 +508,8 @@ function BugChartBlock({ data }: { data: any }) {
 
 // ─── Existing Block Renderers ─────────────────────────────────────────────────
 
-function HeroBlock({ data }: { data: any }) {
+function HeroBlock({ data, isFirst }: { data: any, isFirst?: boolean }) {
+    const HeadingTag = isFirst ? 'h1' : 'h2';
     return (
         <section className="relative py-20 md:py-32 text-center overflow-hidden">
             <div className="absolute inset-0 -z-10" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 0%, rgba(0,212,255,0.1) 0%, transparent 70%)" }} />
@@ -517,13 +518,13 @@ function HeroBlock({ data }: { data: any }) {
                     {data.badge}
                 </div>
             )}
-            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight mb-6 animate-slide-up leading-tight">
+            <HeadingTag className="text-5xl md:text-7xl font-bold text-white tracking-tight mb-6 animate-slide-up leading-tight">
                 {data.heading?.includes(" ") ? (
                     <>{data.heading.split(" ").slice(0, -1).join(" ")} <span className="text-gradient">{data.heading.split(" ").pop()}</span></>
                 ) : (
                     <span className="text-gradient">{data.heading}</span>
                 )}
-            </h1>
+            </HeadingTag>
             {data.subheading && <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in">{data.subheading}</p>}
             {data.ctaText && (
                 <div className="flex items-center justify-center gap-4 animate-fade-in">
@@ -554,12 +555,12 @@ function TwoColBlock({ data }: { data: any }) {
         <section className="py-12">
             <div className="grid md:grid-cols-2 gap-10 items-start">
                 <div>
-                    {data.imageLeft && <div className="rounded-2xl overflow-hidden mb-6 border border-surface-border"><img src={data.imageLeft} alt="" className="w-full object-cover" /></div>}
+                    {data.imageLeft && <div className="rounded-2xl overflow-hidden mb-6 border border-surface-border"><img src={data.imageLeft} alt={data.leftHeading || "Feature image"} className="w-full object-cover" /></div>}
                     {data.leftHeading && <h3 className="text-2xl font-bold text-white mb-3">{data.leftHeading}</h3>}
                     {data.leftBody && <p className="text-slate-400 leading-relaxed">{data.leftBody}</p>}
                 </div>
                 <div>
-                    {data.imageRight && <div className="rounded-2xl overflow-hidden mb-6 border border-surface-border"><img src={data.imageRight} alt="" className="w-full object-cover" /></div>}
+                    {data.imageRight && <div className="rounded-2xl overflow-hidden mb-6 border border-surface-border"><img src={data.imageRight} alt={data.rightHeading || "Feature image"} className="w-full object-cover" /></div>}
                     {data.rightHeading && <h3 className="text-2xl font-bold text-white mb-3">{data.rightHeading}</h3>}
                     {data.rightBody && <p className="text-slate-400 leading-relaxed">{data.rightBody}</p>}
                 </div>
@@ -1137,19 +1138,20 @@ function FeatureHighlightBlock({ data }: { data: any }) {
 }
 
 // ─── Startup Hero Block ────────────────────────────────────────────────────────
-function StartupHeroBlock({ data }: { data: any }) {
+function StartupHeroBlock({ data, isFirst }: { data: any, isFirst?: boolean }) {
     const avatars = (data.avatars || "").split(",").filter(Boolean);
+    const HeadingTag = isFirst ? 'h1' : 'h2';
     return (
         <section className="relative py-20 text-center flex flex-col items-center">
             {data.image && (
                 <div className="relative z-10 w-full max-w-2xl mx-auto -mb-16 md:-mb-24 flex justify-center">
-                    <img src={data.image} alt="Hero" className="max-w-full h-auto object-contain drop-shadow-2xl" style={{ maxHeight: '400px' }} />
+                    <img src={data.image} alt={data.heading || "Hero"} className="max-w-full h-auto object-contain drop-shadow-2xl" style={{ maxHeight: '400px' }} />
                 </div>
             )}
             <div className="relative z-20 w-full max-w-4xl mx-auto bg-white dark:bg-transparent pt-16 md:pt-24 pb-8" style={{ maskImage: 'linear-gradient(to bottom, transparent, black 15%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 25%)' }}>
-                <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 text-slate-900 dark:text-white leading-tight">
+                <HeadingTag className="text-5xl md:text-7xl font-bold tracking-tight mb-8 text-slate-900 dark:text-white leading-tight">
                     {data.heading}
-                </h1>
+                </HeadingTag>
                 <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
                     {data.primaryBtnText && (
                         <Link href={data.primaryBtnUrl || "/"} className="bg-black text-white hover:bg-slate-800 dark:bg-brand-500 dark:text-[#09090E] dark:hover:bg-brand-400 px-8 py-3 rounded-full font-medium transition-colors">
@@ -1246,12 +1248,12 @@ function SplitFaqBlock({ data }: { data: any }) {
     );
 }
 
-export function RenderBlock({ block, pageSlug }: { block: { id: string; type: string; data: any }; pageSlug: string }) {
+export function RenderBlock({ block, pageSlug, isFirst }: { block: { id: string; type: string; data: any }; pageSlug: string; isFirst?: boolean }) {
     switch (block.type) {
-        case "startup_hero": return <StartupHeroBlock data={block.data} />;
+        case "startup_hero": return <StartupHeroBlock data={block.data} isFirst={isFirst} />;
         case "startup_team": return <StartupTeamBlock data={block.data} />;
         case "split_faq": return <SplitFaqBlock data={block.data} />;
-        case "hero": return <HeroBlock data={block.data} />;
+        case "hero": return <HeroBlock data={block.data} isFirst={isFirst} />;
         case "ribbon": return <RibbonBlock data={block.data} />;
         case "marquee_ticker": return <MarqueeTickerBlock data={block.data} />;
         case "login": return <LoginBlock data={block.data} />;
@@ -1339,8 +1341,8 @@ export function PublicPageContent({ slug }: { slug: string }) {
             )}
             <Navbar />
             <main className="max-w-5xl mx-auto px-4 pt-32 pb-20">
-                {page.blocks.map((block: any) => (
-                    <RenderBlock key={block.id} block={block} pageSlug={page.slug} />
+                {page.blocks.map((block: any, index: number) => (
+                    <RenderBlock key={block.id} block={block} pageSlug={page.slug} isFirst={index === 0} />
                 ))}
             </main>
             <div className="border-t border-surface-border py-6 text-center">

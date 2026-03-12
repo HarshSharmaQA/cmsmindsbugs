@@ -26,14 +26,17 @@ import argparse
 from pathlib import Path
 from typing import List, Tuple, Optional
 
-# ANSI colors for terminal output
+# Fix Windows console encoding
 try:
     if sys.platform == "win32":
         import ctypes
         kernel32 = ctypes.windll.kernel32
         kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-except:
+    # Using getattr to avoid static analysis errors on reconfigure
+    reconfig = getattr(sys.stdout, 'reconfigure', None)
+    if reconfig:
+        reconfig(encoding='utf-8', errors='replace')
+except Exception:
     pass
 
 class Colors:
@@ -116,7 +119,8 @@ def run_script(name: str, script_path: Path, project_path: str, url: Optional[st
         else:
             print_error(f"{name}: FAILED")
             if result.stderr:
-                print(f"  Error: {result.stderr[:200]}")
+                err_msg = str(result.stderr)
+                print(f"  Error: {err_msg[:200]}")
         
         return {
             "name": name,

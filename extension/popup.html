@@ -266,7 +266,7 @@
 </head>
 
 <body>
-    <h1>
+    <h2>
         <div class="header-left">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -292,10 +292,10 @@
                 <circle cx="12" cy="12" r="3" />
             </svg>
         </button>
-    </h1>
+    </h2>
 
     <div id="setupView">
-        <label>Connection Key</label>
+        <label for="setupConnectionKey">Connection Key</label>
         <p style="font-size: 10px; color:#94a3b8; margin-top:0; margin-bottom:8px;">Copy the single key from your
             dashboard's Integrations page.</p>
         <input type="text" id="setupConnectionKey" placeholder="Paste connection key here..." />
@@ -349,13 +349,13 @@
             <ol id="stepsList"></ol>
         </div>
 
-        <label>Title *</label>
+        <label for="bugTitle">Title *</label>
         <input type="text" id="bugTitle" placeholder="What went wrong?" />
-        <label>Description</label>
+        <label for="bugDescription">Description</label>
         <textarea id="bugDescription" rows="3" placeholder="Steps to reproduce..."></textarea>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
             <div>
-                <label>Type</label>
+                <label for="bugType">Type</label>
                 <select id="bugType">
                     <option value="general">General</option>
                     <option value="ui_ux">UI/UX</option>
@@ -366,7 +366,7 @@
                 </select>
             </div>
             <div>
-                <label>Priority</label>
+                <label for="bugPriority">Priority</label>
                 <select id="bugPriority">
                     <option value="low">Low</option>
                     <option value="medium" selected>Medium</option>

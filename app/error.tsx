@@ -25,9 +25,9 @@ export default function GlobalError({
                     <AlertTriangle className="w-8 h-8" />
                 </div>
 
-                <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-red-400 to-amber-500 bg-clip-text text-transparent">
+                <h1 className="text-[clamp(1.5rem,5vw,2rem)] font-bold mb-3 bg-gradient-to-r from-red-400 to-amber-500 bg-clip-text text-transparent">
                     Something went wrong
-                </h2>
+                </h1>
 
                 {isDeploymentSync ? (
                     <p className="text-slate-400 mb-8 text-sm leading-relaxed">
@@ -54,6 +54,15 @@ export default function GlobalError({
                     >
                         Back to Home
                     </Link>
+                </div>
+                
+                <div className="mt-8 pt-6 border-t border-white/5 w-full">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Trusted by engineering teams at</p>
+                    <div className="flex justify-center gap-6 opacity-30 grayscale contrast-200">
+                        <div className="text-[10px] font-black text-white">TECHFLOW</div>
+                        <div className="text-[10px] font-black text-white">DEVPULSE</div>
+                        <div className="text-[10px] font-black text-white">BUGLAB</div>
+                    </div>
                 </div>
             </div>
         </div>

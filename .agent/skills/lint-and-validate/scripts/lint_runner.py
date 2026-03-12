@@ -21,14 +21,16 @@ from datetime import datetime
 
 # Fix Windows console encoding
 try:
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-except:
+    reconfig = getattr(sys.stdout, 'reconfigure', None)
+    if reconfig:
+        reconfig(encoding='utf-8', errors='replace')
+except Exception:
     pass
 
 
 def detect_project_type(project_path: Path) -> dict:
     """Detect project type and available linters."""
-    result = {
+    result: dict = {
         "type": "unknown",
         "linters": []
     }
@@ -99,8 +101,10 @@ def run_linter(linter: dict, cwd: Path) -> dict:
             shell=platform.system() == "Windows" # Shell=True often helps with path resolution on Windows
         )
         
-        result["output"] = proc.stdout[:2000] if proc.stdout else ""
-        result["error"] = proc.stderr[:500] if proc.stderr else ""
+        stdout_str = str(proc.stdout) if proc.stdout else ""
+        stderr_str = str(proc.stderr) if proc.stderr else ""
+        result["output"] = stdout_str[:2000]
+        result["error"] = stderr_str[:500]
         result["passed"] = proc.returncode == 0
         
     except FileNotFoundError:
@@ -118,7 +122,7 @@ def main():
         path_str = " ".join(sys.argv[1:]) # Re-join arguments in case shell split by spaces
         # Handle potential leading/trailing quotes from shell
         if (path_str.startswith('"') and path_str.endswith('"')) or (path_str.startswith("'") and path_str.endswith("'")):
-            path_str = path_str[1:-1]
+            path_str = str(path_str)[1:-1]
         project_path = Path(path_str).resolve()
     else:
         project_path = Path(".").resolve()
