@@ -1,12 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getEffectiveIdentity } from "./users";
 
 // ── Helper: resolve dev token to user ─────────────────────────────────────────
 async function resolveUser(ctx: any, devToken: string | undefined) {
     if (!devToken) return null;
+    const identity = await getEffectiveIdentity(ctx, devToken);
+    if (!identity) return null;
     return await ctx.db
         .query("users")
-        .withIndex("by_token_identifier", (q: any) => q.eq("tokenIdentifier", devToken))
+        .withIndex("by_token_identifier", (q: any) => q.eq("tokenIdentifier", identity.subject))
         .first();
 }
 
@@ -62,7 +66,7 @@ export const create = mutation({
         const user = await resolveUser(ctx, devToken);
         if (!user || user.role !== "super_admin") throw new Error("Unauthorized");
 
-        const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-\/]/g, "").replace(/\/{2,}/g, "/").replace(/-+/g, "-").replace(/^\/+|\/+$/g, "");
+        const cleanSlug = slug === "" ? "" : slug.toLowerCase().replace(/[^a-z0-9-\/]/g, "").replace(/\/{2,}/g, "/").replace(/-+/g, "-").replace(/^\/+|\/+$/g, "");
         const existing = await ctx.db.query("pages").withIndex("by_slug", (q: any) => q.eq("slug", cleanSlug)).first();
         if (existing) throw new Error(`A page with slug "${cleanSlug}" already exists.`);
 
@@ -97,7 +101,7 @@ export const update = mutation({
         if (showInMenu !== undefined) patch.showInMenu = showInMenu;
         if (blocks !== undefined) patch.blocks = blocks;
         if (slug !== undefined) {
-            const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-\/]/g, "").replace(/\/{2,}/g, "/").replace(/-+/g, "-").replace(/^\/+|\/+$/g, "");
+            const cleanSlug = slug === "" ? "" : slug.toLowerCase().replace(/[^a-z0-9-\/]/g, "").replace(/\/{2,}/g, "/").replace(/-+/g, "-").replace(/^\/+|\/+$/g, "");
             const existing = await ctx.db.query("pages").withIndex("by_slug", (q: any) => q.eq("slug", cleanSlug)).first();
             if (existing && existing._id !== id) throw new Error(`Slug "${cleanSlug}" already in use.`);
             patch.slug = cleanSlug;
@@ -112,7 +116,10 @@ export const remove = mutation({
     handler: async (ctx, { devToken, id }) => {
         const user = await resolveUser(ctx, devToken);
         if (!user || user.role !== "super_admin") throw new Error("Unauthorized");
-        await ctx.db.delete(id);
+        const existing = await ctx.db.get(id);
+        if (existing) {
+            await ctx.db.delete(id);
+        }
     },
 });
 
@@ -134,14 +141,64 @@ export const createDefaultHome = mutation({
     handler: async (ctx, { devToken }) => {
         const user = await resolveUser(ctx, devToken);
         if (!user || user.role !== "super_admin") throw new Error("Unauthorized");
-        
-        const existing = await ctx.db.query("pages").withIndex("by_slug", (q: any) => q.eq("slug", "home")).first();
+
+        const existing = await ctx.db.query("pages").withIndex("by_slug", (q: any) => q.eq("slug", "")).first();
         if (existing) return existing._id;
-        
+
         const now = Date.now();
+        const defaultBlocks = [
+            {
+                id: `hero-${now}`,
+                type: "hero",
+                data: {
+                    heading: "Build Fast, Ship Confidently",
+                    subheading: "The all-in-one platform for visual bug reporting and project management. Designed for modern developers who love beautiful interfaces.",
+                    ctaText: "Get Started Free",
+                    ctaUrl: "/",
+                    badge: "Trusted by 10,000+ Developers"
+                }
+            },
+            {
+                id: `marquee-${now}`,
+                type: "marquee_ticker",
+                data: {
+                    row1: "Capture Bugs Instantly, Screenshot & Annotate, Drag & Drop Kanban, Priority Tracking, Team Collaboration, One-Click Reports, Chrome Extension",
+                    row2: "Visual Bug Reports, Designed for Developers, Beautiful Interfaces, Zero Config Setup, Responsive Components, Secure by Default"
+                }
+            },
+            {
+                id: `cta-${now}`,
+                type: "cta",
+                data: {
+                    heading: "Ready to accelerate your workflow?",
+                    subtext: "Join the thousands of teams already using BugScribe to ship better software faster.",
+                    primaryBtnText: "Start My Trial",
+                    primaryBtnUrl: "/",
+                    secondaryBtnText: "Watch Demo",
+                    secondaryBtnUrl: "/"
+                }
+            },
+            {
+                id: `login-${now}`,
+                type: "login",
+                data: {
+                    heading: "Already have an account?",
+                    subheading: "Sign in to your dashboard to manage your projects and track bugs.",
+                    btnText: "Sign In to Dashboard"
+                }
+            }
+        ];
+
         return await ctx.db.insert("pages", {
-            title: "Home", slug: "home", metaDescription: "Welcome to BugScribe custom pages.", isPublished: false, showInMenu: false, blocks: [],
-            createdBy: user.tokenIdentifier, createdAt: now, updatedAt: now,
+            title: "Home", 
+            slug: "", 
+            metaDescription: "Welcome to BugScribe - The modern platform for visual bug tracking and project management.", 
+            isPublished: false, 
+            showInMenu: false, 
+            blocks: defaultBlocks,
+            createdBy: user.tokenIdentifier, 
+            createdAt: now, 
+            updatedAt: now,
         });
     }
 });

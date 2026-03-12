@@ -184,7 +184,7 @@ function ListView({ bugs, onSelect }: { bugs: any[]; onSelect: (id: Id<"bugs">) 
             <div className="card p-12 text-center">
                 <Bug className="w-10 h-10 text-slate-700 mx-auto mb-3" />
                 <p className="text-slate-400 text-sm font-medium">No issues yet</p>
-                <p className="text-slate-600 text-xs mt-1">Click "+ New Issue" to create your first bug report</p>
+                <p className="text-slate-400 text-sm mt-0.5 line-clamp-1">Click &ldquo;+ New Issue&rdquo; to create your first bug report</p>
             </div>
         );
     }
@@ -528,7 +528,7 @@ function IntegrationsView({ project, devToken }: { project: any; devToken: strin
                     <h3 className="text-sm font-semibold text-white">Widget Embed</h3>
                 </div>
                 <p className="text-xs text-slate-500 mb-4">
-                    Add this script tag to your website's <code className="text-slate-300">&lt;body&gt;</code> to enable the floating bug reporter widget.
+                    Add this script tag to your website&apos;s <code className="text-slate-300">&lt;body&gt;</code> to enable the floating bug reporter widget.
                 </p>
                 <div className="relative">
                     <pre className="p-4 bg-surface-elevated rounded-lg border border-surface-border text-xs text-slate-300 overflow-x-auto leading-relaxed">

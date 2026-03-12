@@ -102,7 +102,7 @@ function AdminDashboardContent() {
         <div className="min-h-screen bg-surface text-slate-200">
             <Navbar />
 
-            <main className="max-w-7xl mx-auto px-4 py-10">
+            <main className="max-w-7xl mx-auto px-4 pt-32 pb-20">
                 {/* Header */}
                 <div className="mb-10 flex items-center justify-between">
                     <div className="animate-slide-up">
@@ -175,6 +175,53 @@ function AdminDashboardContent() {
                             <p className="text-slate-500 text-xs mt-0.5">Manage interactive map locations</p>
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-purple-400 transition-colors" />
+                    </Link>
+                </div>
+
+                {/* Additional Settings Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10 animate-slide-up" style={{ animationDelay: "100ms" }}>
+                    <Link href="/admin/analytics" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-500/20 transition-all">
+                            <BarChart3 className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm flex items-center gap-1.5">
+                                Analytics
+                                <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded leading-none">PRO</span>
+                            </p>
+                            <p className="text-slate-500 text-xs mt-0.5">System-wide usage patterns</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors" />
+                    </Link>
+                    <Link href="/admin/users" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/20 transition-all">
+                            <Users className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">User Directory</p>
+                            <p className="text-slate-500 text-xs mt-0.5">Complete user registry & export</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
+                    </Link>
+                    <Link href="/admin/security" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:bg-rose-500/20 transition-all">
+                            <ShieldAlert className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">Security Audit</p>
+                            <p className="text-slate-500 text-xs mt-0.5">Login logs & IP tracking</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-rose-400 transition-colors" />
+                    </Link>
+                    <Link href="/admin/api" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500/20 transition-all">
+                            <Key className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">API Gateway</p>
+                            <p className="text-slate-500 text-xs mt-0.5">Manage platform access keys</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 transition-colors" />
                     </Link>
                 </div>
 

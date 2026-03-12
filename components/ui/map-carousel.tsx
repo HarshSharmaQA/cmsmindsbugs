@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { ChevronDown, MapPin, Maximize2, SlidersHorizontal, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { demoMapLocations, demoMapCenter, demoMapZoom } from './demo/map'
 
 /**
@@ -674,8 +674,12 @@ export function MapCarousel({ data, actions, appearance }: MapCarouselProps) {
     zoom = 14,
     mapStyle = 'voyager',
     title,
-    filters: filterConfigs = []
+    filters: rawFilterConfigs = []
   } = resolvedData
+
+  // Stabilize filterConfigs reference so memoized callbacks remain stable across renders
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const filterConfigs = useMemo(() => rawFilterConfigs, [JSON.stringify(rawFilterConfigs)])
 
   const tileConfig = getTileConfig(mapStyle)
   const { onSelectLocation } = actions ?? {}

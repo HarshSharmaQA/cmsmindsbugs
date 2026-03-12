@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
-import { Doc, Id } from "./_generated/dataModel";
+import { Id } from "./_generated/dataModel";
 
 // ── Security Helpers ──────────────────────────────────────────────────────────
 
@@ -313,7 +313,8 @@ export const setUserPassword = mutation({
             throw new Error("User not found");
         }
 
-        await ctx.db.patch(targetUser._id, { password: args.password });
+        const hashedPassword = await hashPassword(args.password);
+        await ctx.db.patch(targetUser._id, { password: hashedPassword });
     },
 });
 

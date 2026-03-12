@@ -108,6 +108,8 @@ module.exports = {
                 'shimmer': 'skeleton-shimmer 1.5s ease-in-out infinite',
                 'text-shine': 'text-shimmer 4s linear infinite',
                 'pulse-slow': 'pulse 4s ease-in-out infinite',
+                'marquee-left': 'marqueeLeft 30s linear infinite',
+                'marquee-right': 'marqueeRight 24s linear infinite',
             },
             keyframes: {
                 fadeIn: {
@@ -133,6 +135,14 @@ module.exports = {
                 'text-shimmer': {
                     '0%': { backgroundPosition: '0% center' },
                     '100%': { backgroundPosition: '200% center' },
+                },
+                'marqueeLeft': {
+                    '0%': { transform: 'translateX(0%)' },
+                    '100%': { transform: 'translateX(-50%)' },
+                },
+                'marqueeRight': {
+                    '0%': { transform: 'translateX(-50%)' },
+                    '100%': { transform: 'translateX(0%)' },
                 },
             },
         },

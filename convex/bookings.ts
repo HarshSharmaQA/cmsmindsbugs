@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getEffectiveIdentity } from "./users";
 
 // ─── Create Booking (public) ──────────────────────────────────────────────────
 
@@ -53,19 +54,14 @@ export const list = query({
         pageSlug: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        let user = null;
+        const identity = await getEffectiveIdentity(ctx, args.devToken);
+        if (!identity) throw new Error("Unauthorized");
 
-        const devTokenStr = args.devToken;
-        if (identity) {
-            user = await ctx.db.query("users").withIndex("by_token_identifier", q => q.eq("tokenIdentifier", identity.tokenIdentifier)).first();
-        } else if (devTokenStr) {
-            user = await ctx.db.query("users").withIndex("by_token_identifier", q => q.eq("tokenIdentifier", devTokenStr)).first();
-        }
+        const user = await ctx.db.query("users").withIndex("by_token_identifier", q => q.eq("tokenIdentifier", identity.subject)).first();
 
         if (!user || user.role !== "super_admin") throw new Error("Unauthorized");
 
-        let bookingsQuery = ctx.db.query("bookings").order("desc");
+        const bookingsQuery = ctx.db.query("bookings").order("desc");
         const allBookings = await bookingsQuery.collect();
 
         return args.pageSlug
@@ -83,15 +79,10 @@ export const updateStatus = mutation({
         status: v.string(),
     },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        let user = null;
+        const identity = await getEffectiveIdentity(ctx, args.devToken);
+        if (!identity) throw new Error("Unauthorized");
 
-        const devTokenStr = args.devToken;
-        if (identity) {
-            user = await ctx.db.query("users").withIndex("by_token_identifier", q => q.eq("tokenIdentifier", identity.tokenIdentifier)).first();
-        } else if (devTokenStr) {
-            user = await ctx.db.query("users").withIndex("by_token_identifier", q => q.eq("tokenIdentifier", devTokenStr)).first();
-        }
+        const user = await ctx.db.query("users").withIndex("by_token_identifier", q => q.eq("tokenIdentifier", identity.subject)).first();
 
         if (!user || user.role !== "super_admin") throw new Error("Unauthorized");
 

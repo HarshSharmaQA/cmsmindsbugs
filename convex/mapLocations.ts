@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getEffectiveIdentity } from "./users";
@@ -92,7 +93,7 @@ export const update = mutation({
     },
     handler: async (ctx, args) => {
         await assertSuperAdmin(ctx, args.devToken);
-        const { id, devToken, ...fields } = args;
+        const { id, devToken: _devToken, ...fields } = args;
         const patch: Record<string, any> = { updatedAt: Date.now() };
         for (const [key, val] of Object.entries(fields)) {
             if (val !== undefined) patch[key] = val;

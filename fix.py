@@ -1,23 +1,12 @@
-"use client";
+import sys
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import Link from "next/link";
-import {
-    Plus, Bug, Globe, Key, Trash2, ArrowRight, X,
-    Copy, Check, Search, Users, AlertTriangle, ChevronDown,
-    BarChart3, Clock, Shield,
-} from "lucide-react";
-import { Navbar } from "@/components/Navbar";
-import { ToastContainer, useToast } from "@/components/ui/Toast";
-import { RenderBlock } from "@/app/[...slug]/page";
-import { LoginModal } from "@/components/LoginModal";
+file_path = "app/page.tsx"
+with open(file_path, "r", encoding="utf-8") as f:
+    lines = f.readlines()
 
-export const dynamic = 'force-dynamic';
-
-// ─── Home Page ────────────────────────────────────────────────────────────────
-// ─── DashboardContent Component ────────────────────────────────────────────────
+# Replace lines 130 to 755 (indices 129 to 755)
+# Actually, let's just use string replace or range replace.
+content = """// ─── DashboardContent Component ────────────────────────────────────────────────
 
 function DashboardContent({ devToken }: { devToken: string }) {
     const { toast } = useToast();
@@ -304,7 +293,7 @@ function HomePageContent() {
     const [showLoginModal, setShowLoginModal] = useState(false);
 
     const currentUser = useQuery(api.users.currentUser, { devToken: devToken || undefined });
-    const homePage = useQuery(api.pages.getBySlug, { slug: "" });
+    const homePage = useQuery(api.pages.getBySlug, { slug: "home" });
     const isSuperAdmin = currentUser?.role === "super_admin";
     
     // Check ?preview=landing to simulate logged-out view
@@ -318,8 +307,6 @@ function HomePageContent() {
             }
         }
     }, [])
-
-    const hasCustomHome = homePage && homePage.isPublished;
 
     // Re-verify login status on mount
     useEffect(() => {
@@ -367,8 +354,7 @@ function HomePageContent() {
     }
 
     return (
-        <div className="min-h-screen relative">
-            <div className="fixed inset-0 grid-bg pointer-events-none opacity-50" />
+        <div className="min-h-screen">
             <Navbar />
             <ToastContainer toasts={toasts} onRemove={removeToast} />
 
@@ -379,22 +365,67 @@ function HomePageContent() {
                 onSuccess={handleLoginSuccess}
             />
 
-            <main className="max-w-[1600px] mx-auto px-4 pt-32 pb-20">
+            <main className="max-w-[1600px] mx-auto px-4 py-8">
 
                 {/* ── Render Dynamic Blocks from Database (Always for preview, or for logged-out) ── */}
-                {(!devToken || isPreview) && hasCustomHome && (
+                {(!devToken || isPreview) && homePage && homePage.isPublished && (
                     <div className="-mx-4 mb-12 relative">
                         {devToken && currentUser?.role === "super_admin" && (
                             <div className="absolute top-4 right-8 z-50">
-                                <Link href="/admin/pages" className="btn-primary flex items-center gap-2 text-sm shadow-xl hover:scale-105 transition-transform">
+                                <a href="/admin/pages" className="btn-primary flex items-center gap-2 text-sm shadow-xl hover:scale-105 transition-transform">
                                     <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                                     Edit Global Blocks (Admin)
-                                </Link>
+                                </a>
                             </div>
                         )}
                         {homePage.blocks.map((block: any) => (
                             <RenderBlock key={block.id} block={block} pageSlug="home" />
                         ))}
+                    </div>
+                )}
+
+                {/* ── Diagonal Scrolling Ticker (Fallback or Preview) ── */}
+                {(!devToken || isPreview) && (
+                    <div className="-mx-4 overflow-hidden relative">
+                        {devToken && currentUser?.role === "super_admin" && (!homePage || !homePage.isPublished) && (
+                            <div className="absolute top-4 right-8 z-50">
+                                <a href="/admin/pages" className="btn-primary flex items-center gap-2 text-sm shadow-xl hover:scale-105 transition-transform">
+                                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                                    Initialize Global Blocks (Admin)
+                                </a>
+                            </div>
+                        )}
+                        <MarqueeTicker />
+                    </div>
+                )}
+
+                {/* ── Hero CTA (Fallback or Preview) ── */}
+                {(!devToken || isPreview) && (
+                    <div className="text-center py-16 animate-fade-in relative">
+                        <div
+                            className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6 mx-auto"
+                            style={{
+                                background: "rgba(0,212,255,0.08)",
+                                border: "1px solid rgba(0,212,255,0.2)",
+                                boxShadow: "0 0 40px rgba(0,212,255,0.1)",
+                            }}
+                        >
+                            <Bug className="w-10 h-10 text-brand-500" />
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-4">
+                            Welcome to Bug<span className="text-gradient">Scribe</span>
+                        </h1>
+                        <p className="text-slate-400 text-lg mb-8 max-w-lg mx-auto leading-relaxed">
+                            The visual bug tracking platform built for modern dev teams.
+                        </p>
+                        <button
+                            id="hero-login-btn"
+                            onClick={() => setShowLoginModal(true)}
+                            className="btn-primary px-8 py-3 text-base"
+                        >
+                            Sign In to Dashboard
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
                     </div>
                 )}
 
@@ -407,196 +438,10 @@ function HomePageContent() {
         </div>
     );
 }
+"""
 
-// ─── UserRow ─────────────────────────────────────────────────────────────────
-function UserRow({
-    user, currentUserEmail, onApprove, onRoleChange, onDelete,
-}: {
-    user: any;
-    currentUserEmail: string;
-    onApprove: () => Promise<void>;
-    onRoleChange: (role: "user" | "super_admin") => Promise<void>;
-    onDelete: () => Promise<void>;
-}) {
-    const [confirmDelete, setConfirmDelete] = useState(false);
-    const isSelf = user.email === currentUserEmail;
+new_lines = lines[:130] + [content + "\n"] + lines[756:]
+with open(file_path, "w", encoding="utf-8") as f:
+    f.writelines(new_lines)
 
-    return (
-        <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl border transition-all gap-4 sm:gap-0 ${!user.isApproved ? "bg-orange-500/5 border-orange-500/20" : "bg-[#0d0d14] border-surface-border"
-            }`}>
-            <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.2)', color: '#00D4FF' }}>
-                    {(user.name || user.email || "U")[0].toUpperCase()}
-                </div>
-                <div>
-                    <p className="text-sm font-semibold text-white">
-                        {user.name || "Anonymous"}
-                        {isSelf && <span className="ml-2 text-[10px] text-brand-400 font-medium">(you)</span>}
-                    </p>
-                    <p className="text-xs text-slate-500">{user.email}</p>
-                    <div className="flex gap-1.5 mt-1.5">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${user.role === "super_admin" ? "bg-brand-500/15 text-brand-300" : "bg-slate-500/15 text-slate-400"
-                            }`}>{user.role === "super_admin" ? "Super Admin" : "User"}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${user.isApproved ? "bg-green-500/15 text-green-400" : "bg-orange-500/15 text-orange-400"
-                            }`}>{user.isApproved ? "Approved" : "Pending"}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-                {!user.isApproved && (
-                    <button onClick={onApprove} className="btn-primary py-1.5 px-3 text-xs">
-                        <Check className="w-3 h-3" /> Approve
-                    </button>
-                )}
-                {!isSelf && (
-                    <select
-                        className="input py-1.5 px-2 h-auto text-xs w-28"
-                        value={user.role}
-                        onChange={e => onRoleChange(e.target.value as "user" | "super_admin")}
-                    >
-                        <option value="user">User</option>
-                        <option value="super_admin">Super Admin</option>
-                    </select>
-                )}
-                {!isSelf && user.role !== "super_admin" && (
-                    confirmDelete ? (
-                        <div className="flex gap-1">
-                            <button onClick={() => { onDelete(); setConfirmDelete(false); }}
-                                className="text-[10px] text-red-100 px-2 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 transition-colors">
-                                Confirm
-                            </button>
-                            <button onClick={() => setConfirmDelete(false)}
-                                className="text-[10px] text-slate-400 px-2 py-1.5 rounded-lg bg-surface hover:bg-surface-hover transition-colors">
-                                Cancel
-                            </button>
-                        </div>
-                    ) : (
-                        <button onClick={() => setConfirmDelete(true)}
-                            className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                            <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                    )
-                )}
-            </div>
-        </div>
-    );
-}
-
-// ─── ProjectCard ─────────────────────────────────────────────────────────────
-function ProjectCard({
-    project, onDelete, isSuperAdmin, devToken,
-}: {
-    project: { _id: string; name: string; domain?: string; description?: string; apiKey: string; createdAt: number };
-    onDelete: () => void;
-    isSuperAdmin: boolean;
-    devToken: string | null;
-}) {
-    const [confirmDelete, setConfirmDelete] = useState(false);
-    const [copied, setCopied] = useState(false);
-    const bugCount = useQuery(api.bugs.getBugCount, { projectId: project._id as any, devToken: devToken || undefined });
-
-    const copyKey = () => {
-        navigator.clipboard.writeText(project.apiKey);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
-    const age = Math.floor((Date.now() - project.createdAt) / 86400000);
-    const ageLabel = age === 0 ? "Today" : age === 1 ? "Yesterday" : `${age}d ago`;
-
-    return (
-        <div className="card p-5 hover:border-brand-500/30 transition-all duration-200 group animate-fade-in relative overflow-hidden flex flex-col">
-            {/* Delete button */}
-            <div className="absolute top-3 right-3">
-                {isSuperAdmin && (
-                    !confirmDelete ? (
-                        <button
-                            onClick={() => setConfirmDelete(true)}
-                            className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all p-1.5 rounded-lg hover:bg-red-500/10"
-                        >
-                            <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                    ) : (
-                        <div className="flex gap-1 animate-slide-up">
-                            <button onClick={onDelete} className="text-[10px] text-red-100 px-2 py-1 rounded bg-red-600 hover:bg-red-700">Confirm</button>
-                            <button onClick={() => setConfirmDelete(false)} className="text-[10px] text-slate-400 px-2 py-1 rounded bg-surface hover:bg-surface-hover">×</button>
-                        </div>
-                    )
-                )}
-            </div>
-
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-3 pr-8">
-                <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
-                    <Bug className="w-5 h-5 text-brand-400" />
-                </div>
-                <div className="min-w-0">
-                    <h3 className="font-semibold text-white truncate">{project.name}</h3>
-                    {project.domain && (
-                        <p className="text-slate-500 text-[10px] truncate flex items-center gap-1 mt-0.5">
-                            <Globe className="w-2.5 h-2.5 shrink-0" />{project.domain}
-                        </p>
-                    )}
-                </div>
-            </div>
-
-            {project.description && (
-                <p className="text-slate-400 text-xs mb-3 line-clamp-2">{project.description}</p>
-            )}
-
-            {/* Bug count pills */}
-            <div className="flex items-center gap-2 mb-4">
-                <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface text-slate-400 text-[11px] font-medium">
-                    <BarChart3 className="w-3 h-3" />
-                    {bugCount?.total ?? "—"} bugs
-                </span>
-                {(bugCount?.open ?? 0) > 0 && (
-                    <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-500/10 text-sky-400 text-[11px] font-semibold">
-                        {bugCount?.open} open
-                    </span>
-                )}
-                {(bugCount?.critical ?? 0) > 0 && (
-                    <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/12 text-red-400 text-[11px] font-semibold">
-                        <AlertTriangle className="w-2.5 h-2.5" />{bugCount?.critical} critical
-                    </span>
-                )}
-            </div>
-
-            <div className="divider mb-3" />
-
-            {/* Footer */}
-            <div className="flex items-center justify-between mt-auto">
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={copyKey}
-                        className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 hover:text-brand-400 transition-colors group/copy"
-                        title="Copy API key"
-                    >
-                        {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
-                        <span>{project.apiKey.slice(0, 10)}…</span>
-                    </button>
-                </div>
-                <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1 text-[10px] text-slate-600">
-                        <Clock className="w-2.5 h-2.5" />{ageLabel}
-                    </span>
-                    <Link
-                        href={`/dashboard/${project._id}`}
-                        className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 font-semibold transition-colors"
-                    >
-                        Open <ArrowRight className="w-3 h-3" />
-                    </Link>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-export default function HomePage() {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => { setMounted(true); }, []);
-    if (!mounted) return <div className="min-h-screen bg-[#0A0A0A]" />;
-    return <HomePageContent />;
-}
+print("Done")

@@ -114,7 +114,14 @@ def run_linter(linter: dict, cwd: Path) -> dict:
 
 
 def main():
-    project_path = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
+    if len(sys.argv) > 1:
+        path_str = " ".join(sys.argv[1:]) # Re-join arguments in case shell split by spaces
+        # Handle potential leading/trailing quotes from shell
+        if (path_str.startswith('"') and path_str.endswith('"')) or (path_str.startswith("'") and path_str.endswith("'")):
+            path_str = path_str[1:-1]
+        project_path = Path(path_str).resolve()
+    else:
+        project_path = Path(".").resolve()
     
     print(f"\n{'='*60}")
     print(f"[LINT RUNNER] Unified Linting")
