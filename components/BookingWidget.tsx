@@ -252,49 +252,49 @@ export function BookingWidget({ data, pageSlug }: { data: BookingData; pageSlug:
         <div className="w-full">
             {/* ── Step 1: Calendar + Time ─────────────────────────────────── */}
             {step === 1 && (
-                <div className="grid md:grid-cols-[1fr_1px_280px] gap-0 overflow-hidden rounded-2xl border border-surface-border bg-[#111118]"
-                    style={{ boxShadow: "0 0 60px rgba(0,0,0,0.5)" }}>
+                <div className="grid md:grid-cols-[1fr_1px_220px] gap-0 overflow-hidden rounded-2xl border border-surface-border bg-[#111118]"
+                    style={{ boxShadow: "0 0 40px rgba(0,0,0,0.4)" }}>
 
                     {/* Left: Event info + Calendar */}
-                    <div className="p-6 md:p-8">
+                    <div className="p-4 md:p-5">
                         {/* Host info */}
-                        <div className="flex items-center gap-3 mb-6 pb-5 border-b border-surface-border">
+                        <div className="flex items-center gap-2.5 mb-4 pb-4 border-b border-surface-border">
                             {data.hostAvatar ? (
-                                <img src={data.hostAvatar} alt={data.hostName} className="w-12 h-12 rounded-full object-cover border-2" style={{ borderColor: accent }} />
+                                <img src={data.hostAvatar} alt={data.hostName} className="w-9 h-9 rounded-full object-cover border-2" style={{ borderColor: accent }} />
                             ) : (
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold text-white" style={{ background: accent + "22", border: `2px solid ${accent}` }}>
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-base font-bold text-white" style={{ background: accent + "22", border: `2px solid ${accent}` }}>
                                     {data.hostName?.[0] || "B"}
                                 </div>
                             )}
                             <div>
                                 <p className="text-slate-400 text-xs font-medium">{data.hostName || "BugScribe Team"}</p>
-                                <h3 className="text-white font-bold text-lg leading-tight">{data.eventName || "Book a Meeting"}</h3>
+                                <h3 className="text-white font-bold text-base leading-tight">{data.eventName || "Book a Meeting"}</h3>
                             </div>
                         </div>
 
                         {/* Meta badges */}
-                        <div className="flex flex-wrap gap-3 mb-6">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-surface-hover px-3 py-1.5 rounded-full">
-                                <Clock className="w-3.5 h-3.5" style={{ color: accent }} />
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <div className="flex items-center gap-1 text-xs text-slate-400 bg-surface-hover px-2.5 py-1 rounded-full">
+                                <Clock className="w-3 h-3" style={{ color: accent }} />
                                 {data.duration || "30"} min
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-surface-hover px-3 py-1.5 rounded-full">
-                                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                            <div className="flex items-center gap-1 text-xs text-slate-400 bg-surface-hover px-2.5 py-1 rounded-full">
+                                <Zap className="w-3 h-3 text-amber-400" />
                                 Video / Phone
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-surface-hover px-3 py-1.5 rounded-full">
-                                <Shield className="w-3.5 h-3.5 text-green-400" />
+                            <div className="flex items-center gap-1 text-xs text-slate-400 bg-surface-hover px-2.5 py-1 rounded-full">
+                                <Shield className="w-3 h-3 text-green-400" />
                                 Free
                             </div>
                         </div>
 
                         {data.description && (
-                            <p className="text-slate-400 text-sm leading-relaxed mb-6 border-l-2 pl-3" style={{ borderColor: accent }}>
+                            <p className="text-slate-400 text-sm leading-relaxed mb-4 border-l-2 pl-3" style={{ borderColor: accent }}>
                                 {data.description}
                             </p>
                         )}
 
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-3">Select a Date</p>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Select a Date</p>
                         <BookingCalendar selectedDate={selectedDate} onSelect={setSelectedDate} accentColor={accent} />
 
                         {/* Timezone selector */}
@@ -324,7 +324,7 @@ export function BookingWidget({ data, pageSlug }: { data: BookingData; pageSlug:
                     <div className="hidden md:block bg-surface-border" />
 
                     {/* Right: Time slots */}
-                    <div className="p-6 border-t md:border-t-0 border-surface-border">
+                    <div className="p-4 border-t md:border-t-0 border-surface-border">
                         {selectedDate ? (
                             <>
                                 <div className="mb-4">
@@ -559,27 +559,27 @@ export function BookingWidget({ data, pageSlug }: { data: BookingData; pageSlug:
 
 export default function BookingBlock({ data, pageSlug }: { data: any; pageSlug: string }) {
     return (
-        <section className="py-16">
+        <section className="py-10">
             {/* Section header */}
             {(data.sectionHeading || data.sectionSubheading) && (
-                <div className="text-center mb-10">
+                <div className="text-center mb-6">
                     {data.sectionHeading && (
-                        <h2 className="text-4xl font-bold text-white tracking-tight mb-3">{data.sectionHeading}</h2>
+                        <h2 className="text-2xl font-bold text-white tracking-tight mb-2">{data.sectionHeading}</h2>
                     )}
                     {data.sectionSubheading && (
-                        <p className="text-slate-400 text-lg max-w-xl mx-auto">{data.sectionSubheading}</p>
+                        <p className="text-slate-400 text-sm max-w-xl mx-auto">{data.sectionSubheading}</p>
                     )}
                 </div>
             )}
 
             {/* Trust badges */}
-            <div className="flex flex-wrap justify-center gap-4 mb-8">
+            <div className="flex flex-wrap justify-center gap-3 mb-5">
                 {[
-                    { icon: <Shield className="w-3.5 h-3.5 text-green-400" />, text: "No spam, ever" },
-                    { icon: <Clock className="w-3.5 h-3.5 text-brand-400" />, text: "Cancel anytime" },
-                    { icon: <Star className="w-3.5 h-3.5 text-amber-400" />, text: "4.9/5 rated" },
+                    { icon: <Shield className="w-3 h-3 text-green-400" />, text: "No spam, ever" },
+                    { icon: <Clock className="w-3 h-3 text-brand-400" />, text: "Cancel anytime" },
+                    { icon: <Star className="w-3 h-3 text-amber-400" />, text: "4.9/5 rated" },
                 ].map((b, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-slate-400 bg-surface-hover px-3 py-1.5 rounded-full border border-surface-border">
+                    <div key={i} className="flex items-center gap-1.5 text-xs text-slate-400 bg-surface-hover px-2.5 py-1 rounded-full border border-surface-border">
                         {b.icon} {b.text}
                     </div>
                 ))}

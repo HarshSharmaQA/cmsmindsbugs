@@ -535,48 +535,79 @@ function BlockEditor({ block, onChange, onDelete, onMoveUp, onMoveDown, index, t
                                 ))}
                             </>
                         )}
-                        {block.type === "testimonials" && (
-                            <>
-                                <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="space-y-2 border-t border-white/5 pt-4 mt-4">
-                                        <Field label={`Quote ${i}`} value={block.data[`t${i}Quote`]} onChange={set(`t${i}Quote`)} textarea />
-                                        <div className="flex gap-4">
-                                            <div className="flex-1"><Field label="Author" value={block.data[`t${i}Author`]} onChange={set(`t${i}Author`)} /></div>
-                                            <div className="flex-1"><Field label="Role" value={block.data[`t${i}Role`]} onChange={set(`t${i}Role`)} /></div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </>
-                        )}
-                        {block.type === "faq" && (
-                            <>
-                                <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="space-y-2 border-t border-white/5 pt-4 mt-4">
-                                        <Field label={`Question ${i}`} value={block.data[`q${i}`]} onChange={set(`q${i}`)} />
-                                        <Field label={`Answer ${i}`} value={block.data[`a${i}`]} onChange={set(`a${i}`)} textarea />
-                                    </div>
-                                ))}
-                            </>
-                        )}
-                        {block.type === "team" && (
-                            <>
-                                <Field label="Section Heading" value={block.data.heading} onChange={set("heading")} placeholder="Meet The Team" />
-                                <Field label="Subheading" value={block.data.subheading} onChange={set("subheading")} textarea rows={2} placeholder="Team description..." />
-                                <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-2">Team Members (up to 6)</p>
-                                <div className="grid grid-cols-2 gap-4">
-                                    {[1, 2, 3, 4, 5, 6].map(n => (
-                                        <div key={n} className="space-y-1.5 p-3 bg-[#0D0D14] rounded-lg border border-surface-border">
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Member {n}</p>
-                                            <Field label="Name" value={block.data[`member${n}Name`]} onChange={set(`member${n}Name`)} placeholder="Full Name" />
-                                            <Field label="Role" value={block.data[`member${n}Role`]} onChange={set(`member${n}Role`)} placeholder="CEO" />
-                                            <Field label="Photo URL" value={block.data[`member${n}Photo`]} onChange={set(`member${n}Photo`)} placeholder="https://..." />
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                        {block.type === "testimonials" && (() => {
+                            type Testimonial = { quote: string; author: string; role: string };
+                            const items: Testimonial[] = block.data._testimonials ?? [
+                                ...([1,2,3].map(i => ({ quote: block.data[`t${i}Quote`] || "", author: block.data[`t${i}Author`] || "", role: block.data[`t${i}Role`] || "" }))).filter(t => t.quote || t.author)
+                            ];
+                            if (!items.length) items.push({ quote: "", author: "", role: "" });
+                            const setItems = (next: Testimonial[]) => onChange({ ...block.data, _testimonials: next });
+                            return (
+                                <>
+                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Testimonials</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Testimonial" defaultItem={{ quote: "", author: "", role: "" }}
+                                        renderItem={(item, update) => (
+                                            <>
+                                                <Field label="Quote" value={item.quote} onChange={(e: any) => update({ quote: e.target.value })} textarea />
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <Field label="Author" value={item.author} onChange={(e: any) => update({ author: e.target.value })} placeholder="Jane Doe" />
+                                                    <Field label="Role" value={item.role} onChange={(e: any) => update({ role: e.target.value })} placeholder="CEO at Acme" />
+                                                </div>
+                                            </>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
+                        {block.type === "faq" && (() => {
+                            type QA = { q: string; a: string };
+                            const items: QA[] = block.data._faqs ?? [
+                                ...([1,2,3].map(i => ({ q: block.data[`q${i}`] || "", a: block.data[`a${i}`] || "" }))).filter(x => x.q)
+                            ];
+                            if (!items.length) items.push({ q: "", a: "" });
+                            const setItems = (next: QA[]) => onChange({ ...block.data, _faqs: next });
+                            return (
+                                <>
+                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Questions</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Question" defaultItem={{ q: "", a: "" }}
+                                        renderItem={(item, update) => (
+                                            <>
+                                                <Field label="Question" value={item.q} onChange={(e: any) => update({ q: e.target.value })} />
+                                                <Field label="Answer" value={item.a} onChange={(e: any) => update({ a: e.target.value })} textarea />
+                                            </>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
+                        {block.type === "team" && (() => {
+                            type TeamMember = { name: string; role: string; photo: string };
+                            const members: TeamMember[] = block.data._members ?? [
+                                ...([1,2,3,4,5,6].map(n => ({ name: block.data[`member${n}Name`] || "", role: block.data[`member${n}Role`] || "", photo: block.data[`member${n}Photo`] || "" }))).filter(m => m.name)
+                            ];
+                            if (!members.length) members.push({ name: "", role: "", photo: "" });
+                            const setMembers = (next: TeamMember[]) => onChange({ ...block.data, _members: next });
+                            return (
+                                <>
+                                    <Field label="Section Heading" value={block.data.heading} onChange={set("heading")} placeholder="Meet The Team" />
+                                    <Field label="Subheading" value={block.data.subheading} onChange={set("subheading")} textarea rows={2} placeholder="Team description..." />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Team Members</p>
+                                    <DynList items={members} setItems={setMembers} addLabel="Add Member" defaultItem={{ name: "", role: "", photo: "" }}
+                                        renderItem={(item, update) => (
+                                            <>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <Field label="Name" value={item.name} onChange={(e: any) => update({ name: e.target.value })} placeholder="Full Name" />
+                                                    <Field label="Role" value={item.role} onChange={(e: any) => update({ role: e.target.value })} placeholder="CEO" />
+                                                </div>
+                                                <Field label="Photo URL" value={item.photo} onChange={(e: any) => update({ photo: e.target.value })} placeholder="https://..." />
+                                            </>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
                         {block.type === "bug_chart" && (
                             <>
                                 <Field label="Section Heading" value={block.data.heading} onChange={set("heading")} placeholder="Bug Analytics" />
@@ -769,36 +800,53 @@ function BlockEditor({ block, onChange, onDelete, onMoveUp, onMoveDown, index, t
                                 <p className="text-[10px] text-slate-500">For each cell use keys like f1c1 (feature 1 col 1). Use &quot;true&quot; for ✓, &quot;false&quot; for ✗, or any text.</p>
                             </>
                         )}
-                        {block.type === "steps" && (
-                            <>
-                                <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                <Field label="Subheading" value={block.data.subheading} onChange={set("subheading")} textarea />
-                                <div className="space-y-4 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4, 5].map(i => (
-                                        <div key={i} className="grid grid-cols-[auto_1fr] gap-3 items-start">
-                                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold mt-1" style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: '#00D4FF' }}>{i}</div>
-                                            <div className="space-y-1.5">
-                                                <Field label={`Step ${i} Title`} value={block.data[`step${i}Title`]} onChange={set(`step${i}Title`)} placeholder={`Step ${i}`} />
-                                                <Field label="Description" value={block.data[`step${i}Desc`]} onChange={set(`step${i}Desc`)} textarea rows={2} />
+                        {block.type === "steps" && (() => {
+                            type Step = { title: string; desc: string };
+                            const items: Step[] = block.data._steps ?? [
+                                ...([1,2,3].map(i => ({ title: block.data[`step${i}Title`] || "", desc: block.data[`step${i}Desc`] || "" }))).filter(s => s.title)
+                            ];
+                            if (!items.length) items.push({ title: "", desc: "" });
+                            const setItems = (next: Step[]) => onChange({ ...block.data, _steps: next });
+                            return (
+                                <>
+                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                    <Field label="Subheading" value={block.data.subheading} onChange={set("subheading")} textarea />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Steps</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Step" defaultItem={{ title: "", desc: "" }}
+                                        renderItem={(item, update, idx) => (
+                                            <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
+                                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-1" style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)', color: '#00D4FF' }}>{idx + 1}</div>
+                                                <div className="space-y-1.5">
+                                                    <Field label="Step Title" value={item.title} onChange={(e: any) => update({ title: e.target.value })} placeholder="Step Title" />
+                                                    <Field label="Description" value={item.desc} onChange={(e: any) => update({ desc: e.target.value })} textarea rows={2} />
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                        {block.type === "logo_cloud" && (
-                            <>
-                                <Field label="Heading Label" value={block.data.heading} onChange={set("heading")} placeholder="Trusted by teams at" />
-                                <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                                        <div key={i} className="space-y-1.5">
-                                            <Field label={`Logo ${i} Name`} value={block.data[`logo${i}Name`]} onChange={set(`logo${i}Name`)} placeholder="Acme Inc" />
-                                            <Field label={`Logo ${i} Image URL`} value={block.data[`logo${i}Url`]} onChange={set(`logo${i}Url`)} placeholder="https://..." />
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
+                        {block.type === "logo_cloud" && (() => {
+                            const logos: {name: string; url: string}[] = block.data._logos ?? [
+                                ...([1,2,3,4,5].map(i => ({ name: block.data[`logo${i}Name`] || "", url: block.data[`logo${i}Url`] || "" }))).filter(l => l.name || l.url)
+                            ];
+                            if (!logos.length) logos.push({ name: "", url: "" });
+                            const setLogos = (next: typeof logos) => onChange({ ...block.data, _logos: next });
+                            return (
+                                <>
+                                    <Field label="Heading Label" value={block.data.heading} onChange={set("heading")} placeholder="Trusted by teams at" />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Logos</p>
+                                    <DynList items={logos} setItems={setLogos} addLabel="Add Logo" defaultItem={{ name: "", url: "" }}
+                                        renderItem={(item, update) => (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <Field label="Logo URL" value={item.url} onChange={(e: any) => update({ url: e.target.value })} placeholder="https://..." />
+                                                <Field label="Alt Text" value={item.name} onChange={(e: any) => update({ name: e.target.value })} placeholder="Company Name" />
+                                            </div>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
                         {block.type === "banner" && (
                             <>
                                 <div className="grid grid-cols-2 gap-3">
@@ -824,29 +872,37 @@ function BlockEditor({ block, onChange, onDelete, onMoveUp, onMoveDown, index, t
                                 </label>
                             </>
                         )}
-                        {block.type === "gallery" && (
-                            <>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                    <div>
-                                        <label className="text-xs text-slate-400 font-medium block mb-1">Columns</label>
-                                        <select className="input" value={block.data.columns || '3'} onChange={set('columns')}>
-                                            <option value="2">2 Columns</option>
-                                            <option value="3">3 Columns</option>
-                                            <option value="4">4 Columns</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4, 5, 6].map(i => (
-                                        <div key={i} className="space-y-1.5">
-                                            <Field label={`Image ${i} URL`} value={block.data[`img${i}Src`]} onChange={set(`img${i}Src`)} placeholder="https://..." />
-                                            <Field label="Alt Text" value={block.data[`img${i}Alt`]} onChange={set(`img${i}Alt`)} placeholder="Description" />
+                        {block.type === "gallery" && (() => {
+                            const imgs: {src: string; alt: string}[] = block.data._imgs ?? [
+                                ...([1,2,3].map(i => ({ src: block.data[`img${i}Src`] || "", alt: block.data[`img${i}Alt`] || "" }))).filter(x => x.src)
+                            ];
+                            if (!imgs.length) imgs.push({ src: "", alt: "" });
+                            const setImgs = (next: typeof imgs) => onChange({ ...block.data, _imgs: next });
+                            return (
+                                <>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                        <div>
+                                            <label className="text-xs text-slate-400 font-medium block mb-1">Columns</label>
+                                            <select className="input" value={block.data.columns || '3'} onChange={set('columns')}>
+                                                <option value="2">2 Columns</option>
+                                                <option value="3">3 Columns</option>
+                                                <option value="4">4 Columns</option>
+                                            </select>
                                         </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                                    </div>
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Images</p>
+                                    <DynList items={imgs} setItems={setImgs} addLabel="Add Image" defaultItem={{ src: "", alt: "" }}
+                                        renderItem={(item, update) => (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <Field label="Image URL" value={item.src} onChange={(e: any) => update({ src: e.target.value })} placeholder="https://..." />
+                                                <Field label="Alt Text" value={item.alt} onChange={(e: any) => update({ alt: e.target.value })} placeholder="Description" />
+                                            </div>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
                         {block.type === "startup_hero" && (
                             <>
                                 <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
@@ -863,34 +919,54 @@ function BlockEditor({ block, onChange, onDelete, onMoveUp, onMoveDown, index, t
                                 <Field label="Avatar Image URLs (comma separated)" value={block.data.avatars} onChange={set("avatars")} textarea />
                             </>
                         )}
-                        {block.type === "startup_team" && (
-                            <>
-                                <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                <Field label="Subtext (e.g. Our Team)" value={block.data.subtext} onChange={set("subtext")} />
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                                        <div key={i} className="space-y-1.5 bg-[#0D0D14] p-3 rounded-lg border border-surface-border">
-                                            <Field label={`Member ${i} Name`} value={block.data[`m${i}Name`]} onChange={set(`m${i}Name`)} />
-                                            <Field label={`Member ${i} Role`} value={block.data[`m${i}Role`]} onChange={set(`m${i}Role`)} />
-                                            <Field label={`Member ${i} Photo`} value={block.data[`m${i}Photo`]} onChange={set(`m${i}Photo`)} />
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                        {block.type === "split_faq" && (
-                            <>
-                                <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                <div className="space-y-4 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4, 5].map(i => (
-                                        <div key={i} className="space-y-1.5">
-                                            <Field label={`Question ${i}`} value={block.data[`q${i}`]} onChange={set(`q${i}`)} />
-                                            <Field label={`Answer ${i}`} value={block.data[`a${i}`]} onChange={set(`a${i}`)} textarea />
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                        {block.type === "startup_team" && (() => {
+                            type STMember = { name: string; role: string; photo: string };
+                            const members: STMember[] = block.data._members ?? [
+                                ...([1,2,3,4,5,6,7,8].map(i => ({ name: block.data[`m${i}Name`] || "", role: block.data[`m${i}Role`] || "", photo: block.data[`m${i}Photo`] || "" }))).filter(m => m.name)
+                            ];
+                            if (!members.length) members.push({ name: "", role: "", photo: "" });
+                            const setMembers = (next: STMember[]) => onChange({ ...block.data, _members: next });
+                            return (
+                                <>
+                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                    <Field label="Subtext (e.g. Our Team)" value={block.data.subtext} onChange={set("subtext")} />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Members</p>
+                                    <DynList items={members} setItems={setMembers} addLabel="Add Member" defaultItem={{ name: "", role: "", photo: "" }}
+                                        renderItem={(item, update) => (
+                                            <>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <Field label="Name" value={item.name} onChange={(e: any) => update({ name: e.target.value })} placeholder="Full Name" />
+                                                    <Field label="Role" value={item.role} onChange={(e: any) => update({ role: e.target.value })} placeholder="Engineer" />
+                                                </div>
+                                                <Field label="Photo URL" value={item.photo} onChange={(e: any) => update({ photo: e.target.value })} placeholder="https://..." />
+                                            </>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
+                        {block.type === "split_faq" && (() => {
+                            type QA = { q: string; a: string };
+                            const items: QA[] = block.data._faqs ?? [
+                                ...([1,2,3,4,5].map(i => ({ q: block.data[`q${i}`] || "", a: block.data[`a${i}`] || "" }))).filter(x => x.q)
+                            ];
+                            if (!items.length) items.push({ q: "", a: "" });
+                            const setItems = (next: QA[]) => onChange({ ...block.data, _faqs: next });
+                            return (
+                                <>
+                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Questions</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Question" defaultItem={{ q: "", a: "" }}
+                                        renderItem={(item, update) => (
+                                            <>
+                                                <Field label="Question" value={item.q} onChange={(e: any) => update({ q: e.target.value })} />
+                                                <Field label="Answer" value={item.a} onChange={(e: any) => update({ a: e.target.value })} textarea />
+                                            </>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
                         {block.type === "map_embed" && (
                             <>
                                 <Field label="Section Heading" value={block.data.heading} onChange={set("heading")} placeholder="Find Us" />
@@ -915,24 +991,32 @@ function BlockEditor({ block, onChange, onDelete, onMoveUp, onMoveDown, index, t
                                 </label>
                             </>
                         )}
-                        {block.type === "timeline" && (
-                            <>
-                                <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                <Field label="Subheading" value={block.data.subheading} onChange={set("subheading")} textarea />
-                                <div className="space-y-4 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4, 5, 6].map(i => (
-                                        <div key={i} className="space-y-1.5 p-3 bg-[#0D0D14] rounded-lg border border-surface-border">
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Event {i}</p>
-                                            <div className="grid grid-cols-3 gap-2">
-                                                <Field label="Year / Date" value={block.data[`ev${i}Year`]} onChange={set(`ev${i}Year`)} placeholder="2024" />
-                                                <div className="col-span-2"><Field label="Title" value={block.data[`ev${i}Title`]} onChange={set(`ev${i}Title`)} placeholder="Milestone" /></div>
-                                            </div>
-                                            <Field label="Description" value={block.data[`ev${i}Desc`]} onChange={set(`ev${i}Desc`)} textarea rows={2} />
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                        {block.type === "timeline" && (() => {
+                            type TLEvent = { year: string; title: string; desc: string };
+                            const items: TLEvent[] = block.data._events ?? [
+                                ...([1,2,3].map(i => ({ year: block.data[`ev${i}Year`] || "", title: block.data[`ev${i}Title`] || "", desc: block.data[`ev${i}Desc`] || "" }))).filter(e => e.title || e.year)
+                            ];
+                            if (!items.length) items.push({ year: "", title: "", desc: "" });
+                            const setItems = (next: TLEvent[]) => onChange({ ...block.data, _events: next });
+                            return (
+                                <>
+                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                    <Field label="Subheading" value={block.data.subheading} onChange={set("subheading")} textarea />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Events</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Event" defaultItem={{ year: "", title: "", desc: "" }}
+                                        renderItem={(item, update) => (
+                                            <>
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <Field label="Year / Date" value={item.year} onChange={(e: any) => update({ year: e.target.value })} placeholder="2024" />
+                                                    <div className="col-span-2"><Field label="Title" value={item.title} onChange={(e: any) => update({ title: e.target.value })} placeholder="Milestone" /></div>
+                                                </div>
+                                                <Field label="Description" value={item.desc} onChange={(e: any) => update({ desc: e.target.value })} textarea rows={2} />
+                                            </>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
                         {block.type === "code_block" && (
                             <>
                                 <Field label="Heading (optional)" value={block.data.heading} onChange={set("heading")} placeholder="Quick Install" />
@@ -941,52 +1025,77 @@ function BlockEditor({ block, onChange, onDelete, onMoveUp, onMoveDown, index, t
                                 <Field label="Caption (optional)" value={block.data.caption} onChange={set("caption")} />
                             </>
                         )}
-                        {block.type === "progress_bars" && (
-                            <>
-                                <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                <div className="space-y-3 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4, 5].map(i => (
-                                        <div key={i} className="flex gap-3">
-                                            <div className="flex-1"><Field label={`Bar ${i} Label`} value={block.data[`bar${i}Label`]} onChange={set(`bar${i}Label`)} placeholder="Skill Name" /></div>
-                                            <div className="w-20"><Field label="% (0-100)" value={block.data[`bar${i}Value`]} onChange={set(`bar${i}Value`)} placeholder="80" /></div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                        {block.type === "icon_cards" && (
-                            <>
-                                <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                <Field label="Subheading" value={block.data.subheading} onChange={set("subheading")} textarea />
-                                <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4, 5, 6].map(i => (
-                                        <div key={i} className="space-y-1.5 p-3 bg-[#0D0D14] rounded-lg border border-surface-border">
-                                            <div className="flex gap-2">
-                                                <div className="w-16"><Field label="Emoji" value={block.data[`card${i}Emoji`]} onChange={set(`card${i}Emoji`)} placeholder="🚀" /></div>
-                                                <div className="flex-1"><Field label={`Card ${i} Title`} value={block.data[`card${i}Title`]} onChange={set(`card${i}Title`)} /></div>
+                        {block.type === "progress_bars" && (() => {
+                            type Bar = { label: string; value: string };
+                            const items: Bar[] = block.data._bars ?? [
+                                ...([1,2,3,4].map(i => ({ label: block.data[`bar${i}Label`] || "", value: block.data[`bar${i}Value`] || "" }))).filter(b => b.label)
+                            ];
+                            if (!items.length) items.push({ label: "", value: "" });
+                            const setItems = (next: Bar[]) => onChange({ ...block.data, _bars: next });
+                            return (
+                                <>
+                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Bars</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Bar" defaultItem={{ label: "", value: "" }}
+                                        renderItem={(item, update) => (
+                                            <div className="grid grid-cols-[1fr_5rem] gap-2">
+                                                <Field label="Label" value={item.label} onChange={(e: any) => update({ label: e.target.value })} placeholder="Skill Name" />
+                                                <Field label="% (0-100)" value={item.value} onChange={(e: any) => update({ value: e.target.value })} placeholder="80" />
                                             </div>
-                                            <Field label="Description" value={block.data[`card${i}Desc`]} onChange={set(`card${i}Desc`)} textarea rows={2} />
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                        {block.type === "social_proof" && (
-                            <>
-                                <Field label="Heading Label" value={block.data.heading} onChange={set("heading")} placeholder="Trusted by developers worldwide" />
-                                <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4].map(i => (
-                                        <div key={i} className="space-y-1.5 p-3 bg-[#0D0D14] rounded-lg border border-surface-border">
-                                            <div className="flex gap-2">
-                                                <div className="w-16"><Field label="Emoji" value={block.data[`badge${i}Emoji`]} onChange={set(`badge${i}Emoji`)} placeholder="⭐" /></div>
-                                                <div className="flex-1"><Field label="Value" value={block.data[`badge${i}Value`]} onChange={set(`badge${i}Value`)} placeholder="10K+" /></div>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
+                        {block.type === "icon_cards" && (() => {
+                            type ICard = { emoji: string; title: string; desc: string };
+                            const items: ICard[] = block.data._cards ?? [
+                                ...([1,2,3,4,5,6].map(i => ({ emoji: block.data[`card${i}Emoji`] || "", title: block.data[`card${i}Title`] || "", desc: block.data[`card${i}Desc`] || "" }))).filter(c => c.title)
+                            ];
+                            if (!items.length) items.push({ emoji: "", title: "", desc: "" });
+                            const setItems = (next: ICard[]) => onChange({ ...block.data, _cards: next });
+                            return (
+                                <>
+                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                    <Field label="Subheading" value={block.data.subheading} onChange={set("subheading")} textarea />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Cards</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Card" defaultItem={{ emoji: "⚡", title: "", desc: "" }}
+                                        renderItem={(item, update) => (
+                                            <>
+                                                <div className="grid grid-cols-[4rem_1fr] gap-2">
+                                                    <Field label="Emoji" value={item.emoji} onChange={(e: any) => update({ emoji: e.target.value })} placeholder="🚀" />
+                                                    <Field label="Title" value={item.title} onChange={(e: any) => update({ title: e.target.value })} />
+                                                </div>
+                                                <Field label="Description" value={item.desc} onChange={(e: any) => update({ desc: e.target.value })} textarea rows={2} />
+                                            </>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
+                        {block.type === "social_proof" && (() => {
+                            type Badge = { emoji: string; value: string; label: string };
+                            const items: Badge[] = block.data._badges ?? [
+                                ...([1,2,3,4].map(i => ({ emoji: block.data[`badge${i}Emoji`] || "", value: block.data[`badge${i}Value`] || "", label: block.data[`badge${i}Label`] || "" }))).filter(b => b.value || b.label)
+                            ];
+                            if (!items.length) items.push({ emoji: "⭐", value: "", label: "" });
+                            const setItems = (next: Badge[]) => onChange({ ...block.data, _badges: next });
+                            return (
+                                <>
+                                    <Field label="Heading Label" value={block.data.heading} onChange={set("heading")} placeholder="Trusted by developers worldwide" />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Badges</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Badge" defaultItem={{ emoji: "⭐", value: "", label: "" }}
+                                        renderItem={(item, update) => (
+                                            <div className="grid grid-cols-[3rem_1fr_1fr] gap-2">
+                                                <Field label="Icon" value={item.emoji} onChange={(e: any) => update({ emoji: e.target.value })} placeholder="⭐" />
+                                                <Field label="Value" value={item.value} onChange={(e: any) => update({ value: e.target.value })} placeholder="10K+" />
+                                                <Field label="Label" value={item.label} onChange={(e: any) => update({ label: e.target.value })} placeholder="Users" />
                                             </div>
-                                            <Field label="Label" value={block.data[`badge${i}Label`]} onChange={set(`badge${i}Label`)} placeholder="Users" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
                         {block.type === "embed" && (
                             <>
                                 <Field label="Heading (optional)" value={block.data.heading} onChange={set("heading")} />
@@ -994,24 +1103,32 @@ function BlockEditor({ block, onChange, onDelete, onMoveUp, onMoveDown, index, t
                                 <Field label="Height" value={block.data.height} onChange={set("height")} placeholder="480px" />
                             </>
                         )}
-                        {block.type === "number_counter" && (
-                            <>
-                                <Field label="Section Heading (optional)" value={block.data.heading} onChange={set("heading")} />
-                                <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 mt-4">
-                                    {[1, 2, 3, 4].map(i => (
-                                        <div key={i} className="space-y-1.5 p-3 bg-[#0D0D14] rounded-lg border border-surface-border">
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Counter {i}</p>
-                                            <div className="flex gap-2">
-                                                <div className="w-16"><Field label="Prefix" value={block.data[`num${i}Prefix`]} onChange={set(`num${i}Prefix`)} placeholder="$" /></div>
-                                                <div className="flex-1"><Field label="Value" value={block.data[`num${i}Value`]} onChange={set(`num${i}Value`)} placeholder="10K" /></div>
-                                                <div className="w-16"><Field label="Suffix" value={block.data[`num${i}Suffix`]} onChange={set(`num${i}Suffix`)} placeholder="+" /></div>
-                                            </div>
-                                            <Field label="Label" value={block.data[`num${i}Label`]} onChange={set(`num${i}Label`)} placeholder="Users" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                        {block.type === "number_counter" && (() => {
+                            type Counter = { prefix: string; value: string; suffix: string; label: string };
+                            const items: Counter[] = block.data._counters ?? [
+                                ...([1,2,3,4].map(i => ({ prefix: block.data[`num${i}Prefix`] || "", value: block.data[`num${i}Value`] || "", suffix: block.data[`num${i}Suffix`] || "", label: block.data[`num${i}Label`] || "" }))).filter(c => c.value || c.label)
+                            ];
+                            if (!items.length) items.push({ prefix: "", value: "", suffix: "+", label: "" });
+                            const setItems = (next: Counter[]) => onChange({ ...block.data, _counters: next });
+                            return (
+                                <>
+                                    <Field label="Section Heading (optional)" value={block.data.heading} onChange={set("heading")} />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Counters</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Counter" defaultItem={{ prefix: "", value: "", suffix: "+", label: "" }}
+                                        renderItem={(item, update) => (
+                                            <>
+                                                <div className="grid grid-cols-[3rem_1fr_3rem] gap-2">
+                                                    <Field label="Prefix" value={item.prefix} onChange={(e: any) => update({ prefix: e.target.value })} placeholder="$" />
+                                                    <Field label="Value" value={item.value} onChange={(e: any) => update({ value: e.target.value })} placeholder="10K" />
+                                                    <Field label="Suffix" value={item.suffix} onChange={(e: any) => update({ suffix: e.target.value })} placeholder="+" />
+                                                </div>
+                                                <Field label="Label" value={item.label} onChange={(e: any) => update({ label: e.target.value })} placeholder="Users" />
+                                            </>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
                         {block.type === "data_table" && (
                             <>
                                 <Field label="Heading (optional)" value={block.data.heading} onChange={set("heading")} />
@@ -1019,17 +1136,28 @@ function BlockEditor({ block, onChange, onDelete, onMoveUp, onMoveDown, index, t
                                 <Field label="Rows (one per line, comma separated values)" value={block.data.rows} onChange={set("rows")} textarea rows={6} placeholder={`Row 1 Value 1,Value 2,Value 3\nRow 2 Value 1,Value 2,Value 3`} />
                             </>
                         )}
-                        {block.type === "accordion" && (
-                            <>
-                                <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
-                                {[1, 2, 3, 4, 5].map(i => (
-                                    <div key={i} className="space-y-2 border-t border-white/5 pt-4 mt-4">
-                                        <Field label={`Question ${i}`} value={block.data[`q${i}`]} onChange={set(`q${i}`)} />
-                                        <Field label={`Answer ${i}`} value={block.data[`a${i}`]} onChange={set(`a${i}`)} textarea />
-                                    </div>
-                                ))}
-                            </>
-                        )}
+                        {block.type === "accordion" && (() => {
+                            type QA = { q: string; a: string };
+                            const items: QA[] = block.data._items ?? [
+                                ...([1,2,3,4,5].map(i => ({ q: block.data[`q${i}`] || "", a: block.data[`a${i}`] || "" }))).filter(x => x.q)
+                            ];
+                            if (!items.length) items.push({ q: "", a: "" });
+                            const setItems = (next: QA[]) => onChange({ ...block.data, _items: next });
+                            return (
+                                <>
+                                    <Field label="Heading" value={block.data.heading} onChange={set("heading")} />
+                                    <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest pt-1">Items</p>
+                                    <DynList items={items} setItems={setItems} addLabel="Add Item" defaultItem={{ q: "", a: "" }}
+                                        renderItem={(item, update) => (
+                                            <>
+                                                <Field label="Question" value={item.q} onChange={(e: any) => update({ q: e.target.value })} />
+                                                <Field label="Answer" value={item.a} onChange={(e: any) => update({ a: e.target.value })} textarea />
+                                            </>
+                                        )}
+                                    />
+                                </>
+                            );
+                        })()}
                         {block.type === "breadcrumb" && (
                             <>
                                 <Field
@@ -1093,6 +1221,44 @@ function Field({ label, value, onChange, placeholder = "", textarea = false, row
             ) : (
                 <input className="input" value={value || ""} onChange={onChange} placeholder={placeholder} />
             )}
+        </div>
+    );
+}
+
+// ─── Dynamic repeatable item list ─────────────────────────────────────────────
+
+function DynList<T extends Record<string, string>>({
+    items, setItems, addLabel, defaultItem, renderItem,
+}: {
+    items: T[];
+    setItems: (items: T[]) => void;
+    addLabel: string;
+    defaultItem: T;
+    renderItem: (item: T, update: (patch: Partial<T>) => void, idx: number) => React.ReactNode;
+}) {
+    const update = (i: number) => (patch: Partial<T>) =>
+        setItems(items.map((it, idx) => idx === i ? { ...it, ...patch } : it));
+    const remove = (i: number) => setItems(items.filter((_, idx) => idx !== i));
+    return (
+        <div className="space-y-2">
+            {items.map((item, i) => (
+                <div key={i} className="flex gap-2 items-start p-3 bg-[#0D0D14] rounded-xl border border-surface-border group/item">
+                    <div className="flex-1 space-y-2">{renderItem(item, update(i), i)}</div>
+                    <button
+                        onClick={() => remove(i)}
+                        className="shrink-0 mt-0.5 p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover/item:opacity-100"
+                        title="Remove"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            ))}
+            <button
+                onClick={() => setItems([...items, { ...defaultItem }])}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-surface-border hover:border-brand-500/50 hover:bg-brand-500/5 text-xs text-slate-500 hover:text-brand-400 font-semibold transition-all"
+            >
+                <Plus className="w-3.5 h-3.5" /> {addLabel}
+            </button>
         </div>
     );
 }
@@ -1378,7 +1544,7 @@ function PageEditor({ devToken, editId, onDone }: { devToken: string; editId: st
 
                 {/* Right: Structure Sidebar */}
                 <div className="space-y-4">
-                    <div className="card p-4 sticky top-20">
+                    <div className="card p-4 sticky top-28">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                             <Eye className="w-3.5 h-3.5" /> Page Structure
                         </h3>
@@ -1389,10 +1555,28 @@ function PageEditor({ devToken, editId, onDone }: { devToken: string; editId: st
                                 {blocks.map((block, i) => {
                                     const def = BLOCK_TYPES.find(b => b.type === block.type)!;
                                     return (
-                                        <div key={block.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-hover text-xs">
-                                            <span className="text-brand-400">{def.icon}</span>
-                                            <span className="text-slate-300 truncate flex-1">{block.data.heading || block.data.title || def.label}</span>
-                                            <span className="text-slate-600">{i + 1}</span>
+                                        <div key={block.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-surface-hover text-xs border border-transparent hover:border-brand-500/20 hover:bg-brand-500/5 transition-all">
+                                            <span className="text-brand-400 shrink-0">{def.icon}</span>
+                                            <span className="text-slate-300 truncate flex-1 min-w-0">{block.data.heading || block.data.sectionHeading || block.data.title || def.label}</span>
+                                            <div className="flex items-center gap-0.5 shrink-0">
+                                                <button
+                                                    onClick={() => moveBlock(i, i - 1)}
+                                                    disabled={i === 0}
+                                                    title="Move up"
+                                                    className="w-5 h-5 flex items-center justify-center rounded text-slate-600 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                                                >
+                                                    <ChevronUp className="w-3 h-3" />
+                                                </button>
+                                                <span className="text-slate-600 text-[10px] font-mono w-4 text-center">{i + 1}</span>
+                                                <button
+                                                    onClick={() => moveBlock(i, i + 1)}
+                                                    disabled={i === blocks.length - 1}
+                                                    title="Move down"
+                                                    className="w-5 h-5 flex items-center justify-center rounded text-slate-600 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                                                >
+                                                    <ChevronDown className="w-3 h-3" />
+                                                </button>
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -1454,7 +1638,7 @@ function PageBuilderContent() {
 
     return (
         <div className="min-h-screen"><Navbar />
-            <main className="max-w-5xl mx-auto px-4 py-10">
+            <main className="max-w-5xl mx-auto px-4 pt-28 pb-16">
                 <div className="flex items-center justify-between mb-8 animate-slide-up">
                     <div>
                         <div className="flex items-center gap-2 text-brand-400 text-xs font-bold uppercase tracking-widest mb-2">

@@ -4,20 +4,30 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navbar } from "@/components/Navbar";
 import { useState, useEffect } from "react";
-import { BarChart3, ArrowLeft, TrendingUp, Users, Clock, MousePointer2, AlertCircle, ShieldAlert } from "lucide-react";
+import { BarChart3, ArrowLeft, TrendingUp, Users, Clock, Bug, ShieldAlert, Activity, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function AnalyticsPage() {
     const [devToken, setDevToken] = useState<string | null>(null);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         const stored = localStorage.getItem("bugscribe_dev_token");
         if (stored) setDevToken(stored);
+        setMounted(true);
     }, []);
 
     const userResult = useQuery(api.users.currentUser, { devToken: devToken || undefined });
+    const analyticsStats = useQuery(
+        api.admin.getAnalyticsStats,
+        devToken ? { devToken } : "skip"
+    );
     const isSuperAdmin = userResult?.role === "super_admin";
-    
+
+    if (!mounted) {
+        return <div className="min-h-screen bg-[#0A0A0A]" />;
+    }
+
     if (!devToken || !isSuperAdmin) {
         return (
             <div className="min-h-screen relative">
@@ -33,6 +43,57 @@ export default function AnalyticsPage() {
         );
     }
 
+    const isLoading = analyticsStats === undefined;
+
+    const topStats = [
+        {
+            label: "Total Bugs Reported",
+            value: isLoading ? "—" : String(analyticsStats?.totalBugs ?? 0),
+            sub: isLoading ? "" : `${analyticsStats?.recentBugs ?? 0} in last 7 days`,
+            icon: Bug,
+            color: "text-rose-400",
+            grow: analyticsStats && analyticsStats.recentBugs > 0 ? `+${analyticsStats.recentBugs} this week` : "No new bugs this week",
+            growPositive: (analyticsStats?.recentBugs ?? 0) > 0,
+        },
+        {
+            label: "Active Projects",
+            value: isLoading ? "—" : String(analyticsStats?.totalProjects ?? 0),
+            sub: "Projects with widget deployed",
+            icon: Activity,
+            color: "text-blue-400",
+            grow: isLoading ? "" : `${analyticsStats?.totalUsers ?? 0} users total`,
+            growPositive: true,
+        },
+        {
+            label: "Avg. Resolution Time",
+            value: isLoading ? "—" : analyticsStats?.avgResolutionHours === 0
+                ? "N/A"
+                : `${analyticsStats?.avgResolutionHours}h`,
+            sub: "For resolved & closed bugs",
+            icon: Clock,
+            color: "text-indigo-400",
+            grow: analyticsStats?.avgResolutionHours === 0 ? "No resolved bugs yet" : "Across all resolved bugs",
+            growPositive: false,
+        },
+    ];
+
+    const priorityBars = analyticsStats ? [
+        { label: "Critical", count: analyticsStats.byPriority.critical, color: "bg-red-500", textColor: "text-red-400" },
+        { label: "High", count: analyticsStats.byPriority.high, color: "bg-amber-500", textColor: "text-amber-400" },
+        { label: "Medium", count: analyticsStats.byPriority.medium, color: "bg-blue-500", textColor: "text-blue-400" },
+        { label: "Low", count: analyticsStats.byPriority.low, color: "bg-emerald-500", textColor: "text-emerald-400" },
+    ] : [];
+
+    const statusBars = analyticsStats ? [
+        { label: "Open", count: analyticsStats.byStatus.open, color: "bg-sky-500", icon: AlertCircle },
+        { label: "In Progress", count: analyticsStats.byStatus.in_progress, color: "bg-brand-500", icon: Activity },
+        { label: "Resolved", count: analyticsStats.byStatus.resolved, color: "bg-green-500", icon: CheckCircle2 },
+        { label: "Closed", count: analyticsStats.byStatus.closed, color: "bg-slate-500", icon: XCircle },
+    ] : [];
+
+    const maxPriority = Math.max(...priorityBars.map((b) => b.count), 1);
+    const maxStatus = Math.max(...statusBars.map((b) => b.count), 1);
+
     return (
         <div className="min-h-screen relative">
             <div className="fixed inset-0 grid-bg pointer-events-none opacity-50" />
@@ -47,58 +108,137 @@ export default function AnalyticsPage() {
                         <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
                             <BarChart3 className="w-8 h-8 text-blue-400" />
                             System Analytics
-                            <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full uppercase tracking-tighter">PRO Active</span>
                         </h1>
-                        <p className="text-slate-400 mt-1">Deep insights into how your platform is being used.</p>
+                        <p className="text-slate-400 mt-1">Live insights derived from real platform data.</p>
                     </div>
                 </div>
 
+                {/* Top Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                    {[
-                        { label: "Total Page Views", value: "24,892", grow: "+12.5%", icon: TrendingUp, color: "text-emerald-400" },
-                        { label: "Active Widgets", value: "156", grow: "+4.2%", icon: MousePointer2, color: "text-blue-400" },
-                        { label: "Avg. Resolution Time", value: "4.2h", grow: "-18%", icon: Clock, color: "text-indigo-400" },
-                    ].map((stat, i) => (
+                    {topStats.map((stat, i) => (
                         <div key={i} className="card p-6 border-white/5 bg-[#111118]/50 animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
                             <div className="flex items-center justify-between mb-4">
                                 <div className={`p-2 rounded-lg bg-white/5 ${stat.color}`}>
                                     <stat.icon className="w-5 h-5" />
                                 </div>
-                                <span className={`text-[10px] font-bold ${stat.grow.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                <span className={`text-[10px] font-bold ${stat.growPositive ? "text-emerald-400" : "text-slate-500"}`}>
                                     {stat.grow}
                                 </span>
                             </div>
-                            <div className="text-3xl font-bold text-white mb-1 tracking-tight">{stat.value}</div>
+                            <div className="text-3xl font-bold text-white mb-1 tracking-tight">
+                                {isLoading ? <div className="skeleton h-8 w-20" /> : stat.value}
+                            </div>
                             <div className="text-xs text-slate-500 font-bold uppercase tracking-wider">{stat.label}</div>
+                            {stat.sub && <div className="text-[10px] text-slate-600 mt-1">{stat.sub}</div>}
                         </div>
                     ))}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="card p-8 bg-[#111118]/50 border-white/5 min-h-[400px] flex flex-col items-center justify-center text-center">
-                        <TrendingUp className="w-12 h-12 text-slate-800 mb-4" />
-                        <h3 className="text-lg font-bold text-white mb-2">Usage Trends</h3>
-                        <p className="text-sm text-slate-500 max-w-xs">Chart integration coming soon. Visualizing daily active users and bug reporting frequency.</p>
+                {/* Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+                    {/* Bugs by Priority */}
+                    <div className="card p-6 bg-[#111118]/50 border-white/5">
+                        <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2">
+                            <Bug className="w-4 h-4 text-rose-400" />
+                            Bugs by Priority
+                        </h3>
+                        {isLoading ? (
+                            <div className="space-y-4">
+                                {[...Array(4)].map((_, i) => (
+                                    <div key={i} className="space-y-1">
+                                        <div className="skeleton h-3 w-16" />
+                                        <div className="skeleton h-4 w-full" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : analyticsStats?.totalBugs === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-center">
+                                <Bug className="w-10 h-10 text-slate-800 mb-3" />
+                                <p className="text-slate-500 text-sm">No bugs reported yet.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {priorityBars.map((bar) => (
+                                    <div key={bar.label}>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className={`text-xs font-bold ${bar.textColor}`}>{bar.label}</span>
+                                            <span className="text-xs text-slate-400 font-mono">{bar.count}</span>
+                                        </div>
+                                        <div className="w-full bg-white/5 rounded-full h-2.5 overflow-hidden">
+                                            <div
+                                                className={`h-2.5 rounded-full ${bar.color} transition-all duration-700`}
+                                                style={{ width: `${(bar.count / maxPriority) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                    <div className="card p-8 bg-[#111118]/50 border-white/5 min-h-[400px] flex flex-col items-center justify-center text-center">
-                        <Users className="w-12 h-12 text-slate-800 mb-4" />
-                        <h3 className="text-lg font-bold text-white mb-2">User Acquisition</h3>
-                        <p className="text-sm text-slate-500 max-w-xs">Heatmap of where your users are logging in from across the globe.</p>
+
+                    {/* Bugs by Status */}
+                    <div className="card p-6 bg-[#111118]/50 border-white/5">
+                        <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-brand-400" />
+                            Bugs by Status
+                        </h3>
+                        {isLoading ? (
+                            <div className="space-y-4">
+                                {[...Array(4)].map((_, i) => (
+                                    <div key={i} className="space-y-1">
+                                        <div className="skeleton h-3 w-16" />
+                                        <div className="skeleton h-4 w-full" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : analyticsStats?.totalBugs === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-center">
+                                <Activity className="w-10 h-10 text-slate-800 mb-3" />
+                                <p className="text-slate-500 text-sm">No bugs to display.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {statusBars.map((bar) => (
+                                    <div key={bar.label}>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <bar.icon className="w-3.5 h-3.5 text-slate-400" />
+                                                <span className="text-xs font-bold text-slate-300">{bar.label}</span>
+                                            </div>
+                                            <span className="text-xs text-slate-400 font-mono">{bar.count}</span>
+                                        </div>
+                                        <div className="w-full bg-white/5 rounded-full h-2.5 overflow-hidden">
+                                            <div
+                                                className={`h-2.5 rounded-full ${bar.color} transition-all duration-700`}
+                                                style={{ width: `${(bar.count / maxStatus) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* PRO Features Alert */}
-                <div className="mt-10 p-6 rounded-2xl bg-gradient-to-r from-blue-600/10 to-indigo-600/10 border border-blue-500/20 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-4 text-center md:text-left">
-                        <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(59,130,246,0.5)]">
-                            <TrendingUp className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h4 className="text-white font-bold">You&apos;re on the Pro Plan</h4>
-                            <p className="text-slate-400 text-sm">Advanced cohort analysis and exportable reporting are included in your subscription.</p>
-                        </div>
+                {/* Platform Summary */}
+                <div className="card p-6 bg-[#111118]/50 border-white/5 animate-fade-in">
+                    <h3 className="text-sm font-bold text-white mb-5 flex items-center gap-2">
+                        <Users className="w-4 h-4 text-indigo-400" />
+                        Platform Summary
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {[
+                            { label: "Total Users", value: isLoading ? "—" : String(analyticsStats?.totalUsers ?? 0), color: "text-brand-400" },
+                            { label: "Total Projects", value: isLoading ? "—" : String(analyticsStats?.totalProjects ?? 0), color: "text-amber-400" },
+                            { label: "Total Activities", value: isLoading ? "—" : String(analyticsStats?.totalActivities ?? 0), color: "text-blue-400" },
+                            { label: "Total Bugs", value: isLoading ? "—" : String(analyticsStats?.totalBugs ?? 0), color: "text-rose-400" },
+                        ].map((item, i) => (
+                            <div key={i} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center">
+                                <div className={`text-2xl font-bold ${item.color} mb-1`}>{item.value}</div>
+                                <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest">{item.label}</div>
+                            </div>
+                        ))}
                     </div>
-                    <button className="btn-primary whitespace-nowrap px-8">Refresh Data</button>
                 </div>
             </main>
         </div>

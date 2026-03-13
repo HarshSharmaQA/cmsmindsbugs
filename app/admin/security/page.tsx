@@ -4,28 +4,44 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navbar } from "@/components/Navbar";
 import { useState, useEffect } from "react";
-import { ShieldAlert, ArrowLeft, Lock, Eye, Globe, UserCheck, ShieldCheck, Activity } from "lucide-react";
+import { ShieldAlert, ArrowLeft, Lock, Eye, Globe, UserCheck, ShieldCheck, Activity, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 
 export default function SecurityAuditPage() {
     const [devToken, setDevToken] = useState<string | null>(null);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         const stored = localStorage.getItem("bugscribe_dev_token");
         if (stored) setDevToken(stored);
+        setMounted(true);
     }, []);
 
     const userResult = useQuery(api.users.currentUser, { devToken: devToken || undefined });
+    const securityStats = useQuery(
+        api.admin.getSecurityStats,
+        devToken ? { devToken } : "skip"
+    );
     const isSuperAdmin = userResult?.role === "super_admin";
-    
-    // Placeholder audit logs
-    const auditLogs = [
-        { id: 1, event: "Login Success", user: "harshsharmaqa@gmail.com", ip: "192.168.1.1", location: "Mumbai, IN", time: Date.now() - 1000*60*30 },
-        { id: 2, event: "API Key Created", user: "admin@bugscribe.com", ip: "104.28.2.45", location: "Singapore, SG", time: Date.now() - 1000*60*120 },
-        { id: 3, event: "Page Deleted", user: "harshsharmaqa@gmail.com", ip: "192.168.1.1", location: "Mumbai, IN", time: Date.now() - 1000*60*600 },
-        { id: 4, event: "Role Changed", user: "system", ip: "internal", location: "Cloud", time: Date.now() - 1000*60*3600 },
-    ];
+
+    if (!mounted) {
+        return <div className="min-h-screen bg-[#0A0A0A]" />;
+    }
+
+    // Show loading skeleton while devToken is known but user data is still being fetched
+    if (devToken && userResult === undefined) {
+        return (
+            <div className="min-h-screen relative">
+                <div className="fixed inset-0 grid-bg pointer-events-none opacity-50" />
+                <Navbar />
+                <div className="max-w-7xl mx-auto px-4 py-32 flex flex-col items-center gap-4">
+                    <div className="skeleton w-16 h-16 rounded-full mb-4" />
+                    <p className="text-slate-500 animate-pulse">Loading Security Audit...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!devToken || !isSuperAdmin) {
         return (
@@ -41,6 +57,45 @@ export default function SecurityAuditPage() {
             </div>
         );
     }
+
+    const events = securityStats?.recentEvents ?? [];
+
+    const statCards = [
+        {
+            label: "Active Sessions",
+            value: securityStats === undefined ? "—" : String(securityStats?.activeSessions ?? 0),
+            icon: UserCheck,
+            color: "text-brand-400",
+        },
+        {
+            label: "Active API Keys",
+            value: securityStats === undefined ? "—" : String(securityStats?.totalApiKeys ?? 0),
+            icon: Lock,
+            color: "text-rose-400",
+        },
+        {
+            label: "Total Users",
+            value: securityStats === undefined ? "—" : String(securityStats?.totalUsers ?? 0),
+            icon: Globe,
+            color: "text-indigo-400",
+        },
+        {
+            label: "Recent Events",
+            value: securityStats === undefined ? "—" : String(events.length),
+            icon: ShieldCheck,
+            color: "text-emerald-400",
+        },
+    ];
+
+    const eventColorMap: Record<string, string> = {
+        "Bug Created": "bg-green-500",
+        "Status Changed": "bg-brand-500",
+        "Priority Changed": "bg-amber-500",
+        "Assignee Changed": "bg-blue-500",
+        "Comment Added": "bg-indigo-500",
+        "Tags Changed": "bg-teal-500",
+        "Asset Attached": "bg-orange-500",
+    };
 
     return (
         <div className="min-h-screen relative">
@@ -67,13 +122,9 @@ export default function SecurityAuditPage() {
                     </div>
                 </div>
 
+                {/* Stat Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    {[
-                        { label: "Active Sessions", value: "12", icon: UserCheck, color: "text-brand-400" },
-                        { label: "Blocked IPs", value: "0", icon: Lock, color: "text-rose-400" },
-                        { label: "API Requests", value: "1.2k", icon: Globe, color: "text-indigo-400" },
-                        { label: "Security Score", value: "98/100", icon: ShieldCheck, color: "text-emerald-400" },
-                    ].map((stat, i) => (
+                    {statCards.map((stat, i) => (
                         <div key={i} className="card p-4 flex flex-col items-center text-center animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
                             <stat.icon className={`w-5 h-5 mb-2 ${stat.color}`} />
                             <div className="text-xl font-bold text-white">{stat.value}</div>
@@ -82,35 +133,60 @@ export default function SecurityAuditPage() {
                     ))}
                 </div>
 
+                {/* Activity Log Table */}
                 <div className="card overflow-hidden ring-1 ring-white/5 shadow-2xl animate-fade-in">
+                    <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+                        <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                            <Eye className="w-4 h-4 text-rose-400" />
+                            Recent Platform Activity
+                        </h2>
+                        <span className="text-[10px] text-slate-500">{events.length} events</span>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-[#0D0D14] border-b border-white/5">
                                 <tr>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Event Type</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">User</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">IP Address</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Actor</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Detail</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Time</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5 bg-[#111118]/50 text-sm">
-                                {auditLogs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-white/[0.02] transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${log.event.includes('Success') ? 'bg-green-500' : log.event.includes('Deleted') ? 'bg-rose-500' : 'bg-brand-500'}`} />
-                                                <span className="font-bold text-slate-200">{log.event}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-400 font-medium">{log.user}</td>
-                                        <td className="px-6 py-4 text-slate-500 font-mono text-xs">
-                                            {log.ip} <span className="text-[10px] opacity-40">({log.location})</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-slate-500 text-xs">
-                                            {format(log.time, "HH:mm:ss")}
+                                {securityStats === undefined ? (
+                                    [...Array(5)].map((_, i) => (
+                                        <tr key={i}>
+                                            <td className="px-6 py-4"><div className="skeleton h-4 w-32" /></td>
+                                            <td className="px-6 py-4"><div className="skeleton h-4 w-40" /></td>
+                                            <td className="px-6 py-4"><div className="skeleton h-4 w-48" /></td>
+                                            <td className="px-6 py-4"><div className="skeleton h-4 w-20 ml-auto" /></td>
+                                        </tr>
+                                    ))
+                                ) : events.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-16 text-center">
+                                            <AlertCircle className="w-8 h-8 text-slate-700 mx-auto mb-3" />
+                                            <p className="text-slate-500 text-sm">No activity events recorded yet.</p>
+                                            <p className="text-slate-600 text-xs mt-1">Events will appear here as users interact with projects and bugs.</p>
                                         </td>
                                     </tr>
-                                ))}
+                                ) : (
+                                    events.map((event) => (
+                                        <tr key={event.id} className="hover:bg-white/[0.02] transition-colors group">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-2 h-2 rounded-full ${eventColorMap[event.event] ?? "bg-slate-500"}`} />
+                                                    <span className="font-bold text-slate-200">{event.event}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-400 font-medium truncate max-w-[180px]">{event.user}</td>
+                                            <td className="px-6 py-4 text-slate-500 text-xs truncate max-w-[220px]">{event.detail || "—"}</td>
+                                            <td className="px-6 py-4 text-right text-slate-500 text-xs whitespace-nowrap">
+                                                {formatDistanceToNow(event.time, { addSuffix: true })}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
                             </tbody>
                         </table>
                     </div>

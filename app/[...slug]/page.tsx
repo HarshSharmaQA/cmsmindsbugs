@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 import BookingBlock from "@/components/BookingWidget";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -150,10 +151,10 @@ function GridFeaturesBlock({ data }: { data: any }) {
 // ─── FAQ Block ────────────────────────────────────────────────────────────────
 
 function FAQBlock({ data }: { data: any }) {
-    const faqs = [1, 2, 3].map(i => ({
+    const faqs = (data._faqs || [1, 2, 3].map(i => ({
         q: data[`q${i}`],
         a: data[`a${i}`]
-    })).filter(f => f.q);
+    }))).filter((f: any) => f.q);
 
     return (
         <section className="py-20 px-4 max-w-4xl mx-auto">
@@ -161,7 +162,7 @@ function FAQBlock({ data }: { data: any }) {
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{data.heading}</h2>
             </div>
             <div className="space-y-4">
-                {faqs.map((f, i) => (
+                {faqs.map((f: any, i: number) => (
                     <div key={i} className="card p-6 border-white/5 hover:border-white/10 transition-all">
                         <div className="flex items-start gap-4">
                             <div className="w-8 h-8 rounded-lg bg-surface-elevated flex items-center justify-center shrink-0">
@@ -230,11 +231,11 @@ function PricingBlock({ data }: { data: any }) {
 // ─── Testimonials Block ───────────────────────────────────────────────────────
 
 function TestimonialsBlock({ data }: { data: any }) {
-    const items = [1, 2, 3].map(i => ({
+    const items = (data._testimonials || [1, 2, 3].map(i => ({
         quote: data[`t${i}Quote`],
         author: data[`t${i}Author`],
         role: data[`t${i}Role`]
-    })).filter(t => t.quote);
+    }))).filter((t: any) => t.quote);
 
     return (
         <section className="py-24 px-4 bg-brand-500/[0.02]">
@@ -242,7 +243,7 @@ function TestimonialsBlock({ data }: { data: any }) {
                 <h2 className="text-3xl font-bold text-white">{data.heading}</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-                {items.map((t, i) => (
+                {items.map((t: any, i: number) => (
                     <div key={i} className="card p-8 bg-surface-card/40 backdrop-blur-sm relative">
                         <Quote className="absolute top-4 right-4 w-8 h-8 text-brand-500/10" />
                         <div className="flex gap-1 mb-6 text-brand-400">
@@ -304,9 +305,11 @@ function LoginBlock({ data }: { data: any }) {
 // ─── Team Section Block ───────────────────────────────────────────────────────
 
 function TeamBlock({ data }: { data: any }) {
-    const members = [1, 2, 3, 4, 5, 6]
-        .map(n => ({ name: data[`member${n}Name`], role: data[`member${n}Role`], photo: data[`member${n}Photo`] }))
-        .filter(m => m.name);
+    const members = (data._members || [1, 2, 3, 4, 5, 6].map(n => ({
+        name: data[`member${n}Name`], 
+        role: data[`member${n}Role`], 
+        photo: data[`member${n}Photo`] 
+    }))).filter((m: any) => m.name);
 
     return (
         <section className="py-16">
@@ -323,7 +326,7 @@ function TeamBlock({ data }: { data: any }) {
 
             {/* Member grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
-                {members.map((member, i) => (
+                {members.map((member: any, i: number) => (
                     <div
                         key={i}
                         className="card p-0 overflow-hidden flex items-center gap-0 hover:border-brand-500/30 hover:shadow-[0_0_20px_rgba(0,212,255,0.08)] transition-all group"
@@ -750,14 +753,14 @@ function ComparisonBlock({ data }: { data: any }) {
 
 // ─── Steps Block ──────────────────────────────────────────────────────────────
 function StepsBlock({ data }: { data: any }) {
-    const steps = [1, 2, 3, 4, 5].map(i => ({ title: data[`step${i}Title`], desc: data[`step${i}Desc`] })).filter(s => s.title);
+    const steps = (data._steps || [1, 2, 3, 4, 5].map(i => ({ title: data[`step${i}Title`], desc: data[`step${i}Desc`] }))).filter((s: any) => s.title);
     return (
         <section className="py-20 px-4 max-w-4xl mx-auto">
             {data.heading && <div className="text-center mb-12"><h2 className="text-3xl font-bold text-white mb-3">{data.heading}</h2>{data.subheading && <p className="text-slate-400">{data.subheading}</p>}</div>}
             <div className="relative">
                 <div className="absolute left-[19px] top-0 bottom-0 w-px bg-gradient-to-b from-brand-500/60 via-brand-500/20 to-transparent md:hidden" />
                 <div className="space-y-8">
-                    {steps.map((step, i) => (
+                    {steps.map((step: any, i: number) => (
                         <div key={i} className="flex items-start gap-6 group">
                             <div className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-bold text-sm transition-all" style={{ background: 'rgba(0,212,255,0.12)', border: '2px solid rgba(0,212,255,0.35)', color: '#00D4FF' }}>{i + 1}</div>
                             <div className="card p-5 flex-1 group-hover:border-brand-500/30 transition-all">
@@ -774,12 +777,12 @@ function StepsBlock({ data }: { data: any }) {
 
 // ─── Logo Cloud Block ─────────────────────────────────────────────────────────
 function LogoCloudBlock({ data }: { data: any }) {
-    const logos = [1, 2, 3, 4, 5, 6, 7, 8].map(i => ({ name: data[`logo${i}Name`], url: data[`logo${i}Url`] })).filter(l => l.name);
+    const logos = (data._logos || [1, 2, 3, 4, 5, 6, 7, 8].map(i => ({ name: data[`logo${i}Name`], url: data[`logo${i}Url`] }))).filter((l: any) => l.name);
     return (
         <section className="py-16 px-4">
             {data.heading && <p className="text-center text-xs font-bold uppercase tracking-widest text-slate-500 mb-8">{data.heading}</p>}
             <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
-                {logos.map((logo, i) => (
+                {logos.map((logo: any, i: number) => (
                     <div key={i} className="flex items-center justify-center opacity-40 hover:opacity-80 transition-opacity">
                         {logo.url ? <img src={logo.url} alt={logo.name} className="h-8 object-contain filter grayscale hover:grayscale-0 transition-all" /> : <span className="text-slate-400 font-bold text-lg tracking-tight">{logo.name}</span>}
                     </div>
@@ -815,13 +818,13 @@ function BannerBlock({ data }: { data: any }) {
 
 // ─── Gallery Block ────────────────────────────────────────────────────────────
 function GalleryBlock({ data }: { data: any }) {
-    const images = [1, 2, 3, 4, 5, 6].map(i => ({ src: data[`img${i}Src`], alt: data[`img${i}Alt`] || '' })).filter(img => img.src);
+    const images = (data._imgs || [1, 2, 3, 4, 5, 6].map(i => ({ src: data[`img${i}Src`], alt: data[`img${i}Alt`] || '' }))).filter((img: any) => img.src);
     const cols = parseInt(data.columns || '3');
     return (
         <section className="py-12 px-4">
             {data.heading && <div className="text-center mb-8"><h2 className="text-2xl font-bold text-white">{data.heading}</h2></div>}
             <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-                {images.map((img, i) => (
+                {images.map((img: any, i: number) => (
                     <div key={i} className="rounded-xl overflow-hidden border border-surface-border aspect-video bg-surface-card group hover:border-brand-500/30 transition-all">
                         <img src={img.src} alt={img.alt} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                     </div>
@@ -874,14 +877,14 @@ function ContactFormBlock({ data }: { data: any }) {
 
 // ─── Timeline Block ───────────────────────────────────────────────────────────
 function TimelineBlock({ data }: { data: any }) {
-    const events = [1, 2, 3, 4, 5, 6].map(i => ({ year: data[`ev${i}Year`], title: data[`ev${i}Title`], desc: data[`ev${i}Desc`] })).filter(e => e.title);
+    const events = (data._events || [1, 2, 3, 4, 5, 6].map(i => ({ year: data[`ev${i}Year`], title: data[`ev${i}Title`], desc: data[`ev${i}Desc`] }))).filter((e: any) => e.title);
     return (
         <section className="py-20 px-4 max-w-4xl mx-auto">
             {data.heading && <div className="text-center mb-14"><h2 className="text-3xl font-bold text-white mb-2">{data.heading}</h2>{data.subheading && <p className="text-slate-400">{data.subheading}</p>}</div>}
             <div className="relative">
                 <div className="absolute left-1/2 -translate-x-px top-0 bottom-0 w-px bg-gradient-to-b from-brand-500/60 via-brand-500/20 to-transparent hidden md:block" />
                 <div className="space-y-12">
-                    {events.map((ev, i) => (
+                    {events.map((ev: any, i: number) => (
                         <div key={i} className={`flex items-start gap-8 ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}>
                             <div className={`flex-1 card p-5 hover:border-brand-500/30 transition-all ${i % 2 === 0 ? 'md:text-right' : ''}`}>
                                 {ev.year && <div className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-1">{ev.year}</div>}
@@ -922,12 +925,12 @@ function CodeBlockSection({ data }: { data: any }) {
 
 // ─── Progress Bars Block ──────────────────────────────────────────────────────
 function ProgressBarsBlock({ data }: { data: any }) {
-    const bars = [1, 2, 3, 4, 5].map(i => ({ label: data[`bar${i}Label`], value: parseInt(data[`bar${i}Value`] || '0') })).filter(b => b.label);
+    const bars = (data._bars || [1, 2, 3, 4, 5].map(i => ({ label: data[`bar${i}Label`], value: parseInt(data[`bar${i}Value`] || '0') }))).filter((b: any) => b.label);
     return (
         <section className="py-16 px-4 max-w-2xl mx-auto">
             {data.heading && <div className="text-center mb-10"><h2 className="text-2xl font-bold text-white">{data.heading}</h2></div>}
             <div className="space-y-6">
-                {bars.map((bar, i) => (
+                {bars.map((bar: any, i: number) => (
                     <div key={i}>
                         <div className="flex justify-between text-sm mb-2">
                             <span className="text-white font-medium">{bar.label}</span>
@@ -945,12 +948,12 @@ function ProgressBarsBlock({ data }: { data: any }) {
 
 // ─── Icon Cards Block ─────────────────────────────────────────────────────────
 function IconCardsBlock({ data }: { data: any }) {
-    const cards = [1, 2, 3, 4, 5, 6].map(i => ({ emoji: data[`card${i}Emoji`], title: data[`card${i}Title`], desc: data[`card${i}Desc`] })).filter(c => c.title);
+    const cards = (data._cards || [1, 2, 3, 4, 5, 6].map(i => ({ emoji: data[`card${i}Emoji`], title: data[`card${i}Title`], desc: data[`card${i}Desc`] }))).filter((c: any) => c.title);
     return (
         <section className="py-20 px-4">
             {data.heading && <div className="text-center mb-12"><h2 className="text-3xl font-bold text-white mb-3">{data.heading}</h2>{data.subheading && <p className="text-slate-400">{data.subheading}</p>}</div>}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
-                {cards.map((card, i) => (
+                {cards.map((card: any, i: number) => (
                     <div key={i} className="card p-7 group hover:border-brand-500/30 hover:shadow-[0_0_30px_rgba(0,212,255,0.06)] transition-all">
                         {card.emoji && <div className="text-3xl mb-4 group-hover:scale-110 transition-transform inline-block">{card.emoji}</div>}
                         <h3 className="text-white font-bold text-lg mb-2">{card.title}</h3>
@@ -964,12 +967,12 @@ function IconCardsBlock({ data }: { data: any }) {
 
 // ─── Social Proof / Trust Badges Block ────────────────────────────────────────
 function SocialProofBlock({ data }: { data: any }) {
-    const badges = [1, 2, 3, 4].map(i => ({ label: data[`badge${i}Label`], value: data[`badge${i}Value`], emoji: data[`badge${i}Emoji`] })).filter(b => b.label);
+    const badges = (data._badges || [1, 2, 3, 4].map(i => ({ label: data[`badge${i}Label`], value: data[`badge${i}Value`], emoji: data[`badge${i}Emoji`] }))).filter((b: any) => b.label);
     return (
         <section className="py-14 px-4">
             {data.heading && <p className="text-center text-slate-500 text-xs uppercase tracking-widest font-bold mb-8">{data.heading}</p>}
             <div className="flex flex-wrap items-center justify-center gap-6 max-w-4xl mx-auto">
-                {badges.map((badge, i) => (
+                {badges.map((badge: any, i: number) => (
                     <div key={i} className="flex items-center gap-3 px-5 py-3 rounded-2xl card hover:border-brand-500/25 transition-all">
                         {badge.emoji && <span className="text-2xl">{badge.emoji}</span>}
                         <div>
@@ -1004,12 +1007,12 @@ function EmbedBlock({ data }: { data: any }) {
 
 // ─── Number Counter Block ─────────────────────────────────────────────────────
 function NumberCounterBlock({ data }: { data: any }) {
-    const counters = [1, 2, 3, 4].map(i => ({ value: data[`num${i}Value`], label: data[`num${i}Label`], prefix: data[`num${i}Prefix`] || '', suffix: data[`num${i}Suffix`] || '' })).filter(c => c.value);
+    const counters = (data._counters || [1, 2, 3, 4].map(i => ({ value: data[`num${i}Value`], label: data[`num${i}Label`], prefix: data[`num${i}Prefix`] || '', suffix: data[`num${i}Suffix`] || '' }))).filter((c: any) => c.value);
     return (
         <section className="py-20 px-4">
             {data.heading && <div className="text-center mb-10"><h2 className="text-3xl font-bold text-white">{data.heading}</h2></div>}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
-                {counters.map((c, i) => (
+                {counters.map((c: any, i: number) => (
                     <div key={i} className="text-center card p-8 group hover:border-brand-500/30 transition-all">
                         <div className="text-4xl md:text-5xl font-bold text-gradient mb-2">{c.prefix}{c.value}{c.suffix}</div>
                         <div className="text-slate-400 text-sm font-medium">{c.label}</div>
@@ -1042,12 +1045,12 @@ function DataTableBlock({ data }: { data: any }) {
 // ─── Accordion Block ──────────────────────────────────────────────────────────
 function AccordionBlock({ data }: { data: any }) {
     const [open, setOpen] = useState<number | null>(null);
-    const items = [1, 2, 3, 4, 5].map(i => ({ q: data[`q${i}`], a: data[`a${i}`] })).filter(item => item.q);
+    const items = (data._items || [1, 2, 3, 4, 5].map(i => ({ q: data[`q${i}`], a: data[`a${i}`] }))).filter((item: any) => item.q);
     return (
         <section className="py-16 px-4 max-w-3xl mx-auto">
             {data.heading && <div className="text-center mb-10"><h2 className="text-2xl font-bold text-white">{data.heading}</h2></div>}
             <div className="space-y-2">
-                {items.map((item, i) => (
+                {items.map((item: any, i: number) => (
                     <div key={i} className="card overflow-hidden border-white/5">
                         <button onClick={() => setOpen(open === i ? null : i)} className="w-full flex items-center justify-between px-6 py-4 text-left text-white font-medium hover:text-brand-400 transition-colors">
                             <span>{item.q}</span>
@@ -1105,7 +1108,7 @@ function QuoteBlock({ data }: { data: any }) {
 
 // ─── Feature Highlight Block ──────────────────────────────────────────────────
 function FeatureHighlightBlock({ data }: { data: any }) {
-    const features = [1, 2, 3].map(i => ({ icon: data[`feat${i}Icon`], title: data[`feat${i}Title`], desc: data[`feat${i}Desc`] })).filter(f => f.title);
+    const features = (data._features || [1, 2, 3].map(i => ({ icon: data[`feat${i}Icon`], title: data[`feat${i}Title`], desc: data[`feat${i}Desc`] }))).filter((f: any) => f.title);
     const reversed = data.reverse === 'true';
     return (
         <section className="py-20 px-4">
@@ -1115,7 +1118,7 @@ function FeatureHighlightBlock({ data }: { data: any }) {
                     <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">{data.heading}</h2>
                     {data.subheading && <p className="text-slate-400 leading-relaxed mb-8">{data.subheading}</p>}
                     <div className="space-y-5">
-                        {features.map((f, i) => (
+                        {features.map((f: any, i: number) => (
                             <div key={i} className="flex items-start gap-4">
                                 <div className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-lg" style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)' }}>{f.icon || '✦'}</div>
                                 <div><h4 className="text-white font-bold mb-1">{f.title}</h4><p className="text-slate-400 text-sm leading-relaxed">{f.desc}</p></div>
@@ -1183,17 +1186,17 @@ function StartupHeroBlock({ data, isFirst }: { data: any, isFirst?: boolean }) {
 
 // ─── Startup Team Block ───────────────────────────────────────────────────────
 function StartupTeamBlock({ data }: { data: any }) {
-    const members = [1, 2, 3, 4, 5, 6, 7, 8].map(i => ({ 
+    const members = (data._members || [1, 2, 3, 4, 5, 6, 7, 8].map(i => ({ 
         name: data[`m${i}Name`], 
         role: data[`m${i}Role`], 
         photo: data[`m${i}Photo`] 
-    })).filter(m => m.name);
+    }))).filter((m: any) => m.name);
     return (
         <section className="py-20 px-4">
             {data.subtext && <div className="text-center mb-6"><span className="px-5 py-1.5 rounded-full border border-slate-200 dark:border-white/10 text-sm font-medium text-slate-600 dark:text-slate-400">{data.subtext}</span></div>}
             {data.heading && <h2 className="text-center text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-12">{data.heading}</h2>}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-                {members.map((m, i) => (
+                {members.map((m: any, i: number) => (
                     <div key={i} className="relative rounded-3xl overflow-hidden aspect-[4/5] group w-full border border-slate-200 dark:border-white/5 shadow-sm">
                         {m.photo ? (
                             <img src={m.photo} alt={m.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -1214,10 +1217,10 @@ function StartupTeamBlock({ data }: { data: any }) {
 // ─── Split FAQ Block ──────────────────────────────────────────────────────────
 function SplitFaqBlock({ data }: { data: any }) {
     const [openIndex, setOpenIndex] = useState<number | null>(null);
-    const faqs = [1, 2, 3, 4, 5].map(i => ({
+    const faqs = (data._faqs || [1, 2, 3, 4, 5].map(i => ({
         q: data[`q${i}`],
         a: data[`a${i}`]
-    })).filter(f => f.q);
+    }))).filter((f: any) => f.q);
 
     return (
         <section className="py-24 px-4">
@@ -1228,7 +1231,7 @@ function SplitFaqBlock({ data }: { data: any }) {
                     </h2>
                 </div>
                 <div className="space-y-4">
-                    {faqs.map((faq, i) => (
+                    {faqs.map((faq: any, i: number) => (
                         <div key={i} className="border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden bg-white dark:bg-surface-card shadow-sm hover:shadow-md transition-shadow">
                             <button 
                                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
@@ -1299,6 +1302,7 @@ export function RenderBlock({ block, pageSlug, isFirst }: { block: { id: string;
 export function PublicPageContent({ slug }: { slug: string }) {
     const page = useQuery(api.pages.getBySlug, { slug });
 
+
     if (page === undefined) {
         return (
         <div className="min-h-screen relative overflow-x-hidden">
@@ -1318,11 +1322,11 @@ export function PublicPageContent({ slug }: { slug: string }) {
         <div className="min-h-screen relative overflow-x-hidden">
             <div className="fixed inset-0 grid-bg pointer-events-none opacity-50" />
             <Navbar />
-                <div className="max-w-5xl mx-auto px-4 py-32 text-center">
-                    <div className="text-7xl font-bold text-gradient mb-4">404</div>
-                    <h1 className="text-2xl font-bold text-white mb-2">Page Not Found</h1>
-                    <p className="text-slate-400 mb-8">This page doesn&apos;t exist or hasn&apos;t been published yet.</p>
-                    <Link href="/" className="btn-primary inline-flex">Go Home</Link>
+                <div className="max-w-5xl mx-auto px-4 py-32 text-center flex flex-col items-center justify-center">
+                    <img src="/404-logo.png" alt="BugScribe 404 Logo" className="w-[300px] h-auto mb-6 object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-500" />
+                    <h1 className="text-3xl font-bold text-white mb-2">Oops! Page Not Found</h1>
+                    <p className="text-slate-400 mb-8 max-w-lg mx-auto leading-relaxed">This page doesn&apos;t exist, might have been moved, or hasn&apos;t been published yet.</p>
+                    <Link href="/" className="btn-primary inline-flex">Return Home</Link>
                 </div>
             </div>
         );
@@ -1331,25 +1335,13 @@ export function PublicPageContent({ slug }: { slug: string }) {
     return (
         <div className="min-h-screen relative overflow-x-hidden">
             <div className="fixed inset-0 grid-bg pointer-events-none opacity-50" />
-            {page.metaDescription && (
-                <>
-                    <title>{page.title} | BugScribe</title>
-                    <meta name="description" content={page.metaDescription} />
-                    <meta property="og:title" content={`${page.title} | BugScribe`} />
-                    <meta property="og:description" content={page.metaDescription} />
-                </>
-            )}
             <Navbar />
-            <main className="max-w-5xl mx-auto px-4 pt-32 pb-20">
+            <main className="max-w-5xl mx-auto px-4 pt-32 pb-20" aria-label={`${page.title} content`}>
                 {page.blocks.map((block: any, index: number) => (
                     <RenderBlock key={block.id} block={block} pageSlug={page.slug} isFirst={index === 0} />
                 ))}
             </main>
-            <div className="border-t border-surface-border py-6 text-center">
-                <p className="text-slate-600 text-xs">
-                    Powered by <Link href="/" className="text-brand-400 hover:text-brand-300 transition-colors font-semibold">BugScribe</Link>
-                </p>
-            </div>
+            <Footer />
         </div>
     );
 }

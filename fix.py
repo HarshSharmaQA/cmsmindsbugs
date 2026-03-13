@@ -440,7 +440,7 @@ function HomePageContent() {
 }
 """
 
-new_lines = list(lines)[:130] + [content + "\n"] + list(lines)[756:]
+new_lines = list(lines)[:130] + [content + "\n"] + list(lines)[756:]  # type: ignore
 with open(file_path, "w", encoding="utf-8") as f:
     f.writelines(new_lines)
 

@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Bug, ShieldAlert, Zap, FileText, ChevronDown, Menu, X } from "lucide-react";
+import { Bug, ShieldAlert, ChevronDown, Menu, X, BarChart3, Layout, LogOut, Settings } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+
+type NavLink = { label: string; path: string; dropdown?: boolean; subLinks?: { label: string; path: string }[] };
 
 function NavbarContent() {
     const [devToken, setDevToken] = useState<string | null>(null);
@@ -29,16 +31,22 @@ function NavbarContent() {
     const user = useQuery(api.users.currentUser, { devToken: devToken || undefined });
     const isSuperAdmin = user?.role === "super_admin";
     const publishedPages = useQuery(api.pages.list, { devToken: undefined }) ?? [];
-    
-    // Split menu pages into two halves for the center logo layout
-    const menuPages = (publishedPages as any[]).filter(p => p.showInMenu && p.slug !== "");
-    
-    // Hick's Law: Limit visible items. Max 5 pages + Home + Admin = 7 items.
-    const visibleCount = 4;
+
+    // ── Custom menu links from globalSettings ──────────────────────────────
+    const customLinksRaw = useQuery(api.globalSettings.get, { key: "nav_header_links" });
+    const navLayout = (useQuery(api.globalSettings.get, { key: "nav_layout" }) as string) || "center";
+    const customLinks: NavLink[] = Array.isArray(customLinksRaw) ? (customLinksRaw as NavLink[]) : [];
+
+    // prefer custom links; fall back to published pages marked showInMenu
+    const menuPages = customLinks.length > 0
+        ? customLinks.filter(l => l.label)
+        : (publishedPages as any[]).filter(p => p.showInMenu && p.slug !== "").map((p: any) => ({ label: p.title, path: `/${p.slug}` }));
+
+    const visibleCount = 5;
     const hasMore = menuPages.length > visibleCount;
     const displayedPages = menuPages.slice(0, visibleCount);
     const morePages = menuPages.slice(visibleCount);
-    
+
     const half = Math.ceil(displayedPages.length / 2);
     const leftMenu = displayedPages.slice(0, half);
     const rightMenu = displayedPages.slice(half);
@@ -67,25 +75,34 @@ function NavbarContent() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <Link href="/" onClick={() => setMobileMenuOpen(false)} className="px-4 py-3 rounded-xl bg-white/5 text-white font-semibold">Home</Link>
-                        {publishedPages.filter((p: any) => p.showInMenu).map((page: any) => (
-                            <Link 
-                                key={page._id} 
-                                href={`/${page.slug}`} 
+                        {menuPages.map((page: NavLink, idx: number) => (
+                            <Link
+                                key={idx}
+                                href={page.path}
                                 onClick={() => setMobileMenuOpen(false)}
                                 className="px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all font-medium"
                             >
-                                {page.title}
+                                {page.label}
                             </Link>
                         ))}
+                        {user && (
+                            <Link 
+                                href="/dashboard" 
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="px-4 py-3 rounded-xl text-brand-400 hover:bg-brand-400/10 transition-all font-bold mt-2 border border-brand-500/10 flex items-center gap-2"
+                            >
+                                <BarChart3 className="w-4 h-4" />
+                                My Dashboard
+                            </Link>
+                        )}
                         {isSuperAdmin && (
                             <Link 
                                 href="/admin" 
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="px-4 py-3 rounded-xl text-brand-400 hover:bg-brand-400/10 transition-all font-bold mt-4 border border-brand-500/10 flex items-center gap-2"
+                                className="px-4 py-3 rounded-xl text-slate-300 hover:bg-white/10 transition-all font-bold mt-2 border border-white/10 flex items-center gap-2"
                             >
-                                <ShieldAlert className="w-4 h-4" />
-                                Admin Dashboard
+                                <Settings className="w-4 h-4" />
+                                Admin Panel
                             </Link>
                         )}
                     </div>
@@ -115,43 +132,68 @@ function NavbarContent() {
                     </button>
 
                     {/* Left Menu Items (Desktop) */}
-                    <Link href="/" className="nav-link hidden md:block text-xs sm:text-[13px] font-semibold text-slate-400 hover:text-white transition-all px-3 py-2">
-                        Home
-                    </Link>
-                    {leftMenu.map(page => (
-                        <Link
-                            key={`left-${page._id}`}
-                            href={`/${page.slug}`}
-                            className="nav-link hidden lg:block text-[13px] font-semibold text-slate-400 hover:text-white transition-all px-3 py-2"
-                        >
-                            {page.title}
-                        </Link>
+                    {leftMenu.map((page: NavLink, idx: number) => (
+                        <div key={idx} className="relative group/item hidden lg:block">
+                            <Link
+                                href={page.path}
+                                className="nav-link text-[13px] font-semibold text-slate-400 hover:text-white transition-all px-3 py-2 flex items-center gap-1"
+                            >
+                                {page.label}
+                                {page.subLinks && page.subLinks.length > 0 && <ChevronDown className="w-3 h-3" />}
+                            </Link>
+                            {page.subLinks && page.subLinks.length > 0 && (
+                                <div className="absolute top-10 left-0 w-44 card p-1.5 opacity-0 translate-y-2 pointer-events-none group-hover/item:opacity-100 group-hover/item:translate-y-0 group-hover/item:pointer-events-auto transition-all z-50 bg-[#0d0d14]/95 backdrop-blur-md border border-white/10">
+                                    {page.subLinks.map((sub, si) => (
+                                        <Link key={si} href={sub.path} className="block px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/5">{sub.label}</Link>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     ))}
 
                     {/* Center Logo */}
-                    <Link href="/" className="flex items-center gap-2.5 group/logo px-4 shrink-0 transform hover:scale-105 transition-all duration-300">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden rotate-45 group-hover/logo:rotate-[225deg] transition-transform duration-700"
-                            style={{
-                                background: 'linear-gradient(135deg, #00D4FF 0%, #0099CC 100%)',
-                                boxShadow: '0 0 20px rgba(0, 212, 255, 0.4)',
-                            }}>
-                            <Bug className="w-5 h-5 text-[#09090E] -rotate-45 group-hover/logo:rotate-[-225deg] transition-transform duration-700" />
-                        </div>
-                        <span className="font-bold text-white text-[15px] tracking-tight hidden sm:block">
-                            Bug<span className="text-brand-400">Scribe</span>
-                        </span>
-                    </Link>
+                    {navLayout === "left" ? (
+                        <Link href="/" className="flex items-center gap-2.5 group/logo px-4 shrink-0 transform hover:scale-105 transition-all duration-300">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden rotate-45 group-hover/logo:rotate-[225deg] transition-transform duration-700"
+                                style={{ background: 'linear-gradient(135deg, #00D4FF 0%, #0099CC 100%)', boxShadow: '0 0 20px rgba(0, 212, 255, 0.4)' }}>
+                                <Bug className="w-5 h-5 text-[#09090E] -rotate-45 group-hover/logo:rotate-[-225deg] transition-transform duration-700" />
+                            </div>
+                            <span className="font-bold text-white text-[15px] tracking-tight hidden sm:block">
+                                Bug<span className="text-brand-400">Scribe</span>
+                            </span>
+                        </Link>
+                    ) : (
+                        <Link href="/" className="flex items-center gap-2.5 group/logo px-4 shrink-0 transform hover:scale-105 transition-all duration-300">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden rotate-45 group-hover/logo:rotate-[225deg] transition-transform duration-700"
+                                style={{ background: 'linear-gradient(135deg, #00D4FF 0%, #0099CC 100%)', boxShadow: '0 0 20px rgba(0, 212, 255, 0.4)' }}>
+                                <Bug className="w-5 h-5 text-[#09090E] -rotate-45 group-hover/logo:rotate-[-225deg] transition-transform duration-700" />
+                            </div>
+                            <span className="font-bold text-white text-[15px] tracking-tight hidden sm:block">
+                                Bug<span className="text-brand-400">Scribe</span>
+                            </span>
+                        </Link>
+                    )}
 
                     {/* Right Menu Items */}
-                    {rightMenu.map(page => (
-                        <Link
-                            key={`right-${page._id}`}
-                            href={`/${page.slug}`}
-                            className="nav-link hidden lg:block text-[13px] font-semibold text-slate-400 hover:text-white transition-all px-3 py-2"
-                        >
-                            {page.title}
-                        </Link>
+                    {rightMenu.map((page: NavLink, idx: number) => (
+                        <div key={idx} className="relative group/item hidden lg:block">
+                            <Link
+                                href={page.path}
+                                className="nav-link text-[13px] font-semibold text-slate-400 hover:text-white transition-all px-3 py-2 flex items-center gap-1"
+                            >
+                                {page.label}
+                                {page.subLinks && page.subLinks.length > 0 && <ChevronDown className="w-3 h-3" />}
+                            </Link>
+                            {page.subLinks && page.subLinks.length > 0 && (
+                                <div className="absolute top-10 left-0 w-44 card p-1.5 opacity-0 translate-y-2 pointer-events-none group-hover/item:opacity-100 group-hover/item:translate-y-0 group-hover/item:pointer-events-auto transition-all z-50 bg-[#0d0d14]/95 backdrop-blur-md border border-white/10">
+                                    {page.subLinks.map((sub, si) => (
+                                        <Link key={si} href={sub.path} className="block px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/5">{sub.label}</Link>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     ))}
+
 
                     {hasMore && (
                         <div className="relative group/more hidden lg:block">
@@ -159,17 +201,27 @@ function NavbarContent() {
                                 More <ChevronDown className="w-3 h-3" />
                             </button>
                             <div className="absolute top-10 left-0 w-48 card p-2 opacity-0 translate-y-2 pointer-events-none group-hover/more:opacity-100 group-hover/more:translate-y-0 group-hover/more:pointer-events-auto transition-all z-50 bg-[#0d0d14]/95 backdrop-blur-md border border-white/10">
-                                {morePages.map(page => (
+                                {morePages.map((page: NavLink, idx: number) => (
                                     <Link
-                                        key={`more-${page._id}`}
-                                        href={`/${page.slug}`}
+                                        key={idx}
+                                        href={page.path}
                                         className="block px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/5"
                                     >
-                                        {page.title}
+                                        {page.label}
                                     </Link>
                                 ))}
                             </div>
                         </div>
+                    )}
+
+                    {user && (
+                        <Link
+                            href="/dashboard"
+                            className="nav-link hidden md:flex text-xs sm:text-[13px] font-bold text-slate-300 hover:text-white transition-all px-3 py-2 items-center gap-1.5"
+                        >
+                            <BarChart3 className="w-3.5 h-3.5" />
+                            Dashboard
+                        </Link>
                     )}
 
                     {isSuperAdmin && (
@@ -177,7 +229,7 @@ function NavbarContent() {
                             href="/admin"
                             className="nav-link hidden md:flex text-xs sm:text-[13px] font-bold text-brand-400 hover:text-brand-300 transition-all px-3 py-2 items-center gap-1.5"
                         >
-                            <ShieldAlert className="w-3.5 h-3.5" />
+                            <Settings className="w-3.5 h-3.5" />
                             Admin
                         </Link>
                     )}
@@ -199,10 +251,16 @@ function NavbarContent() {
                                             <p className="text-xs font-bold text-white truncate">{user.name || user.email}</p>
                                             <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
                                         </div>
-                                        <Link href="/admin" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-white/5 transition-all">
-                                            <ShieldAlert className="w-3.5 h-3.5 text-brand-400" />
-                                            Dashboard
+                                        <Link href="/dashboard" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-white/5 transition-all">
+                                            <BarChart3 className="w-3.5 h-3.5 text-brand-400" />
+                                            My Dashboard
                                         </Link>
+                                        {isSuperAdmin && (
+                                            <Link href="/admin" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-white/5 transition-all">
+                                                <Settings className="w-3.5 h-3.5 text-slate-400" />
+                                                Admin Panel
+                                            </Link>
+                                        )}
                                         <button 
                                             onClick={() => {
                                                 localStorage.removeItem("bugscribe_dev_token");
@@ -210,7 +268,7 @@ function NavbarContent() {
                                             }}
                                             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all mt-1"
                                         >
-                                            <ShieldAlert className="w-3.5 h-3.5 rotate-180" />
+                                            <LogOut className="w-3.5 h-3.5" />
                                             Log Out
                                         </button>
                                     </div>
