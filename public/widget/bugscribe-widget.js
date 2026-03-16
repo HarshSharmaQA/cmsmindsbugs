@@ -79,7 +79,7 @@
         showPulseMarker(rect.left + rect.width / 2, rect.top + rect.height / 2);
     }
 
-    window.addEventListener("load", () => {
+    function handleHighlight() {
         const payload = parseHighlightPayload();
         if (!payload) return;
 
@@ -102,7 +102,10 @@
                 showPulseMarker(payload.x, payload.y);
             }, 600); // Wait for scroll to finish
         }, 500);
-    });
+    }
+
+    window.addEventListener("load", handleHighlight);
+    window.addEventListener("hashchange", handleHighlight);
 
     // Initialize: Fetch fresh project info from Convex
     (async function init() {

@@ -180,11 +180,27 @@ document.addEventListener("DOMContentLoaded", async () => {
             bugs.forEach(bug => {
                 const item = document.createElement("div");
                 item.className = "bug-item";
+                item.style.cursor = "pointer";
+                item.onclick = () => locateBugOnPage(bug);
+
+                const titleRow = document.createElement("div");
+                titleRow.style.display = "flex";
+                titleRow.style.justifyContent = "space-between";
+                titleRow.style.alignItems = "flex-start";
+                titleRow.style.gap = "8px";
 
                 const titleEl = document.createElement("div");
                 titleEl.className = "bug-title";
-                titleEl.title = bug.title;      // title attr is safe
-                titleEl.textContent = bug.title; // textContent auto-escapes XSS
+                titleEl.title = bug.title;
+                titleEl.textContent = bug.title;
+                titleEl.style.flex = "1";
+
+                const prioritySpan = document.createElement("span");
+                prioritySpan.className = `priority-pill priority-${escapeHtml(bug.priority)}`;
+                prioritySpan.textContent = bug.priority;
+                
+                titleRow.appendChild(titleEl);
+                titleRow.appendChild(prioritySpan);
 
                 const metaEl = document.createElement("div");
                 metaEl.className = "bug-meta";
@@ -193,24 +209,55 @@ document.addEventListener("DOMContentLoaded", async () => {
                 statusSpan.className = `status-pill status-${escapeHtml(bug.status)}`;
                 statusSpan.textContent = bug.status.replace("_", " ");
 
-                const reporterSpan = document.createElement("span");
-                reporterSpan.style.opacity = "0.6";
-                reporterSpan.textContent = bug.reporterName || "Anon"; // safe
-
                 const dateSpan = document.createElement("span");
                 dateSpan.style.marginLeft = "auto";
                 dateSpan.textContent = new Date(bug.createdAt).toLocaleDateString();
 
                 metaEl.appendChild(statusSpan);
-                metaEl.appendChild(reporterSpan);
                 metaEl.appendChild(dateSpan);
-                item.appendChild(titleEl);
+                
+                item.appendChild(titleRow);
                 item.appendChild(metaEl);
                 bugListContainer.appendChild(item);
             });
         } catch (err) {
             showBanner("error", "Failed to load bugs: " + err.message);
         }
+    }
+
+    function locateBugOnPage(bug) {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0]) return;
+            
+            // Build the highlight URL
+            let targetUrl;
+            try {
+                targetUrl = new URL(bug.url);
+            } catch (e) {
+                console.error("Invalid bug URL:", bug.url);
+                return;
+            }
+
+            const params = new URLSearchParams();
+            params.set("bugscribe-highlight", `${bug.x_coordinate},${bug.y_coordinate}`);
+            params.set("bugscribe-scroll", bug.scrollY || bug.y_coordinate);
+            if (bug.element_selector) {
+                params.set("bugscribe-selector", bug.element_selector);
+            }
+            
+            targetUrl.hash = params.toString();
+            
+            // If we are already on the same page, just updating the hash is enough
+            // because of the hashchange listener in the widget.
+            // However, to be extra safe, we'll force a reload if the user clicks again.
+            const currentUrl = new URL(tabs[0].url);
+            if (currentUrl.origin === targetUrl.origin && currentUrl.pathname === targetUrl.pathname) {
+                chrome.tabs.update(tabs[0].id, { url: targetUrl.toString() });
+            } else {
+                chrome.tabs.update(tabs[0].id, { url: targetUrl.toString() });
+            }
+            showBanner("success", "Locating bug on page...");
+        });
     }
 
     // ── Auth Handlers ────────────────────────────────────────────────────────
