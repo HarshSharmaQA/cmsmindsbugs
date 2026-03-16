@@ -42,6 +42,7 @@ export default function TestCaseGeneratorPage() {
     const [devToken, setDevToken] = useState<string | null>(null);
     const [input, setInput] = useState("");
     const [inputType, setInputType] = useState<"url" | "story" | "feature" | "bug" | "ui">("url");
+    const [techStack, setTechStack] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [testCases, setTestCases] = useState<TestCase[]>([]);
     const [edgeCases, setEdgeCases] = useState<string[]>([]);
@@ -193,6 +194,75 @@ export default function TestCaseGeneratorPage() {
                     if (analysis.searchInputs?.length > 0) {
                         dynamicSecurity.push("XSS injection in search field");
                         dynamicEdges.push("Searching with very long strings (1000+ chars)");
+                    }
+
+                    // Tech-Stack specific test cases
+                    if (techStack.includes("Next.js 15+")) {
+                        dynamicCases.push({
+                            id: "TC-TECH-NEXT-01",
+                            scenario: "Verify Server Actions responsiveness",
+                            steps: [
+                                "1. Trigger an interaction that uses a Server Action",
+                                "2. Observe the network tab for 'action' requests",
+                                "3. Verify UI updates without a full page reload"
+                            ],
+                            data: "Server Action interaction",
+                            expected: "Server Actions should execute efficiently with proper loading states.",
+                            priority: "High",
+                            type: "Functional",
+                            status: "Not Executed"
+                        });
+                    }
+
+                    if (techStack.includes("Auth.js")) {
+                        dynamicCases.push({
+                            id: "TC-TECH-AUTH-01",
+                            scenario: "Verify OAuth callback handling",
+                            steps: [
+                                "1. Click on an OAuth provider login (e.g., Google, GitHub)",
+                                "2. Complete the provider's authorization flow",
+                                "3. Verify redirect back to the application with a valid session"
+                            ],
+                            data: "OAuth Provider Flow",
+                            expected: "Authentication session should be correctly established and persisted.",
+                            priority: "High",
+                            type: "Security",
+                            status: "Not Executed"
+                        });
+                    }
+
+                    if (techStack.includes("Supabase")) {
+                        dynamicCases.push({
+                            id: "TC-TECH-DB-01",
+                            scenario: "Verify Row Level Security (RLS) enforcement",
+                            steps: [
+                                "1. Log in as a standard user",
+                                "2. Attempt to access or modify data belonging to another user via API/Console",
+                                "3. Verify the request is rejected with a 403 or empty result"
+                            ],
+                            data: "Unauthorized data access attempt",
+                            expected: "Supabase RLS should prevent unauthorized data access.",
+                            priority: "High",
+                            type: "Security",
+                            status: "Not Executed"
+                        });
+                    }
+
+                    if (techStack.includes("Framer Motion")) {
+                        dynamicCases.push({
+                            id: "TC-TECH-UI-01",
+                            scenario: "Verify animation performance and layout shifts",
+                            steps: [
+                                "1. Interact with animated elements (modals, transitions)",
+                                "2. Check for layout shifts during animations (CLS)",
+                                "3. Verify animations are smooth (60fps) on lower-end devices"
+                            ],
+                            data: "Animated UI interactions",
+                            expected: "Animations should be fluid and not negatively impact Core Web Vitals.",
+                            priority: "Medium",
+                            type: "UI",
+                            status: "Not Executed"
+                        });
                     }
                 } else {
                     setError(data.error || "Failed to analyze URL. Please check the URL and try again.");
@@ -380,6 +450,33 @@ export default function TestCaseGeneratorPage() {
                                         >
                                             <AlertTriangle className="w-3 h-3" /> Bug
                                         </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Target Tech Stack (Optional)</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            "Next.js 15+", "Tailwind CSS", "shadcn/ui", "Prisma", 
+                                            "Supabase", "tRPC", "Zustand", "SWR", 
+                                            "Framer Motion", "Auth.js"
+                                        ].map(tech => (
+                                            <button 
+                                                key={tech}
+                                                onClick={() => {
+                                                    setTechStack(prev => 
+                                                        prev.includes(tech) ? prev.filter(t => t !== tech) : [...prev, tech]
+                                                    );
+                                                }}
+                                                className={`px-2 py-1 rounded-md text-[10px] font-semibold transition-all border ${
+                                                    techStack.includes(tech) 
+                                                    ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400" 
+                                                    : "bg-slate-800/30 border-slate-700 text-slate-500 hover:border-slate-600"
+                                                }`}
+                                            >
+                                                {tech}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 

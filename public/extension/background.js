@@ -15,9 +15,20 @@ chrome.action.onClicked.addListener((tab) => {
 // Handle screenshot capture from content scripts securely 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "capture-screenshot") {
-        chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
-            sendResponse({ dataUrl });
-        });
+        try {
+            // Using webp for better compression and quality
+            chrome.tabs.captureVisibleTab(null, { format: "webp", quality: 80 }, (dataUrl) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Capture failed:", chrome.runtime.lastError.message);
+                    sendResponse({ error: chrome.runtime.lastError.message });
+                } else {
+                    sendResponse({ dataUrl });
+                }
+            });
+        } catch (err) {
+            console.error("Capture exception:", err);
+            sendResponse({ error: err.message });
+        }
         return true; // Keep the message channel open for async response
     }
 });

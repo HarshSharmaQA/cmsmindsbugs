@@ -8,11 +8,11 @@
         "scripting",
         "storage",
         "webRequest",
-        "sidePanel"
+        "sidePanel",
+        "tabs"
     ],
     "host_permissions": [
-        "http://*/*",
-        "https://*/*"
+        "<all_urls>"
     ],
     "side_panel": {
         "default_path": "popup.html"

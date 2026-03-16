@@ -483,9 +483,10 @@
                     window.removeEventListener("bugscribe-screenshot-ready", onReady);
                     try {
                         await loadHtmlToImage();
-                        const dataUrl = await window.htmlToImage.toPng(document.body, {
+                        const dataUrl = await window.htmlToImage.toWebp(document.body, {
                             pixelRatio: 2,
                             backgroundColor: "#ffffff",
+                            quality: 0.8,
                             filter: (el) => el.id !== "bugscribe-btn" && el.id !== "bugscribe-modal-overlay"
                         });
                         resolve(dataUrl);

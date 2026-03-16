@@ -8,7 +8,60 @@ document.addEventListener("DOMContentLoaded", async () => {
         actions: document.getElementById("actionsView"),
         bugs: document.getElementById("bugListView"),
         report: document.getElementById("reportView"),
+        setup: document.getElementById("setupView"),
+        success: document.getElementById("successView")
     };
+
+    const setupConnectionKey = document.getElementById("setupConnectionKey");
+    const saveSetupBtn = document.getElementById("saveSetupBtn");
+    const setupErrorMsg = document.getElementById("setupErrorMsg");
+    const settingsBtn = document.getElementById("settingsBtn");
+
+    // --- Loading State & Auth Check ---
+    chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey", "bugscribeConnectionKey"], (result) => {
+        if (result.bugscribeProjectId && result.bugscribeApiKey) {
+            if (result.bugscribeConnectionKey) {
+                setupConnectionKey.value = result.bugscribeConnectionKey;
+            }
+            // Auto-login if we have keys
+            currentUser = { id: "ext-user" }; // Mock user for ext
+            loadProjects();
+        } else {
+            switchView("setup");
+        }
+    });
+
+    settingsBtn.addEventListener("click", () => switchView("setup"));
+
+    saveSetupBtn.addEventListener("click", () => {
+        const connectionKey = setupConnectionKey.value.trim();
+        setupErrorMsg.style.display = "none";
+        setupErrorMsg.textContent = "";
+
+        if (!connectionKey) {
+            setupErrorMsg.textContent = "Please enter a connection key.";
+            setupErrorMsg.style.display = "block";
+            return;
+        }
+
+        try {
+            const decoded = atob(connectionKey);
+            const [projectId, apiKey] = decoded.split(":");
+            if (!projectId || !apiKey) throw new Error();
+
+            chrome.storage.local.set({
+                bugscribeProjectId: projectId,
+                bugscribeApiKey: apiKey,
+                bugscribeConnectionKey: connectionKey
+            }, () => {
+                showBanner("success", "Connection successful!");
+                loadProjects();
+            });
+        } catch (e) {
+            setupErrorMsg.textContent = "Invalid connection key format.";
+            setupErrorMsg.style.display = "block";
+        }
+    });
 
     const banners = {
         error: document.getElementById("errorBanner"),
@@ -571,8 +624,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         submitBugBtn.textContent = "Submitting...";
 
         try {
-            // 1. Get image blob from canvas
-            const blob = await new Promise(r => annotationCanvas.toBlob(r, "image/jpeg", 0.8));
+            // 1. Get image blob from canvas in webp format
+            const blob = await new Promise(r => annotationCanvas.toBlob(r, "image/webp", 0.8));
             
             // 2. Get upload URL from Convex
             const uploadUrl = await mutation("bugs:generateUploadUrl", {});
@@ -597,11 +650,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 browser: navigator.userAgent,
                 os: "Extension",
                 screenWidth: tab.width,
-                screenHeight: tab.height
+                screenHeight: tab.height,
+                x_coordinate: window.scrollX, // Default to current scroll if no specific coord
+                y_coordinate: window.scrollY
             });
 
-            showBanner("success", "Bug reported successfully!");
-            switchView("actions");
+            switchView("success");
         } catch (err) {
             showBanner("error", "Failed to submit: " + err.message);
         } finally {
@@ -609,6 +663,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             submitBugBtn.textContent = "Submit Bug Report";
         }
     };
+
+    document.getElementById("successDoneBtn").onclick = () => switchView("actions");
 
     openDashboardBtn.addEventListener("click", () => {
         const url = selectedProject
