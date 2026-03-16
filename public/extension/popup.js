@@ -12,28 +12,132 @@ document.addEventListener("DOMContentLoaded", async () => {
         success: document.getElementById("successView")
     };
 
-    const setupConnectionKey = document.getElementById("setupConnectionKey");
-    const saveSetupBtn = document.getElementById("saveSetupBtn");
-    const setupErrorMsg = document.getElementById("setupErrorMsg");
-    const settingsBtn = document.getElementById("settingsBtn");
+    const projectListContainer = document.getElementById("projectListContainer");
 
-    // --- Loading State & Auth Check ---
-    chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey", "bugscribeConnectionKey"], (result) => {
-        if (result.bugscribeProjectId && result.bugscribeApiKey) {
-            if (result.bugscribeConnectionKey) {
-                setupConnectionKey.value = result.bugscribeConnectionKey;
-            }
-            // Auto-login if we have keys
-            currentUser = { id: "ext-user" }; // Mock user for ext
-            loadProjects();
-        } else {
-            switchView("setup");
-        }
+    settingsBtn.addEventListener("click", () => {
+        switchView("setup");
+        loadProjects();
     });
 
-    settingsBtn.addEventListener("click", () => switchView("setup"));
+    async function loadProjects() {
+        const storage = await chrome.storage.local.get(["bugscribeConnections", "bugscribeProjectId"]);
+        const connections = storage.bugscribeConnections || [];
+        const activeId = storage.bugscribeProjectId;
 
-    saveSetupBtn.addEventListener("click", () => {
+        projectListContainer.innerHTML = "";
+
+        if (connections.length === 0) {
+            projectListContainer.innerHTML = '<p style="text-align:center; font-size:12px; color:var(--text-muted); padding: 20px;">No projects connected yet. Paste your Connection Key below to get started.</p>';
+            return;
+        }
+
+        connections.forEach(project => {
+            const isActive = project.id === activeId;
+            
+            const card = document.createElement("div");
+            card.className = isActive ? "project-card active" : "project-card";
+            
+            const headerRow = document.createElement("div");
+            headerRow.style.display = "flex";
+            headerRow.style.justifyContent = "space-between";
+            headerRow.style.alignItems = "center";
+            headerRow.style.marginBottom = "10px";
+
+            const nameEl = document.createElement("h2");
+            nameEl.textContent = project.name;
+            
+            if (isActive) {
+                const badge = document.createElement("span");
+                badge.className = "active-badge";
+                badge.textContent = "ACTIVE";
+                nameEl.appendChild(badge);
+            }
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "btn-outline";
+            deleteBtn.innerHTML = "🗑️";
+            deleteBtn.style.width = "28px";
+            deleteBtn.style.height = "28px";
+            deleteBtn.style.padding = "0";
+            deleteBtn.style.fontSize = "12px";
+            deleteBtn.title = "Remove project";
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                removeProject(project.id);
+            };
+
+            headerRow.appendChild(nameEl);
+            headerRow.appendChild(deleteBtn);
+
+            const actionsRow = document.createElement("div");
+            actionsRow.style.display = "flex";
+            actionsRow.style.gap = "8px";
+
+            if (!isActive) {
+                const selectBtn = document.createElement("button");
+                selectBtn.textContent = "Switch to this Project";
+                selectBtn.style.fontSize = "11px";
+                selectBtn.style.padding = "8px";
+                selectBtn.onclick = () => selectProject(project);
+                actionsRow.appendChild(selectBtn);
+            } else {
+                const dashboardBtn = document.createElement("button");
+                dashboardBtn.textContent = "Go to Dashboard";
+                dashboardBtn.className = "btn-outline";
+                dashboardBtn.style.fontSize = "11px";
+                dashboardBtn.style.padding = "8px";
+                dashboardBtn.onclick = () => switchView("actions");
+                actionsRow.appendChild(dashboardBtn);
+            }
+
+            card.appendChild(headerRow);
+            card.appendChild(actionsRow);
+            projectListContainer.appendChild(card);
+        });
+    }
+
+    async function selectProject(project) {
+        selectedProject = {
+            id: project.id,
+            name: project.name,
+            apiKey: project.apiKey
+        };
+
+        await chrome.storage.local.set({
+            bugscribeProjectId: project.id,
+            bugscribeProjectName: project.name,
+            bugscribeApiKey: project.apiKey,
+            bugscribeConnectionKey: project.connectionKey
+        });
+
+        activeProjectName.textContent = project.name;
+        showBanner("success", `Switched to ${project.name}`);
+        switchView("actions");
+    }
+
+    async function removeProject(projectId) {
+        if (!confirm("Are you sure you want to remove this project?")) return;
+
+        const storage = await chrome.storage.local.get(["bugscribeConnections", "bugscribeProjectId"]);
+        const connections = storage.bugscribeConnections || [];
+        const newConnections = connections.filter(p => p.id !== projectId);
+
+        const updates = { bugscribeConnections: newConnections };
+
+        // If we're removing the active project, clear active project data
+        if (storage.bugscribeProjectId === projectId) {
+            updates.bugscribeProjectId = null;
+            updates.bugscribeProjectName = null;
+            updates.bugscribeApiKey = null;
+            updates.bugscribeConnectionKey = null;
+            selectedProject = null;
+        }
+
+        await chrome.storage.local.set(updates);
+        loadProjects();
+    }
+
+    saveSetupBtn.addEventListener("click", async () => {
         const connectionKey = setupConnectionKey.value.trim();
         setupErrorMsg.style.display = "none";
         setupErrorMsg.textContent = "";
@@ -44,22 +148,54 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        saveSetupBtn.disabled = true;
+        saveSetupBtn.textContent = "Connecting...";
+
         try {
             const decoded = atob(connectionKey);
-            const [projectId, apiKey] = decoded.split(":");
-            if (!projectId || !apiKey) throw new Error();
+            const [projectId, apiKey] = decoded.split("|");
+            if (!projectId || !apiKey) throw new Error("Invalid format");
 
-            chrome.storage.local.set({
-                bugscribeProjectId: projectId,
-                bugscribeApiKey: apiKey,
-                bugscribeConnectionKey: connectionKey
-            }, () => {
-                showBanner("success", "Connection successful!");
-                loadProjects();
+            // Fetch project name from Convex
+            const projectInfo = await query("projects:getProjectByApiKey", { apiKey });
+            if (!projectInfo) throw new Error("Project not found or invalid API key.");
+
+            const newProject = {
+                id: projectInfo._id,
+                name: projectInfo.name,
+                apiKey: projectInfo.apiKey,
+                connectionKey: connectionKey
+            };
+
+            const storage = await chrome.storage.local.get("bugscribeConnections");
+            const connections = storage.bugscribeConnections || [];
+            
+            // Check if already exists
+            const existingIndex = connections.findIndex(p => p.id === newProject.id);
+            if (existingIndex > -1) {
+                connections[existingIndex] = newProject;
+            } else {
+                connections.push(newProject);
+            }
+
+            await chrome.storage.local.set({
+                bugscribeConnections: connections
             });
+
+            // Automatically select if it's the first one
+            if (connections.length === 1) {
+                await selectProject(newProject);
+            }
+
+            setupConnectionKey.value = "";
+            showBanner("success", "Connection successful!");
+            loadProjects();
         } catch (e) {
-            setupErrorMsg.textContent = "Invalid connection key format.";
+            setupErrorMsg.textContent = e.message || "Invalid connection key format.";
             setupErrorMsg.style.display = "block";
+        } finally {
+            saveSetupBtn.disabled = false;
+            saveSetupBtn.textContent = "Add Connection";
         }
     });
 
@@ -119,6 +255,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     function switchView(viewName) {
         Object.values(views).forEach(v => v.classList.remove("active"));
         views[viewName].classList.add("active");
+
+        // Show/hide settings button
+        if (viewName === "actions" || viewName === "bugs" || viewName === "report") {
+            settingsBtn.style.display = "flex";
+        } else {
+            settingsBtn.style.display = "none";
+        }
     }
 
     function showBanner(type, message) {
@@ -167,9 +310,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             "bugscribeUserEmail",
             "bugscribeProjectId",
             "bugscribeProjectName",
-            "bugscribeApiKey"
+            "bugscribeApiKey",
+            "bugscribeConnections"
         ]);
 
+        // 1. Check for logged-in session (Email/Token)
         if (storage.bugscribeTokenIdentifier) {
             // Hotfix: if the token is secretly an object (from the old bug), clear it!
             if (typeof storage.bugscribeTokenIdentifier === "object") {
@@ -196,6 +341,27 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                 await fetchAndShowProjects();
             }
+            return;
+        } 
+
+        // 2. Check for Connection Key session
+        if (storage.bugscribeProjectId && storage.bugscribeApiKey) {
+            currentUser = { id: "ext-user" }; // Mock user for connection key flow
+            selectedProject = {
+                id: storage.bugscribeProjectId,
+                name: storage.bugscribeProjectName,
+                apiKey: storage.bugscribeApiKey
+            };
+            activeProjectName.textContent = selectedProject.name;
+            switchView("actions");
+            loadProjects();
+            return;
+        }
+
+        // 3. Fallback to setup/connections if we have them, else login
+        if (storage.bugscribeConnections && storage.bugscribeConnections.length > 0) {
+            switchView("setup");
+            loadProjects();
         } else {
             switchView("login");
         }

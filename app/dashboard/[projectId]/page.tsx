@@ -126,42 +126,42 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                 <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`flex flex-col rounded-xl border transition-colors min-h-[400px] ${snapshot.isDraggingOver
-                        ? "border-brand-500/50 bg-brand-500/5"
-                        : "border-surface-border bg-surface-card"
+                    className={`flex flex-col rounded-2xl border transition-all duration-300 min-h-[500px] ${snapshot.isDraggingOver
+                        ? "border-brand-500/50 bg-brand-500/5 shadow-2xl shadow-brand-500/10"
+                        : "border-surface-border bg-surface-card/30"
                         }`}
                 >
                     {/* Column Header */}
-                    <div className={`flex items-center gap-2 px-4 py-3 border-b border-surface-border ${color} sticky top-0 z-30 bg-[#111118]/95 backdrop-blur-2xl rounded-t-xl group-hover:bg-[#16161F]`}>
-                        {icon || <CircleDot className="w-4 h-4" />}
-                        <span className="text-sm font-semibold">{label}</span>
-                        <span className="ml-auto bg-surface-border text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    <div className={`flex items-center gap-3 px-5 py-4 border-b border-surface-border/50 sticky top-0 z-30 bg-[#09090E]/80 backdrop-blur-xl rounded-t-2xl group`}>
+                        <div className={`p-1.5 rounded-lg bg-surface-elevated border border-surface-border ${color}`}>
+                            {icon || <CircleDot className="w-4 h-4" />}
+                        </div>
+                        <span className="text-sm font-bold text-white tracking-tight">{label}</span>
+                        <span className="ml-auto bg-surface-elevated text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-surface-border">
                             {bugs.length}
                         </span>
                         {canReorder && (
-                            <div className="flex items-center gap-1 ml-1">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                     onClick={onMoveLeft}
                                     disabled={!!isFirst || isReordering}
-                                    className="w-6 h-6 rounded-md border border-surface-border bg-surface-card text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                                    title="Move bucket left"
+                                    className="w-7 h-7 rounded-lg border border-surface-border bg-surface-elevated text-slate-500 hover:text-white disabled:opacity-30 flex items-center justify-center transition-all hover:border-slate-500"
                                 >
-                                    <ChevronLeft className="w-3.5 h-3.5" />
+                                    <ChevronLeft className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={onMoveRight}
                                     disabled={!!isLast || isReordering}
-                                    className="w-6 h-6 rounded-md border border-surface-border bg-surface-card text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-                                    title="Move bucket right"
+                                    className="w-7 h-7 rounded-lg border border-surface-border bg-surface-elevated text-slate-500 hover:text-white disabled:opacity-30 flex items-center justify-center transition-all hover:border-slate-500"
                                 >
-                                    <ChevronRight className="w-3.5 h-3.5" />
+                                    <ChevronRight className="w-4 h-4" />
                                 </button>
                             </div>
                         )}
                     </div>
 
                     {/* Cards */}
-                    <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto min-h-0">
+                    <div className="flex-1 flex flex-col gap-4 p-4 overflow-y-auto min-h-0 custom-scrollbar">
                         {bugs.map((bug, index) => (
                             <Draggable key={bug._id} draggableId={bug._id} index={index}>
                                 {(provided, snapshot) => (
@@ -169,79 +169,81 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         onClick={() => onSelect(bug._id)}
-                                        className={`group relative rounded-xl border flex flex-col overflow-hidden cursor-pointer transition-all duration-200 ${snapshot.isDragging
-                                            ? "border-brand-500 shadow-2xl shadow-brand-500/30 rotate-[1deg] bg-surface-elevated scale-[1.03] z-50"
-                                            : "border-surface-border bg-surface-elevated hover:border-brand-500/40 hover:shadow-lg hover:shadow-black/40 hover:-translate-y-1"
+                                        className={`group relative rounded-2xl border flex flex-col overflow-hidden cursor-pointer transition-all duration-300 ${snapshot.isDragging
+                                            ? "border-brand-500 shadow-2xl shadow-brand-500/40 rotate-[1deg] bg-surface-elevated scale-[1.02] z-50"
+                                            : "border-surface-border bg-surface-elevated/40 hover:border-brand-500/50 hover:bg-surface-elevated/80 hover:shadow-xl hover:shadow-black/40 hover:-translate-y-1"
                                             }`}
                                     >
                                         {bug.screenshotUrl && bug.mediaType !== "video" && (
-                                            <div className="w-full h-36 border-b border-surface-border bg-slate-950/50 relative overflow-hidden shrink-0">
+                                            <div className="w-full h-40 border-b border-surface-border bg-slate-950/50 relative overflow-hidden shrink-0">
                                                 <img
                                                     src={bug.screenshotUrl}
                                                     alt={bug.title}
-                                                    className="w-full h-full object-cover object-top opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                                                    className="w-full h-full object-cover object-top opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                                                 />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-[#09090E]/80 to-transparent opacity-60" />
                                             </div>
                                         )}
-                                        <div className="p-4 relative flex-1 flex flex-col gap-3">
+                                        <div className="p-4 relative flex-1 flex flex-col gap-4">
                                             {/* Action Buttons (Visible on Hover) */}
-                                            <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0 z-10">
+                                            <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0 z-10">
                                                 {bug.url && bug.url !== "Unknown" && (
                                                     <button
                                                         onClick={(e) => { 
                                                             e.stopPropagation(); 
                                                             onNavigateToLocation(bug);
                                                         }}
-                                                        className="p-1.5 bg-surface-card/90 border border-surface-border rounded-lg text-brand-400 hover:text-brand-300 hover:border-brand-500/50 backdrop-blur-md transition-all"
+                                                        className="p-2 bg-[#09090E]/90 border border-surface-border rounded-xl text-brand-400 hover:text-brand-300 hover:border-brand-500/50 backdrop-blur-md transition-all shadow-xl"
                                                         title="Locate bug on page"
                                                     >
-                                                        <Target className="w-3.5 h-3.5" />
+                                                        <Target className="w-4 h-4" />
                                                     </button>
                                                 )}
                                                 <div
                                                     {...provided.dragHandleProps}
-                                                    className="p-1.5 bg-surface-card/90 border border-surface-border rounded-lg text-slate-500 hover:text-white cursor-grab active:cursor-grabbing backdrop-blur-md transition-all"
+                                                    className="p-2 bg-[#09090E]/90 border border-surface-border rounded-xl text-slate-500 hover:text-white cursor-grab active:cursor-grabbing backdrop-blur-md transition-all shadow-xl"
                                                     title="Drag to move"
                                                 >
-                                                    <GripVertical className="w-3.5 h-3.5" />
+                                                    <GripVertical className="w-4 h-4" />
                                                 </div>
                                             </div>
 
-                                            <div className="flex flex-col gap-2">
-                                                <div className="flex items-start gap-2.5">
-                                                    <div className="mt-1 p-1 rounded-md bg-surface-card border border-surface-border shrink-0">
-                                                        <Bug className="w-3 h-3 text-slate-400" />
+                                            <div className="flex flex-col gap-3">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="mt-1 p-2 rounded-xl bg-surface-card border border-surface-border shrink-0 shadow-inner">
+                                                        <Bug className="w-3.5 h-3.5 text-brand-400/70" />
                                                     </div>
-                                                    <h4 className="text-[13px] font-semibold text-white leading-snug line-clamp-2 group-hover:text-brand-300 transition-colors">
+                                                    <h4 className="text-[14px] font-bold text-white leading-tight line-clamp-2 group-hover:text-brand-300 transition-colors tracking-tight">
                                                         {bug.title}
                                                     </h4>
                                                 </div>
                                                 
-                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <PriorityBadge priority={bug.priority} />
                                                     {bug.type && bug.type !== "general" && (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-500/5 text-brand-400 border border-brand-500/10 capitalize">
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-brand-500/10 text-brand-400 border border-brand-500/20 capitalize tracking-wide">
                                                             {bug.type.replace(/-/g, ' ')}
                                                         </span>
                                                     )}
                                                     {bug.screenshotUrl && bug.mediaType === "video" && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/10">
-                                                            <Video className="w-2.5 h-2.5" /> Video
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                                                            <Video className="w-3 h-3" /> Video
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <div className="mt-auto pt-3 border-t border-surface-border/50 flex items-center justify-between text-[10px] text-slate-500 font-medium">
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock className="w-3 h-3 text-slate-600" />
-                                                    {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                                            <div className="mt-auto pt-4 border-t border-surface-border/30 flex items-center justify-between text-[11px] text-slate-500 font-bold">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-surface-card border border-surface-border flex items-center justify-center">
+                                                        <User className="w-3 h-3 text-slate-600" />
+                                                    </div>
+                                                    <span className="text-slate-600">{formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}</span>
                                                 </div>
                                                 {bug.url && bug.url !== "Unknown" && (
-                                                    <div className="flex items-center gap-1 max-w-[100px] bg-surface-card/50 px-1.5 py-0.5 rounded border border-surface-border/50">
-                                                        <Globe className="w-2.5 h-2.5 text-slate-600" />
-                                                        <span className="truncate" title={bug.url}>
+                                                    <div className="flex items-center gap-1.5 max-w-[120px] bg-surface-card/50 px-2 py-1 rounded-lg border border-surface-border/50">
+                                                        <Globe className="w-3 h-3 text-slate-600" />
+                                                        <span className="truncate text-[10px] tracking-wide" title={bug.url}>
                                                             {new URL(bug.url).hostname.replace('www.', '')}
                                                         </span>
                                                     </div>
@@ -254,11 +256,11 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                         ))}
                         {provided.placeholder}
                         {bugs.length === 0 && (
-                            <div className="flex-1 flex flex-col items-center justify-center py-12 border-2 border-dashed border-surface-border/50 rounded-xl m-2 group/empty transition-colors hover:border-surface-border">
-                                <div className="w-10 h-10 rounded-full bg-surface-border/20 flex items-center justify-center mb-3 group-hover/empty:scale-110 transition-transform duration-300">
-                                    <Plus className="w-5 h-5 text-slate-600 group-hover/empty:text-slate-400" />
+                            <div className="flex-1 flex flex-col items-center justify-center py-16 border-2 border-dashed border-surface-border/30 rounded-2xl m-2 group/empty transition-all hover:border-surface-border/60 hover:bg-surface-card/20">
+                                <div className="w-12 h-12 rounded-2xl bg-surface-border/10 flex items-center justify-center mb-4 group-hover/empty:scale-110 group-hover/empty:bg-surface-border/20 transition-all duration-500">
+                                    <Plus className="w-6 h-6 text-slate-700 group-hover/empty:text-slate-400" />
                                 </div>
-                                <p className="text-slate-600 text-[11px] font-medium group-hover/empty:text-slate-400">No issues here</p>
+                                <p className="text-slate-600 text-xs font-bold uppercase tracking-widest group-hover/empty:text-slate-400">Empty</p>
                             </div>
                         )}
                     </div>
@@ -273,114 +275,123 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
 function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { bugs: any[]; onSelect: (id: Id<"bugs">) => void; onNavigateToLocation: (bug: any) => void; projectStatuses: any[] }) {
     if (bugs.length === 0) {
         return (
-            <div className="card p-12 text-center">
-                <Bug className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-                <p className="text-slate-400 text-sm font-medium">No issues yet</p>
-                <p className="text-slate-400 text-sm mt-0.5 line-clamp-1">Click &ldquo;+ New Issue&rdquo; to create your first bug report</p>
+            <div className="card p-12 text-center border-dashed border-2 bg-surface-card/20 border-surface-border/50 rounded-2xl">
+                <div className="w-16 h-16 rounded-2xl bg-surface-card border border-surface-border flex items-center justify-center mx-auto mb-6 shadow-xl">
+                    <Bug className="w-8 h-8 text-brand-400 opacity-20" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">No issues yet</h3>
+                <p className="text-slate-500 max-w-sm mx-auto mb-6">Click &ldquo;+ New Issue&rdquo; to create your first bug report manually.</p>
             </div>
         );
     }
 
     return (
-        <div className="card overflow-x-auto">
-            <table className="w-full text-sm">
-                <thead>
-                    <tr className="border-b border-surface-border text-[11px] text-slate-500 uppercase tracking-wider">
-                        <th className="px-4 py-3 text-left font-medium">Issue</th>
-                        <th className="px-4 py-3 text-left font-medium hidden md:table-cell">Status</th>
-                        <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Priority</th>
-                        <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Source URL</th>
-                        <th className="px-4 py-3 text-left font-medium hidden md:table-cell">Reported</th>
-                        <th className="px-4 py-3 font-medium"></th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-border">
-                    {bugs.map((bug) => (
-                        <tr
-                            key={bug._id}
-                            onClick={() => onSelect(bug._id)}
-                            className="hover:bg-surface-elevated cursor-pointer transition-colors group"
-                        >
-                            <td className="px-4 py-3">
-                                <div className="flex items-center gap-2.5">
-                                    {bug.screenshotUrl ? (
-                                        <img
-                                            src={bug.screenshotUrl}
-                                            alt=""
-                                            className="w-8 h-8 rounded object-cover border border-surface-border shrink-0"
-                                        />
-                                    ) : (
-                                        <div className="w-8 h-8 rounded bg-surface-border flex items-center justify-center shrink-0">
-                                            <Bug className="w-3.5 h-3.5 text-slate-600" />
+        <div className="bg-surface-card/30 border border-surface-border/50 rounded-2xl overflow-hidden backdrop-blur-sm">
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                    <thead>
+                        <tr className="border-b border-surface-border/50 text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold bg-[#09090E]/50">
+                            <th className="px-6 py-4 text-left font-bold">Issue Details</th>
+                            <th className="px-6 py-4 text-left font-bold hidden md:table-cell">Status</th>
+                            <th className="px-6 py-4 text-left font-bold hidden sm:table-cell">Priority</th>
+                            <th className="px-6 py-4 text-left font-bold hidden lg:table-cell">Source URL</th>
+                            <th className="px-6 py-4 text-left font-bold hidden md:table-cell">Reported</th>
+                            <th className="px-6 py-4 text-right font-bold">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-border/30">
+                        {bugs.map((bug) => (
+                            <tr
+                                key={bug._id}
+                                onClick={() => onSelect(bug._id)}
+                                className="hover:bg-surface-elevated/40 cursor-pointer transition-all duration-200 group"
+                            >
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="relative shrink-0">
+                                            {bug.screenshotUrl ? (
+                                                <img
+                                                    src={bug.screenshotUrl}
+                                                    alt=""
+                                                    className="w-10 h-10 rounded-xl object-cover border border-surface-border shadow-lg group-hover:scale-110 transition-transform duration-300"
+                                                />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-xl bg-surface-card border border-surface-border flex items-center justify-center shadow-lg group-hover:bg-surface-elevated transition-colors">
+                                                    <Bug className="w-4 h-4 text-brand-400/50" />
+                                                </div>
+                                            )}
+                                            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#09090E] ${
+                                                bug.priority === 'critical' ? 'bg-red-500 animate-pulse' : 
+                                                bug.priority === 'high' ? 'bg-amber-500' : 'bg-slate-500'
+                                            }`} />
                                         </div>
-                                    )}
-                                    <div>
-                                        <p className="font-medium text-white text-sm leading-tight">{bug.title}</p>
-                                        {bug.description && (
-                                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{bug.description}</p>
-                                        )}
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-white text-[14px] leading-tight group-hover:text-brand-300 transition-colors truncate max-w-[300px]">{bug.title}</p>
+                                            {bug.description ? (
+                                                <p className="text-xs text-slate-500 mt-1 line-clamp-1 max-w-[300px]">{bug.description}</p>
+                                            ) : (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">No description</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            </td>
-                            <td className="px-4 py-3 hidden md:table-cell">
-                                <StatusBadge status={bug.status} projectStatuses={projectStatuses} />
-                            </td>
-                            <td className="px-4 py-3 hidden sm:table-cell">
-                                <PriorityBadge priority={bug.priority} />
-                            </td>
-                            <td className="px-4 py-3 hidden lg:table-cell">
-                                {bug.url && bug.url !== "Unknown" ? (
-                                    <span className="text-xs text-slate-400 truncate max-w-[160px] block" title={bug.url}>
-                                        {bug.url.replace(/^https?:\/\//, "").substring(0, 40)}
-                                    </span>
-                                ) : (
-                                    <span className="text-xs text-slate-600">—</span>
-                                )}
-                            </td>
-                            <td className="px-4 py-3 hidden md:table-cell text-xs text-slate-500">
-                                {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
-                            </td>
-                            <td className="px-4 py-3">
-                                <div className="flex items-center gap-1">
-                                    {bug.url && bug.url !== "Unknown" && (
+                                </td>
+                                <td className="px-6 py-4 hidden md:table-cell">
+                                    <StatusBadge status={bug.status} projectStatuses={projectStatuses} />
+                                </td>
+                                <td className="px-6 py-4 hidden sm:table-cell">
+                                    <PriorityBadge priority={bug.priority} />
+                                </td>
+                                <td className="px-6 py-4 hidden lg:table-cell">
+                                    {bug.url && bug.url !== "Unknown" ? (
+                                        <div className="flex items-center gap-2 max-w-[200px]">
+                                            <Globe className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                                            <span className="text-xs text-slate-400 truncate hover:text-brand-400 transition-colors" title={bug.url}>
+                                                {bug.url.replace(/^https?:\/\//, "")}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">—</span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 hidden md:table-cell">
+                                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                                        <Clock className="w-3.5 h-3.5 text-slate-600" />
+                                        {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                        {bug.url && bug.url !== "Unknown" && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onNavigateToLocation(bug);
+                                                }}
+                                                className="p-2 rounded-xl bg-surface-card border border-surface-border text-brand-400 hover:text-brand-300 hover:border-brand-500/50 transition-all shadow-lg"
+                                                title="Locate bug on page"
+                                            >
+                                                <Target className="w-4 h-4" />
+                                            </button>
+                                        )}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                onNavigateToLocation(bug);
+                                                onSelect(bug._id);
                                             }}
-                                            className="p-1.5 rounded hover:bg-surface-elevated transition-colors"
-                                            title="Locate bug on page"
+                                            className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-400 hover:text-white transition-all shadow-lg"
+                                            title="View issue details"
                                         >
-                                            <Target className="w-3.5 h-3.5 text-brand-400 hover:text-brand-300 transition-colors" />
+                                            <Eye className="w-4 h-4" />
                                         </button>
-                                    )}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onSelect(bug._id);
-                                        }}
-                                        className="p-1.5 rounded hover:bg-surface-elevated transition-colors"
-                                        title="View issue details"
-                                    >
-                                        <Eye className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-colors" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const href = typeof window !== "undefined" ? `${window.location.origin}/dashboard/${bug.projectId}?bugId=${bug._id}` : "";
-                                            if (href) navigator.clipboard.writeText(href);
-                                        }}
-                                        className="p-1.5 rounded hover:bg-surface-elevated transition-colors"
-                                        title="Copy shareable link"
-                                    >
-                                        <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-colors" />
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }
@@ -872,296 +883,330 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
             {/* Drawer */}
-            <div className="relative ml-auto w-full max-w-[540px] h-full bg-surface-card border-l border-surface-border flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right-8 duration-300">
+            <div className="relative ml-auto w-full max-w-[580px] h-full bg-[#09090E] border-l border-surface-border flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right-8 duration-500">
                 {!bug ? (
-                    <div className="flex-1 flex items-center justify-center">
-                        <div className="skeleton w-12 h-12 rounded-full" />
+                    <div className="flex-1 flex flex-col items-center justify-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-surface-card border border-surface-border flex items-center justify-center animate-pulse">
+                            <Bug className="w-6 h-6 text-brand-400 opacity-20" />
+                        </div>
+                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest animate-pulse">Loading Issue...</p>
                     </div>
                 ) : (
                     <>
                         {/* Header */}
-                        <div className="flex items-start gap-3 px-5 py-4 border-b border-surface-border shrink-0">
-                            <Bug className="w-4 h-4 text-brand-400 mt-0.5 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                                <h2 className="text-sm font-semibold text-white leading-snug">{bug.title}</h2>
-                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                    <StatusBadge status={bug.status as Status} projectStatuses={statusOptions || []} />
-                                    <PriorityBadge priority={bug.priority as Priority} />
-                                    <span className="text-[10px] text-slate-500">
-                                        {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
-                                    </span>
+                        <div className="px-6 py-6 border-b border-surface-border/50 bg-[#09090E]/50 backdrop-blur-xl shrink-0">
+                            <div className="flex items-start justify-between gap-4 mb-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-xl bg-brand-500/10 border border-brand-500/20 shadow-inner">
+                                        <Bug className="w-4 h-4 text-brand-400" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Issue Details</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {shareUrl && (
+                                        <button 
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(shareUrl);
+                                                // Could add a toast here
+                                            }}
+                                            className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-white transition-all shadow-sm"
+                                            title="Copy share link"
+                                        >
+                                            <Copy className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                    <button onClick={onClose} className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-red-400 transition-all shadow-sm">
+                                        <X className="w-4 h-4" />
+                                    </button>
                                 </div>
                             </div>
-                            {shareUrl && (
-                                <CopyButton text={shareUrl} label="Copy Link" />
-                            )}
-                            <button onClick={onClose} className="btn-ghost p-1.5 text-slate-500 hover:text-white shrink-0 bg-surface-elevated/50 rounded shadow-sm border border-surface-border">
-                                <X className="w-4 h-4" />
-                            </button>
+                            <h2 className="text-xl font-bold text-white leading-tight tracking-tight mb-4">{bug.title}</h2>
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <StatusBadge status={bug.status as Status} projectStatuses={statusOptions || []} />
+                                <PriorityBadge priority={bug.priority as Priority} />
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-surface-card/50 px-2 py-1 rounded-lg border border-surface-border/50 ml-auto">
+                                    <Clock className="w-3 h-3" />
+                                    {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Large Image Preview (Cover) */}
                         {bug.screenshotUrl && bug.mediaType !== "video" && (
-                            <div className="w-full border-b border-surface-border bg-black/40 shrink-0 relative flex items-center justify-center overflow-hidden" style={{ maxHeight: '220px' }}>
+                            <div className="w-full border-b border-surface-border bg-black/40 shrink-0 relative flex items-center justify-center overflow-hidden group/img" style={{ maxHeight: '280px' }}>
                                 <img
                                     src={bug.screenshotUrl}
                                     alt="Preview"
-                                    className="w-full h-full object-contain backdrop-blur-sm"
+                                    className="w-full h-full object-contain backdrop-blur-md transition-transform duration-700 group-hover/img:scale-105"
                                 />
-                                <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-surface-card/20 to-transparent pointer-events-none" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#09090E] via-transparent to-transparent opacity-60" />
+                                <a 
+                                    href={bug.screenshotUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="absolute bottom-4 right-4 p-2.5 rounded-xl bg-[#09090E]/80 border border-surface-border text-white hover:text-brand-400 backdrop-blur-md transition-all opacity-0 group-hover/img:opacity-100 shadow-2xl"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                </a>
                             </div>
                         )}
 
                         {/* Status & Priority Controls */}
-                        <div className="flex items-center gap-2 px-5 py-3 border-b border-surface-border bg-surface-elevated">
-                            <div className="flex-1">
-                                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Status</label>
+                        <div className="grid grid-cols-2 gap-px bg-surface-border/30 border-b border-surface-border/30 shrink-0">
+                            <div className="bg-[#09090E] p-4 group">
+                                <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold block mb-2 transition-colors group-hover:text-brand-400">Status</label>
                                 <select
                                     value={bug.status}
                                     onChange={(e) => onStatusChange(e.target.value as Status)}
-                                    className="input text-xs h-9 w-full !py-0 leading-none"
+                                    className="w-full bg-transparent text-sm font-bold text-white outline-none cursor-pointer appearance-none"
                                     disabled={!canUpdate}
                                 >
                                     {(statusOptions && statusOptions.length ? statusOptions : DEFAULT_COLUMNS).map((status: any) => {
                                         const value = status.value ?? status.status;
                                         const label = status.label ?? value;
                                         return (
-                                            <option key={value} value={value}>
+                                            <option key={value} value={value} className="bg-[#09090E]">
                                                 {label}
                                             </option>
                                         );
                                     })}
                                 </select>
                             </div>
-                            <div className="flex-1">
-                                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Priority</label>
+                            <div className="bg-[#09090E] p-4 group">
+                                <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold block mb-2 transition-colors group-hover:text-brand-400">Priority</label>
                                 <select
                                     value={bug.priority}
                                     onChange={(e) => updatePriority({ bugId, priority: e.target.value as Priority, devToken: token })}
-                                    className="input text-xs h-9 w-full !py-0 leading-none"
+                                    className="w-full bg-transparent text-sm font-bold text-white outline-none cursor-pointer appearance-none"
                                     disabled={!canUpdate}
                                 >
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="critical">Critical</option>
+                                    <option value="low" className="bg-[#09090E]">Low</option>
+                                    <option value="medium" className="bg-[#09090E]">Medium</option>
+                                    <option value="high" className="bg-[#09090E]">High</option>
+                                    <option value="critical" className="bg-[#09090E]">Critical</option>
                                 </select>
                             </div>
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex gap-0 border-b border-surface-border px-5 shrink-0 overflow-x-auto whitespace-nowrap" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                        <div className="flex gap-2 border-b border-surface-border/30 px-6 shrink-0 bg-[#09090E]/50 overflow-x-auto no-scrollbar">
                             {(["details", "screenshot", "env", "console", "network", "activity"] as const).map((tab) => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`px-3 py-2.5 text-xs font-medium capitalize border-b-2 transition-colors ${activeTab === tab
-                                        ? "border-brand-500 text-brand-400"
-                                        : "border-transparent text-slate-500 hover:text-slate-300"
+                                    className={`relative py-4 text-[11px] font-bold uppercase tracking-widest transition-all ${activeTab === tab
+                                        ? "text-brand-400"
+                                        : "text-slate-500 hover:text-slate-300"
                                         }`}
                                 >
                                     {tab === "env" ? "Environment" : tab === "activity" ? "Activity" : tab}
+                                    {activeTab === tab && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-500 shadow-[0_0_12px_rgba(59,130,246,0.5)]" />
+                                    )}
                                 </button>
                             ))}
                         </div>
 
                         {/* Tab Content */}
-                        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8 custom-scrollbar">
                             {activeTab === "details" && (
                                 <>
                                     {/* Categorization & Assignment */}
-                                    <div className="bg-surface-elevated/50 border border-surface-border rounded-xl p-4 space-y-4">
-                                        <div className="flex items-center gap-2 mb-2 text-brand-400">
-                                            <Shield className="w-3.5 h-3.5" />
-                                            <span className="text-[11px] font-bold uppercase tracking-widest">Management</span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-surface-card/30 rounded-2xl p-6 border border-surface-border/50 backdrop-blur-sm">
+                                        <div className="col-span-full flex items-center gap-2 mb-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Project Management</span>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div>
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Type</label>
-                                                    {isSuperAdmin && canUpdate && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowQuickAddType(true)}
-                                                            className="inline-flex items-center gap-1 text-[10px] text-brand-400 hover:text-brand-300 transition-colors font-medium"
-                                                            title="Add new module type"
-                                                        >
-                                                            <Plus className="w-2.5 h-2.5" /> New
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <select
-                                                    value={bugType}
-                                                    onChange={(e) => handleTypeChange(e.target.value)}
-                                                    className="input text-xs h-9 w-full bg-surface-card"
-                                                    disabled={!canUpdate || savingType}
-                                                >
-                                                    <optgroup label="Bug Types">
-                                                        {BUG_TYPES.map(t => (
-                                                            <option key={t.value} value={t.value}>{t.label}</option>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Issue Type</label>
+                                                {isSuperAdmin && canUpdate && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowQuickAddType(true)}
+                                                        className="text-[10px] text-brand-400 hover:text-brand-300 transition-colors font-bold"
+                                                    >
+                                                        + NEW
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <select
+                                                value={bugType}
+                                                onChange={(e) => handleTypeChange(e.target.value)}
+                                                className="input w-full text-xs font-semibold bg-surface-card border-surface-border/50 focus:border-brand-500/50"
+                                                disabled={!canUpdate || savingType}
+                                            >
+                                                <optgroup label="Core Types">
+                                                    {BUG_TYPES.map(t => (
+                                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                                    ))}
+                                                </optgroup>
+                                                {customModules && customModules.length > 0 && (
+                                                    <optgroup label="Custom Modules">
+                                                        {customModules.map((mod: any) => (
+                                                            <option key={mod.slug} value={mod.slug}>{mod.name}</option>
                                                         ))}
                                                     </optgroup>
-                                                    {customModules && customModules.length > 0 && (
-                                                        <optgroup label="Dashboard Modules">
-                                                            {customModules.map((mod: any) => (
-                                                                <option key={mod.slug} value={mod.slug}>{mod.name}</option>
-                                                            ))}
-                                                        </optgroup>
-                                                    )}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1.5 font-semibold">Category</label>
-                                                <input
-                                                    value={bugCategory}
-                                                    onChange={(e) => setBugCategory(e.target.value)}
-                                                    onBlur={() => handleCategoryChange(bugCategory)}
-                                                    placeholder="e.g. Authentication"
-                                                    className="input text-xs h-9 w-full bg-surface-card"
-                                                    disabled={!canUpdate || savingCategory}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1.5 font-semibold">Due Date</label>
-                                                <input
-                                                    type="date"
-                                                    value={dueDate}
-                                                    onChange={(e) => handleDueDateChange(e.target.value)}
-                                                    className="input text-xs h-9 w-full bg-surface-card"
-                                                    disabled={!canUpdate || savingDue}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1.5 font-semibold">Assignee</label>
-                                                <select
-                                                    value={selectedAssignee ?? ""}
-                                                    onChange={(e) => handleAssigneeChange(e.target.value)}
-                                                    className="input text-xs h-9 w-full bg-surface-card"
-                                                    disabled={!canUpdate || savingAssignee}
-                                                >
-                                                    <option value="">Unassigned</option>
-                                                    {projectMembers.map((m: any) => (
-                                                        <option key={m.userId} value={m.userId}>
-                                                            {m.name || m.email || m.userId}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                                )}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block">Category</label>
+                                            <input
+                                                value={bugCategory}
+                                                onChange={(e) => setBugCategory(e.target.value)}
+                                                onBlur={() => handleCategoryChange(bugCategory)}
+                                                placeholder="e.g. Authentication"
+                                                className="input w-full text-xs font-semibold bg-surface-card border-surface-border/50 focus:border-brand-500/50"
+                                                disabled={!canUpdate || savingCategory}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block">Due Date</label>
+                                            <input
+                                                type="date"
+                                                value={dueDate}
+                                                onChange={(e) => handleDueDateChange(e.target.value)}
+                                                className="input w-full text-xs font-semibold bg-surface-card border-surface-border/50 focus:border-brand-500/50"
+                                                disabled={!canUpdate || savingDue}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block">Assignee</label>
+                                            <select
+                                                value={selectedAssignee ?? ""}
+                                                onChange={(e) => handleAssigneeChange(e.target.value)}
+                                                className="input w-full text-xs font-semibold bg-surface-card border-surface-border/50 focus:border-brand-500/50"
+                                                disabled={!canUpdate || savingAssignee}
+                                            >
+                                                <option value="">Unassigned</option>
+                                                {projectMembers.map((m: any) => (
+                                                    <option key={m.userId} value={m.userId}>
+                                                        {m.name || m.email || m.userId}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
 
                                     {/* Tags */}
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Tags {savingTags && <span className="text-slate-600">(saving…)</span>}</label>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Labels & Tags</label>
+                                            {savingTags && <span className="text-[10px] font-bold text-brand-400 animate-pulse">SAVING...</span>}
+                                        </div>
                                         <TagsInput tags={tagInput} onChange={handleSaveTags} disabled={!canUpdate} />
                                     </div>
 
-                                    <div className="divider" />
-
                                     {bug.description && (
-                                        <div className="bg-surface-elevated/30 p-4 rounded-xl border border-surface-border">
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-semibold flex items-center gap-2">
-                                                <Edit2 className="w-3 h-3" /> Description
-                                            </p>
-                                            <p className="text-sm text-slate-300 leading-relaxed">{bug.description}</p>
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold flex items-center gap-2">
+                                                <Edit2 className="w-3.5 h-3.5" /> Description
+                                            </label>
+                                            <div className="bg-surface-card/20 rounded-2xl p-5 border border-surface-border/50 text-sm text-slate-300 leading-relaxed shadow-inner">
+                                                {bug.description}
+                                            </div>
                                         </div>
                                     )}
 
                                     {/* Steps */}
                                     {bug.steps && bug.steps.length > 0 && (
-                                        <div className="bg-surface-elevated/30 p-4 rounded-xl border border-surface-border">
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-3 font-semibold flex items-center gap-2">
-                                                <LayoutList className="w-3 h-3" /> Steps to Reproduce
-                                            </p>
-                                            <ol className="space-y-2">
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold flex items-center gap-2">
+                                                <LayoutList className="w-3.5 h-3.5" /> Steps to Reproduce
+                                            </label>
+                                            <div className="space-y-3">
                                                 {bug.steps.map((step: string, i: number) => (
-                                                    <li key={i} className="flex gap-3 text-xs text-slate-300 group">
-                                                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-surface-card border border-surface-border flex items-center justify-center text-[10px] font-bold text-slate-500 group-hover:border-brand-500 group-hover:text-brand-400 transition-colors">
+                                                    <div key={i} className="flex gap-4 group/step">
+                                                        <div className="flex-shrink-0 w-6 h-6 rounded-lg bg-surface-card border border-surface-border flex items-center justify-center text-[11px] font-bold text-slate-500 group-hover/step:border-brand-500 group-hover/step:text-brand-400 transition-all shadow-sm">
                                                             {i + 1}
-                                                        </span>
-                                                        <span className="mt-0.5">{step}</span>
-                                                    </li>
+                                                        </div>
+                                                        <div className="flex-1 bg-surface-card/30 rounded-xl px-4 py-2.5 border border-transparent group-hover/step:border-surface-border/50 transition-all text-sm text-slate-300">
+                                                            {step}
+                                                        </div>
+                                                    </div>
                                                 ))}
-                                            </ol>
+                                            </div>
                                         </div>
                                     )}
 
-                                    {/* Metadata */}
-                                    <div className="bg-surface-elevated/30 p-4 rounded-xl border border-surface-border space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Environment & Context</p>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] text-slate-600 font-mono">ID: {bug._id.substring(0, 8)}...</span>
-                                                <CopyButton text={bug._id} />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                                    {/* Context Metadata */}
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Context & Environment</label>
+                                        <div className="grid grid-cols-2 gap-4">
                                             {[
-                                                { label: "Source", value: bug.reporterName ? "User" : "Widget", icon: <Zap className="w-3.5 h-3.5" /> },
-                                                { label: "Reporter", value: bug.reporterEmail || bug.reporterName, icon: <Mail className="w-3.5 h-3.5" /> },
-                                                { label: "Browser", value: bug.browser?.split(" ").slice(0, 3).join(" "), icon: <Monitor className="w-3.5 h-3.5" /> },
-                                                { label: "OS", value: bug.os, icon: <Monitor className="w-3.5 h-3.5" /> },
-                                                { label: "Screen", value: bug.screenResolution || (bug.screenWidth ? `${bug.screenWidth}×${bug.screenHeight}` : null), icon: <ImageIcon className="w-3.5 h-3.5" /> },
-                                                { label: "Device", value: bug.deviceType, icon: <Monitor className="w-3.5 h-3.5" /> },
-                                                { label: "Load Time", value: typeof bug.pageLoadTime === 'number' ? `${bug.pageLoadTime}ms` : bug.pageLoadTime, icon: <Clock className="w-3.5 h-3.5" /> },
-                                            ].filter(r => r.value && r.icon).map((row) => (
-                                                <div key={row.label} className="flex items-center gap-3 text-xs group">
-                                                    <span className="text-slate-600 shrink-0 group-hover:text-brand-400 transition-colors">{row.icon}</span>
-                                                    <span className="text-slate-500 w-16 shrink-0">{row.label}</span>
-                                                    <span className="text-slate-300 truncate flex-1 font-medium" title={row.value ?? undefined}>{row.value}</span>
+                                                { label: "Reporter", value: bug.reporterName || "Widget", icon: <User className="w-3.5 h-3.5" /> },
+                                                { label: "Browser", value: bug.browser?.split(" ").slice(0, 2).join(" "), icon: <Monitor className="w-3.5 h-3.5" /> },
+                                                { label: "Operating System", value: bug.os, icon: <Zap className="w-3.5 h-3.5" /> },
+                                                { label: "Resolution", value: bug.screenResolution || (bug.screenWidth ? `${bug.screenWidth}×${bug.screenHeight}` : null), icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                                            ].filter(r => r.value).map((row) => (
+                                                <div key={row.label} className="bg-surface-card/30 rounded-xl p-3 border border-surface-border/50 flex flex-col gap-1.5">
+                                                    <div className="flex items-center gap-1.5 text-slate-500">
+                                                        {row.icon}
+                                                        <span className="text-[10px] font-bold uppercase tracking-widest">{row.label}</span>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-white truncate" title={row.value ?? undefined}>{row.value}</span>
                                                 </div>
                                             ))}
                                         </div>
                                         {(bug.url && bug.url !== "Unknown") && (
-                                            <div className="flex items-start gap-3 text-xs pt-2 border-t border-surface-border/50 group">
-                                                <Globe className="w-3.5 h-3.5 text-slate-600 mt-0.5 shrink-0 group-hover:text-brand-400 transition-colors" />
-                                                <span className="text-slate-500 w-16 shrink-0 mt-0.5">Page URL</span>
-                                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                            <div className="bg-surface-card/30 rounded-xl p-4 border border-surface-border/50 flex items-center gap-4 group/url">
+                                                <div className="p-2 rounded-lg bg-surface-elevated border border-surface-border text-slate-500 group-hover/url:text-brand-400 transition-colors">
+                                                    <Globe className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Source URL</p>
                                                     <a href={bug.trackerUrl || bug.url} target="_blank" rel="noopener noreferrer"
-                                                        className="text-brand-400 hover:underline truncate font-medium" title={bug.url}>
+                                                        className="text-xs font-bold text-brand-400 hover:underline truncate block" title={bug.url}>
                                                         {bug.url}
                                                     </a>
-                                                    <CopyButton text={bug.url} />
                                                 </div>
+                                                <CopyButton text={bug.url} />
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className="divider" />
-
-                                    {/* Comments */}
-                                    <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">
-                                            Comments ({bug.comments?.length ?? 0})
-                                        </p>
-                                        {bug.comments && bug.comments.length > 0 && (
-                                            <div className="space-y-2 mb-3">
-                                                {bug.comments.map((c: any) => (
-                                                    <div key={c._id} className="bg-surface-elevated rounded-lg p-3 border border-surface-border">
-                                                        <div className="flex items-center gap-1.5 mb-1">
-                                                            <div className="w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
-                                                                <User className="w-2.5 h-2.5 text-brand-400" />
-                                                            </div>
-                                                            <span className="text-xs font-medium text-white">{c.author}</span>
-                                                            <span className="text-[10px] text-slate-600">
+                                    {/* Comments Section */}
+                                    <div className="space-y-4 pt-4">
+                                        <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold flex items-center gap-2">
+                                            <MessageSquare className="w-3.5 h-3.5" /> Discussion ({bug.comments?.length ?? 0})
+                                        </label>
+                                        <div className="space-y-4">
+                                            {bug.comments?.map((c: any) => (
+                                                <div key={c._id} className="flex gap-4">
+                                                    <div className="w-8 h-8 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0 shadow-inner">
+                                                        <User className="w-4 h-4 text-brand-400" />
+                                                    </div>
+                                                    <div className="flex-1 space-y-1.5">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-bold text-white">{c.author}</span>
+                                                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
                                                                 {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
                                                             </span>
                                                         </div>
-                                                        <p className="text-xs text-slate-300 pl-6.5">{c.body}</p>
+                                                        <div className="bg-surface-card/40 rounded-2xl rounded-tl-none p-4 border border-surface-border/50 text-sm text-slate-300 shadow-sm">
+                                                            {c.body}
+                                                        </div>
                                                     </div>
-                                                ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <form onSubmit={handleComment} className="flex gap-3 pt-2">
+                                            <div className="flex-1 relative group">
+                                                <input
+                                                    value={comment}
+                                                    onChange={(e) => setComment(e.target.value)}
+                                                    placeholder="Add your comment..."
+                                                    className="input w-full text-sm h-11 pl-4 pr-12 bg-surface-card/50 border-surface-border/50 focus:border-brand-500/50 transition-all rounded-xl shadow-inner"
+                                                />
+                                                <button 
+                                                    type="submit" 
+                                                    disabled={posting || !comment.trim()} 
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-brand-400 hover:bg-brand-500/10 disabled:opacity-30 transition-all"
+                                                >
+                                                    <Send className="w-4 h-4" />
+                                                </button>
                                             </div>
-                                        )}
-                                        <form onSubmit={handleComment} className="flex gap-2">
-                                            <input
-                                                value={comment}
-                                                onChange={(e) => setComment(e.target.value)}
-                                                placeholder="Add a comment…"
-                                                className="input flex-1 text-xs h-8"
-                                            />
-                                            <button type="submit" disabled={posting || !comment.trim()} className="btn-primary text-xs h-8 px-3">
-                                                <Send className="w-3 h-3" />
-                                            </button>
                                         </form>
                                     </div>
                                 </>
@@ -1831,126 +1876,160 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     };
 
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-[#09090E]">
             <Navbar />
-            <div className="flex-1 flex flex-col max-w-[1600px] mx-auto w-full px-4 py-6">
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-3 mb-6">
-                    <Link href="/" className="btn-ghost text-xs px-2">
-                        <ArrowLeft className="w-3.5 h-3.5" /> Projects
-                    </Link>
-                    <span className="text-slate-600">/</span>
-                    <span className="text-sm font-medium text-white">{project.name}</span>
+            <div className="flex-1 flex flex-col max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+                {/* Breadcrumb & Title */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                            <Link href="/" className="hover:text-brand-400 transition-colors flex items-center gap-1">
+                                <ArrowLeft className="w-3 h-3" /> Projects
+                            </Link>
+                            <span className="text-slate-700">/</span>
+                            <span className="text-slate-300 truncate max-w-[200px]">{project.name}</span>
+                        </div>
+                        <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+                            {project.name}
+                            {project.domain && (
+                                <a 
+                                    href={project.domain.startsWith('http') ? project.domain : `https://${project.domain}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-surface-elevated border border-surface-border text-slate-500 hover:text-brand-400 transition-all hover:border-brand-500/30 group"
+                                    title="Visit website"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                                </a>
+                            )}
+                        </h1>
+                    </div>
+
+                    {/* Stats */}
+                    {stats && (
+                        <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+                            {[
+                                { label: "Total", value: stats.total, color: "from-slate-500/20 to-slate-500/5", textColor: "text-white", icon: <Hash className="w-3 h-3" /> },
+                                { label: "Open", value: stats.open, color: "from-blue-500/20 to-blue-500/5", textColor: "text-blue-400", icon: <CircleDot className="w-3 h-3" /> },
+                                { label: "Critical", value: stats.critical, color: "from-red-500/20 to-red-500/5", textColor: "text-red-400", icon: <AlertTriangle className="w-3 h-3" /> },
+                                { label: "Resolved", value: stats.resolved, color: "from-green-500/20 to-green-500/5", textColor: "text-green-400", icon: <CheckCircle2 className="w-3 h-3" /> },
+                            ].map((s) => (
+                                <div key={s.label} className={`flex flex-col min-w-[90px] p-2.5 rounded-xl border border-surface-border bg-gradient-to-br ${s.color} backdrop-blur-sm transition-all hover:border-surface-border/80`}>
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                        <span className={s.textColor}>{s.icon}</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{s.label}</span>
+                                    </div>
+                                    <p className={`text-xl font-bold ${s.textColor} leading-none`}>{s.value}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                {/* Stats */}
-                {stats && (
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
-                        {[
-                            { label: "Total", value: stats.total, color: "text-white" },
-                            { label: "Open", value: stats.open, color: "text-blue-400" },
-                            { label: "In-Progress", value: stats.in_progress, color: "text-amber-400" },
-                            { label: "Resolved", value: stats.resolved, color: "text-green-400" },
-                            { label: "Closed", value: stats.closed, color: "text-slate-400" },
-                            { label: "Critical", value: stats.critical, color: "text-red-400" },
-                        ].map((s) => (
-                            <div key={s.label} className="card p-3 text-center">
-                                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                                <p className="text-[10px] text-slate-500 mt-0.5">{s.label}</p>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
                 {/* Sticky Header Section */}
-                <div className="sticky top-0 z-40 bg-[#09090E]/95 backdrop-blur-2xl border-b border-surface-border/50 -mx-4 px-4 pt-2 lg:-mx-8 lg:px-8 mb-4 shadow-xl shadow-black/20">
+                <div className="sticky top-0 z-40 bg-[#09090E]/95 backdrop-blur-2xl border-b border-surface-border/50 -mx-4 px-4 pt-3 lg:-mx-8 lg:px-8 mb-6 shadow-xl shadow-black/20">
                     {/* Toolbar */}
-                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                    <h2 className="font-semibold text-white w-full sm:w-auto">Issue Tracking</h2>
-                    <div className="flex gap-1 p-1 bg-surface-card border border-surface-border rounded-lg overflow-x-auto w-full sm:w-auto" style={{ scrollbarWidth: 'none' }}>
-                        {(["kanban", "list"] as const).map((v) => (
-                            <button
-                                key={v}
-                                onClick={() => setView(v)}
-                                className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md whitespace-nowrap transition-all ${view === v ? "bg-brand-500 text-white shadow-sm" : "text-slate-400 hover:text-white"}`}
-                            >
-                                {TAB_LABELS[v]}
-                            </button>
-                        ))}
-
-                        {/* Admin Sections */}
-                        {(["team", "integrations", "settings"] as const).map((v) => {
-                            if (v === "team" && !canManageUsers) return null;
-                            if (v === "integrations" && !canViewApi) return null;
-                            if (v === "settings" && !canViewSettings) return null;
-                            return (
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                        <div className="flex gap-1 p-1 bg-surface-card/50 border border-surface-border rounded-xl w-full md:w-auto">
+                            {(["kanban", "list"] as const).map((v) => (
                                 <button
                                     key={v}
                                     onClick={() => setView(v)}
-                                    className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md whitespace-nowrap transition-all ${view === v ? "bg-brand-500 text-white shadow-sm" : "text-slate-400 hover:text-white"}`}
+                                    className={`flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-lg transition-all ${view === v ? "bg-brand-500 text-white shadow-lg shadow-brand-500/20" : "text-slate-400 hover:text-slate-200 hover:bg-surface-elevated"}`}
                                 >
-                                    {TAB_LABELS[v]}
+                                    <span className="flex items-center gap-2 justify-center">
+                                        {v === "kanban" ? <KanbanIcon className="w-3.5 h-3.5" /> : <LayoutList className="w-3.5 h-3.5" />}
+                                        {TAB_LABELS[v]}
+                                    </span>
                                 </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                            ))}
 
-                {/* Search / New Issue bar for list/kanban */}
-                {(view === "kanban" || view === "list") && (
-                    <div className="flex flex-col gap-3 mb-4">
-                        {/* Action Bar */}
-                        <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setShowCreateBugModal(true)} className="btn-primary text-xs flex items-center gap-1.5 self-start">
-                                    <Plus className="w-3.5 h-3.5" /> New Issue
-                                </button>
-                                {isProjectAdmin && (
-                                    <button
-                                        onClick={handleExport}
-                                        className="btn-ghost border border-surface-border text-xs flex items-center gap-1.5 self-start px-3 h-8 hover:bg-surface-elevated transition-colors"
-                                        title="Export all issues to CSV"
-                                    >
-                                        <Download className="w-3.5 h-3.5" /> Export CSV
-                                    </button>
-                                )}
+                            <div className="w-px h-4 bg-surface-border my-auto mx-1 hidden md:block" />
+
+                            {/* Admin Sections */}
+                            <div className="flex gap-1">
+                                {(["team", "integrations", "settings"] as const).map((v) => {
+                                    if (v === "team" && !canManageUsers) return null;
+                                    if (v === "integrations" && !canViewApi) return null;
+                                    if (v === "settings" && !canViewSettings) return null;
+                                    return (
+                                        <button
+                                            key={v}
+                                            onClick={() => setView(v)}
+                                            className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all ${view === v ? "bg-brand-500 text-white shadow-lg shadow-brand-500/20" : "text-slate-500 hover:text-slate-300 hover:bg-surface-elevated"}`}
+                                            title={TAB_LABELS[v]}
+                                        >
+                                            {v === "team" && <Users className="w-3.5 h-3.5" />}
+                                            {v === "integrations" && <Zap className="w-3.5 h-3.5" />}
+                                            {v === "settings" && <Settings className="w-3.5 h-3.5" />}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                            <div className="relative w-full md:w-auto mt-2 md:mt-0 flex items-center gap-2">
-                                <div className="relative flex-1 md:flex-none">
-                                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        </div>
+
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <button onClick={() => setShowCreateBugModal(true)} className="flex-1 md:flex-none btn-primary text-xs flex items-center gap-2 px-4 h-10 shadow-lg shadow-brand-500/20">
+                                <Plus className="w-4 h-4" /> New Issue
+                            </button>
+                            {isProjectAdmin && (
+                                <button
+                                    onClick={handleExport}
+                                    className="p-2.5 rounded-xl border border-surface-border bg-surface-card text-slate-400 hover:text-white hover:border-slate-500 transition-all shadow-sm"
+                                    title="Export all issues to CSV"
+                                >
+                                    <Download className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Search / Filter bar for list/kanban */}
+                    {(view === "kanban" || view === "list") && (
+                        <div className="flex flex-col gap-4 pb-4">
+                            <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+                                <div className="relative flex-1 group">
+                                    <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 group-focus-within:text-brand-400 transition-colors" />
                                     <input
                                         type="text"
-                                        className="input pl-9 h-9 text-xs w-full md:w-[200px]"
-                                        placeholder="Search issues…"
+                                        className="input pl-10 h-10 text-sm w-full bg-surface-card/50 border-surface-border/50 focus:border-brand-500/50 transition-all"
+                                        placeholder="Search by title, URL, or ID..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                     />
                                 </div>
-                                <select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="input h-9 text-xs w-[110px] bg-surface-card"
-                                >
-                                    <option value="all">All Status</option>
-                                    {kanbanColumns.map((statusCol) => (
-                                        <option key={statusCol.status} value={statusCol.status}>
-                                            {statusCol.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <select
-                                    value={priorityFilter}
-                                    onChange={(e) => setPriorityFilter(e.target.value)}
-                                    className="input h-9 text-xs w-[110px] bg-surface-card"
-                                >
-                                    <option value="all">All Priority</option>
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="critical">Critical</option>
-                                </select>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5 px-3 h-10 bg-surface-card/50 border border-surface-border/50 rounded-xl">
+                                        <CircleDot className="w-3.5 h-3.5 text-slate-500" />
+                                        <select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value)}
+                                            className="bg-transparent text-xs font-semibold text-slate-300 outline-none w-[100px] cursor-pointer"
+                                        >
+                                            <option value="all">All Status</option>
+                                            {kanbanColumns.map((statusCol) => (
+                                                <option key={statusCol.status} value={statusCol.status}>
+                                                    {statusCol.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-3 h-10 bg-surface-card/50 border border-surface-border/50 rounded-xl">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-slate-500" />
+                                        <select
+                                            value={priorityFilter}
+                                            onChange={(e) => setPriorityFilter(e.target.value)}
+                                            className="bg-transparent text-xs font-semibold text-slate-300 outline-none w-[100px] cursor-pointer"
+                                        >
+                                            <option value="all">All Priority</option>
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                            <option value="critical">Critical</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
                         {/* Type Filter Pills */}
                         {allTypeFilters.length > 2 && (
@@ -2038,20 +2117,23 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                         </div>
                                     ))}
                                     {isProjectAdmin && (
-                                        <div className="w-[320px] shrink-0 rounded-xl border border-dashed border-surface-border bg-surface-card min-h-[400px] p-4 flex flex-col">
+                                        <div className="w-[320px] shrink-0 rounded-2xl border border-dashed border-surface-border/50 bg-surface-card/10 min-h-[500px] p-6 flex flex-col group/add transition-all hover:bg-surface-card/20 hover:border-surface-border">
                                             <button
                                                 onClick={() => setShowAddBucketInput(true)}
-                                                className="text-sm font-semibold text-white flex items-center gap-2 hover:text-brand-400 transition-colors"
+                                                className="text-sm font-bold text-slate-500 flex items-center gap-3 hover:text-brand-400 transition-all uppercase tracking-[0.2em]"
                                             >
-                                                <Plus className="w-4 h-4" />
-                                                Add a new bucket
+                                                <div className="w-10 h-10 rounded-xl bg-surface-card border border-surface-border flex items-center justify-center group-hover/add:scale-110 group-hover/add:border-brand-500/50 transition-all shadow-xl">
+                                                    <Plus className="w-5 h-5" />
+                                                </div>
+                                                Add Bucket
                                             </button>
                                             {showAddBucketInput && (
-                                                <div className="mt-4 space-y-2">
+                                                <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                                                     <input
                                                         type="text"
-                                                        className="input w-full text-xs h-9"
-                                                        placeholder="Bucket name"
+                                                        className="input w-full text-sm font-semibold h-11 bg-surface-card/50 border-surface-border/50 focus:border-brand-500/50"
+                                                        placeholder="Bucket name..."
+                                                        autoFocus
                                                         value={newBucketLabel}
                                                         onChange={(e) => setNewBucketLabel(e.target.value)}
                                                         onKeyDown={(e) => {
@@ -2064,22 +2146,18 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                                                 setNewBucketLabel("");
                                                             }
                                                         }}
-                                                        autoFocus
                                                     />
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={handleAddBucket}
+                                                    <div className="flex gap-2">
+                                                        <button 
+                                                            onClick={handleAddBucket} 
                                                             disabled={addingBucket || !newBucketLabel.trim()}
-                                                            className="btn-primary text-xs h-8 px-3"
+                                                            className="btn-primary flex-1 h-10 text-xs font-bold uppercase tracking-widest"
                                                         >
-                                                            {addingBucket ? "Adding..." : "Add bucket"}
+                                                            {addingBucket ? "Adding..." : "Add"}
                                                         </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setShowAddBucketInput(false);
-                                                                setNewBucketLabel("");
-                                                            }}
-                                                            className="btn-ghost text-xs h-8 px-3"
+                                                        <button 
+                                                            onClick={() => { setShowAddBucketInput(false); setNewBucketLabel(""); }}
+                                                            className="btn-ghost px-4 h-10 text-xs font-bold uppercase tracking-widest"
                                                         >
                                                             Cancel
                                                         </button>
@@ -2328,53 +2406,56 @@ function ModuleView({ moduleId, projectId, devToken, module }: {
 
 function LoadingSkeleton() {
     return (
-        <div className="min-h-screen flex flex-col bg-background">
+        <div className="min-h-screen flex flex-col bg-[#09090E]">
             <Navbar />
-            <div className="max-w-[1600px] mx-auto w-full px-4 py-6 flex flex-col gap-6">
-                {/* Breadcrumb Skeleton */}
-                <div className="flex items-center gap-3">
-                    <Skeleton className="w-20 h-8" />
-                    <span className="text-slate-800">/</span>
-                    <Skeleton className="w-32 h-8" />
+            <div className="flex-1 flex flex-col max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
+                {/* Header Skeleton */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <Skeleton className="w-20 h-4 rounded" />
+                            <div className="w-1 h-1 rounded-full bg-slate-800" />
+                            <Skeleton className="w-32 h-4 rounded" />
+                        </div>
+                        <Skeleton className="w-64 h-10 rounded-xl" />
+                    </div>
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+                        {[1, 2, 3, 4].map((i) => (
+                            <Skeleton key={i} className="min-w-[100px] h-20 rounded-2xl" />
+                        ))}
+                    </div>
                 </div>
 
-                {/* Stats Skeleton */}
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                    {[1, 2, 3, 4, 5, 6].map(i => (
-                        <div key={i} className="card p-3 flex flex-col items-center gap-2">
-                            <Skeleton className="w-8 h-8 rounded-md" />
-                            <Skeleton className="w-12 h-3" />
+                {/* Toolbar Skeleton */}
+                <div className="bg-surface-card/30 border border-surface-border/50 rounded-2xl p-4 mb-8">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex gap-1 p-1 bg-surface-card/50 border border-surface-border rounded-xl w-full md:w-auto">
+                            {[1, 2, 3].map((i) => (
+                                <Skeleton key={i} className="w-24 h-10 rounded-lg" />
+                            ))}
                         </div>
-                    ))}
+                        <div className="flex items-center gap-2">
+                            <Skeleton className="w-32 h-10 rounded-xl" />
+                            <Skeleton className="w-10 h-10 rounded-xl" />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Kanban Skeleton */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1">
-                    {[1, 2, 3, 4].map(col => (
-                        <div key={col} className="flex flex-col rounded-xl border border-surface-border bg-surface-card h-[600px]">
-                            <div className="p-4 border-b border-surface-border flex items-center justify-between">
-                                <Skeleton className="w-24 h-5" />
-                                <Skeleton className="w-6 h-4 rounded-full" />
-                            </div>
-                            <div className="p-3 flex flex-col gap-3">
-                                {[1, 2, 3].map(card => (
-                                    <div key={card} className="card p-4 space-y-3">
-                                        <Skeleton className="w-full h-32 rounded-lg" />
-                                        <div className="space-y-2">
-                                            <Skeleton className="w-full h-4" />
-                                            <Skeleton className="w-2/3 h-4" />
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Skeleton className="w-12 h-5 rounded-full" />
-                                            <Skeleton className="w-12 h-5 rounded-full" />
-                                        </div>
-                                        <div className="pt-3 border-t border-surface-border flex justify-between">
-                                            <Skeleton className="w-20 h-3" />
-                                            <Skeleton className="w-12 h-3" />
-                                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="flex flex-col gap-4">
+                            <Skeleton className="w-full h-14 rounded-xl" />
+                            {[1, 2, 3].map((j) => (
+                                <div key={j} className="p-4 rounded-2xl border border-surface-border bg-surface-card/50 space-y-4">
+                                    <Skeleton className="w-full h-32 rounded-xl" />
+                                    <Skeleton className="w-3/4 h-5 rounded-lg" />
+                                    <div className="flex gap-2">
+                                        <Skeleton className="w-16 h-5 rounded-full" />
+                                        <Skeleton className="w-16 h-5 rounded-full" />
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            ))}
                         </div>
                     ))}
                 </div>
