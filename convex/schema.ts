@@ -200,4 +200,31 @@ export default defineSchema({
         .index("by_page", ["pageSlug"])
         .index("by_status", ["status"])
         .index("by_date", ["date"]),
+
+    // ── Super Admin Managed Modules (Suggestions, Wiki, etc.) ───────────────
+    dashboardModules: defineTable({
+        name: v.string(),
+        slug: v.string(),
+        icon: v.string(), // Lucide icon name
+        order: v.number(),
+        description: v.optional(v.string()),
+        isWiki: v.optional(v.boolean()),
+        createdAt: v.number(),
+    })
+        .index("by_order", ["order"])
+        .index("by_slug", ["slug"]),
+
+    moduleEntries: defineTable({
+        moduleId: v.id("dashboardModules"),
+        projectId: v.id("projects"),
+        title: v.string(),
+        content: v.string(), // Markdown/HTML/Text
+        authorId: v.string(), // user tokenIdentifier
+        status: v.optional(v.string()), // e.g. "pending", "published"
+        metadata: v.optional(v.any()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_module", ["moduleId"])
+        .index("by_project_module", ["projectId", "moduleId"]),
 });

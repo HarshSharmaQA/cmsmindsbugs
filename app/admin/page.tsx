@@ -144,6 +144,16 @@ function AdminDashboardContent() {
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-brand-400 transition-colors" />
                     </Link>
+                    <Link href="/admin/modules" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/20 transition-all">
+                            <Layout className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">Dashboard Modules</p>
+                            <p className="text-slate-500 text-xs mt-0.5">Manage custom tabs & sections</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transition-colors" />
+                    </Link>
                     <Link href="/admin/bookings" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group relative overflow-hidden">
                         <div className="w-12 h-12 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400 group-hover:bg-green-500/20 transition-all">
                             <CalendarDays className="w-6 h-6" />

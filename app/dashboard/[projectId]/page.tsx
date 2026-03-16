@@ -13,7 +13,8 @@ import {
     Calendar, Tag, Copy, Check, ChevronDown, Send,
     Globe, Settings, Key, Eye, EyeOff, Shield, Zap,
     MessageSquare, Bug, Image as ImageIcon, Video, LayoutList,
-    Kanban as KanbanIcon, X, Activity, Hash, Download
+    Kanban as KanbanIcon, X, Activity, Hash, Download,
+    Book, Info, HelpCircle, AlertCircle, Edit2
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { formatDistanceToNow } from "date-fns";
@@ -30,6 +31,18 @@ const COLUMNS: { status: Status; label: string; icon: React.ReactNode; color: st
     { status: "resolved", label: "Resolved", icon: <CheckCircle2 className="w-4 h-4" />, color: "text-green-400" },
     { status: "closed", label: "Closed", icon: <XCircle className="w-4 h-4" />, color: "text-slate-500" },
 ];
+
+const ICON_OPTIONS_MAP: Record<string, React.ReactNode> = {
+    MessageSquare: <MessageSquare className="w-4 h-4" />,
+    Book: <Book className="w-4 h-4" />,
+    Users: <Users className="w-4 h-4" />,
+    Info: <Info className="w-4 h-4" />,
+    HelpCircle: <HelpCircle className="w-4 h-4" />,
+    CheckCircle: <CheckCircle2 className="w-4 h-4" />,
+    AlertCircle: <AlertCircle className="w-4 h-4" />,
+    Clock: <Clock className="w-4 h-4" />,
+    LayoutList: <LayoutList className="w-4 h-4" />,
+};
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = {
     low: { label: "Low", className: "bg-slate-800 text-slate-400 border border-slate-700" },
@@ -1240,8 +1253,10 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
     const [selectedBugId, setSelectedBugId] = useState<Id<"bugs"> | null>(null);
     const [showCreateBugModal, setShowCreateBugModal] = useState(false);
-    const [view, setView] = useState<"kanban" | "list" | "team" | "settings" | "integrations">("kanban");
+    const [view, setView] = useState<string>("kanban");
     const [searchQuery, setSearchQuery] = useState("");
+
+    const customModules = useQuery(api.modules.listModules, { devToken: devToken || undefined });
 
     useEffect(() => {
         const param = searchParams?.get("bugId");
@@ -1399,7 +1414,30 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <h2 className="font-semibold text-white w-full sm:w-auto">Issue Tracking</h2>
                     <div className="flex gap-1 p-1 bg-surface-card border border-surface-border rounded-lg overflow-x-auto w-full sm:w-auto" style={{ scrollbarWidth: 'none' }}>
-                        {(["kanban", "list", "team", "integrations", "settings"] as const).map((v) => {
+                        {(["kanban", "list"] as const).map((v) => (
+                            <button
+                                key={v}
+                                onClick={() => setView(v)}
+                                className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md whitespace-nowrap transition-all ${view === v ? "bg-brand-500 text-white shadow-sm" : "text-slate-400 hover:text-white"}`}
+                            >
+                                {TAB_LABELS[v]}
+                            </button>
+                        ))}
+                        
+                        {/* Custom Modules */}
+                        {(customModules || []).map((mod: any) => (
+                            <button
+                                key={mod.slug}
+                                onClick={() => setView(mod.slug)}
+                                className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md whitespace-nowrap flex items-center gap-1.5 transition-all ${view === mod.slug ? "bg-brand-500 text-white shadow-sm" : "text-slate-400 hover:text-white"}`}
+                            >
+                                {ICON_OPTIONS_MAP[mod.icon] || <LayoutList className="w-3 h-3" />}
+                                {mod.name}
+                            </button>
+                        ))}
+
+                        {/* Admin Sections */}
+                        {(["team", "integrations", "settings"] as const).map((v) => {
                             if (v === "team" && !canManageUsers) return null;
                             if (v === "integrations" && !canViewApi) return null;
                             if (v === "settings" && !canViewSettings) return null;
@@ -1472,6 +1510,16 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 )}
                 {view === "integrations" && <IntegrationsView project={project} devToken={devToken} />}
                 {view === "settings" && <SettingsView project={project} devToken={devToken} isAdmin={isProjectAdmin} />}
+                
+                {/* Dynamic Module Content */}
+                {customModules?.find((m: any) => m.slug === view) && (
+                    <ModuleView 
+                        moduleId={customModules.find((m: any) => m.slug === view)!._id}
+                        projectId={project._id}
+                        devToken={devToken}
+                        module={customModules.find((m: any) => m.slug === view)!}
+                    />
+                )}
             </div>
 
             {/* Modals */}
@@ -1494,6 +1542,159 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                     devToken={devToken}
                     onClose={() => setShowCreateBugModal(false)}
                 />
+            )}
+        </div>
+    );
+}
+
+// ── ModuleView ──────────────────────────────────────────────────────────────
+
+function ModuleView({ moduleId, projectId, devToken, module }: { 
+    moduleId: Id<"dashboardModules">; 
+    projectId: Id<"projects">; 
+    devToken: string | null; 
+    module: any;
+}) {
+    const entries = useQuery(api.modules.listEntries, { moduleId, projectId, devToken: devToken || undefined });
+    const addEntry = useMutation(api.modules.addEntry);
+    const updateEntry = useMutation(api.modules.updateEntry);
+    const deleteEntry = useMutation(api.modules.deleteEntry);
+
+    const [isAdding, setIsAdding] = useState(false);
+    const [selectedEntry, setSelectedEntry] = useState<any>(null);
+    const [title, setTitle] = useState("");
+    const [content, setContent] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title.trim()) return;
+        setLoading(true);
+        try {
+            if (selectedEntry) {
+                await updateEntry({ entryId: selectedEntry._id, title, content, devToken: devToken || undefined });
+            } else {
+                await addEntry({ moduleId, projectId, title, content, devToken: devToken || undefined });
+            }
+            setIsAdding(false);
+            setSelectedEntry(null);
+            setTitle("");
+            setContent("");
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEdit = (entry: any) => {
+        setSelectedEntry(entry);
+        setTitle(entry.title);
+        setContent(entry.content);
+        setIsAdding(true);
+    };
+
+    const handleDelete = async (id: Id<"moduleEntries">) => {
+        if (!confirm("Are you sure?")) return;
+        await deleteEntry({ entryId: id, devToken: devToken || undefined });
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        {ICON_OPTIONS_MAP[module.icon] || <LayoutList className="w-5 h-5" />}
+                        {module.name}
+                    </h2>
+                    {module.description && <p className="text-sm text-slate-500 mt-1">{module.description}</p>}
+                </div>
+                <button 
+                    onClick={() => { setIsAdding(true); setSelectedEntry(null); setTitle(""); setContent(""); }}
+                    className="btn-primary text-xs flex items-center gap-1.5"
+                >
+                    <Plus className="w-3.5 h-3.5" /> Add {module.name.replace(/s$/, '')}
+                </button>
+            </div>
+
+            {entries?.length === 0 ? (
+                <div className="card p-12 text-center flex flex-col items-center">
+                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 text-slate-600">
+                        {ICON_OPTIONS_MAP[module.icon] || <LayoutList className="w-6 h-6" />}
+                    </div>
+                    <p className="text-slate-400 text-sm">No entries yet</p>
+                    <p className="text-slate-500 text-xs mt-1">Be the first to add a {module.name.toLowerCase()} entry!</p>
+                </div>
+            ) : (
+                <div className="grid gap-4">
+                    {entries?.map((entry: any) => (
+                        <div key={entry._id} className="card p-4 group">
+                            <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-white mb-1">{entry.title}</h3>
+                                    <div className="text-sm text-slate-400 whitespace-pre-wrap">
+                                        {entry.content}
+                                    </div>
+                                    <div className="mt-3 flex items-center gap-3 text-[10px] text-slate-600 font-medium uppercase tracking-wider">
+                                        <span>Added {formatDistanceToNow(entry.createdAt, { addSuffix: true })}</span>
+                                        {entry.updatedAt !== entry.createdAt && <span>• Updated</span>}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleEdit(entry)} className="p-1.5 hover:bg-slate-800 rounded">
+                                        <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                                    </button>
+                                    <button onClick={() => handleDelete(entry._id)} className="p-1.5 hover:bg-red-500/10 rounded">
+                                        <Trash className="w-3.5 h-3.5 text-red-400" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {isAdding && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="relative w-full max-w-lg bg-surface-card border border-surface-border rounded-xl shadow-2xl p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-white">
+                                {selectedEntry ? `Edit ${module.name.replace(/s$/, '')}` : `New ${module.name.replace(/s$/, '')}`}
+                            </h3>
+                            <button onClick={() => setIsAdding(false)} className="text-slate-500 hover:text-white">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs text-slate-400 mb-1.5 font-medium uppercase tracking-wider">Title</label>
+                                <input 
+                                    value={title}
+                                    onChange={e => setTitle(e.target.value)}
+                                    className="input w-full"
+                                    placeholder="Give it a clear title"
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-400 mb-1.5 font-medium uppercase tracking-wider">Content</label>
+                                <textarea 
+                                    value={content}
+                                    onChange={e => setContent(e.target.value)}
+                                    className="input w-full min-h-[200px] resize-none py-3"
+                                    placeholder="Write your details here..."
+                                />
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button type="button" onClick={() => setIsAdding(false)} className="btn-ghost flex-1">Cancel</button>
+                                <button type="submit" disabled={loading || !title.trim()} className="btn-primary flex-1">
+                                    {loading ? "Saving..." : "Save Entry"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             )}
         </div>
     );
