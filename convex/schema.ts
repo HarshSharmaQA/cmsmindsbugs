@@ -25,6 +25,7 @@ export default defineSchema({
         isApproved: v.optional(v.boolean()),
         sessionToken: v.optional(v.string()), // Cryptographically random session token (128-bit)
         sessionTokenExpiry: v.optional(v.number()), // Unix timestamp (ms) when token expires
+        isDeactivated: v.optional(v.boolean()),
     })
         .index("by_token_identifier", ["tokenIdentifier"])
         .index("by_email", ["email"])

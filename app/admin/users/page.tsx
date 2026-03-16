@@ -22,6 +22,7 @@ export default function UserDirectoryPage() {
     const allUsers = useQuery(api.admin.getStats, { devToken: devToken || undefined })?.recentUsers || [];
     const deleteUser = useMutation(api.users.deleteUser);
     const setPassword = useMutation(api.users.setUserPassword);
+    const toggleDeactivation = useMutation(api.users.toggleUserDeactivation);
 
     const filteredUsers = allUsers.filter((u: any) => 
         u.email.toLowerCase().includes(search.toLowerCase()) || 
@@ -38,6 +39,20 @@ export default function UserDirectoryPage() {
             alert("User deleted successfully.");
         } catch (err: any) {
             alert(err.message || "Failed to delete user.");
+        }
+    };
+
+    const handleToggleDeactivation = async (email: string, isCurrentlyDeactivated: boolean) => {
+        const action = isCurrentlyDeactivated ? "reactivate" : "deactivate";
+        if (!window.confirm(`Are you sure you want to ${action} user ${email}?`)) {
+            return;
+        }
+
+        try {
+            await toggleDeactivation({ email, deactivate: !isCurrentlyDeactivated, devToken: devToken || undefined });
+            alert(`User ${action}d successfully.`);
+        } catch (err: any) {
+            alert(err.message || `Failed to ${action} user.`);
         }
     };
 
@@ -135,6 +150,7 @@ export default function UserDirectoryPage() {
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">User Details</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Role</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Joined</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Status</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -169,8 +185,22 @@ export default function UserDirectoryPage() {
                                                 {user._creationTime ? format(user._creationTime, "MMM dd, yyyy") : "N/A"}
                                             </div>
                                         </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {user.isDeactivated ? (
+                                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20 uppercase">Deactivated</span>
+                                            ) : (
+                                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase">Active</span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    onClick={() => handleToggleDeactivation(user.email, !!user.isDeactivated)}
+                                                    className={`p-2 rounded-lg transition-all shadow-sm ${user.isDeactivated ? 'bg-emerald-500/5 text-emerald-400 hover:bg-emerald-400/10' : 'bg-amber-500/5 text-amber-400 hover:bg-amber-400/10'}`}
+                                                    title={user.isDeactivated ? "Reactivate User" : "Deactivate User"}
+                                                >
+                                                    <ShieldAlert className="w-4 h-4" />
+                                                </button>
                                                 <button 
                                                     onClick={() => handleSetPassword(user.email)}
                                                     className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-brand-400 hover:bg-brand-400/10 transition-all shadow-sm" 
