@@ -51,6 +51,7 @@ export default function GlobalPermissionsPage() {
 
     const defaultStats = useQuery(api.admin.getStats, mounted ? { devToken: devToken || undefined } : "skip");
     const rolePermissions = useQuery(api.permissions.getGlobal, mounted ? { devToken: devToken || undefined } : "skip");
+    const currentUser = useQuery(api.users.currentUser, mounted ? { devToken: devToken || undefined } : "skip");
     const updateRolePermissions = useMutation(api.permissions.setGlobal);
     const router = useRouter();
 
@@ -151,6 +152,13 @@ export default function GlobalPermissionsPage() {
                             <p className="text-gray-400 mt-2 max-w-lg">
                                 Centralized security protocols. Define the operational scope for every role in the BugScribe ecosystem.
                             </p>
+                            <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#00D4FF]/30 bg-[#00D4FF]/10 px-3 py-2">
+                                <ShieldCheck className="w-4 h-4 text-[#00D4FF]" />
+                                <span className="text-[11px] font-bold tracking-wide text-[#00D4FF] uppercase">Super Admin</span>
+                                <span className="text-[11px] text-gray-300">
+                                    {currentUser?.name || currentUser?.email || "Logged-in user"}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     

@@ -176,6 +176,16 @@ function AdminDashboardContent() {
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-amber-400 transition-colors" />
                     </Link>
+                    <Link href="/admin/test-cases" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500/20 transition-all">
+                            <Bug className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">Test Case Generator</p>
+                            <p className="text-slate-500 text-xs mt-0.5">Generate professional QA test cases</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                    </Link>
                     <Link href="/admin/locations" className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
                         <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:bg-purple-500/20 transition-all">
                             <MapIcon className="w-6 h-6" />
