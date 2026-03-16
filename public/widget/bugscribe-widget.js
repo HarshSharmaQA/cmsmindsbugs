@@ -83,22 +83,25 @@
         const payload = parseHighlightPayload();
         if (!payload) return;
 
-        const scrollTop = Number.isFinite(payload.scroll) ? payload.scroll : Math.max(0, payload.y - Math.round(window.innerHeight / 2));
-        window.scrollTo({ left: 0, top: scrollTop, behavior: "smooth" });
-
+        // Give the page a moment to settle
         setTimeout(() => {
-            if (payload.selector) {
-                try {
-                    const selector = decodeURIComponent(payload.selector);
-                    const el = document.querySelector(selector);
-                    if (el) {
-                        showElementBox(el.getBoundingClientRect());
-                        return;
-                    }
-                } catch { }
-            }
-            showPulseMarker(payload.x, payload.y);
-        }, 450);
+            const scrollTop = Number.isFinite(payload.scroll) ? payload.scroll : Math.max(0, payload.y - Math.round(window.innerHeight / 2));
+            window.scrollTo({ left: 0, top: scrollTop, behavior: "smooth" });
+
+            setTimeout(() => {
+                if (payload.selector) {
+                    try {
+                        const selector = decodeURIComponent(payload.selector);
+                        const el = document.querySelector(selector);
+                        if (el) {
+                            showElementBox(el.getBoundingClientRect());
+                            return;
+                        }
+                    } catch { }
+                }
+                showPulseMarker(payload.x, payload.y);
+            }, 600); // Wait for scroll to finish
+        }, 500);
     });
 
     // Initialize: Fetch fresh project info from Convex
@@ -308,11 +311,30 @@
     btn.onclick = openWidget;
 
     let bgImage = null;
+    let selectedElement = null;
+    let selectionCoords = null;
 
     async function openWidget() {
         if (document.getElementById("bugscribe-modal-overlay")) return;
 
+        // Reset previous selection
+        selectedElement = null;
+        selectionCoords = null;
+
         btn.disabled = true;
+        btn.textContent = "Selecting…";
+
+        // Step 1: Start Element Picker
+        const picker = await startElementPicker();
+        if (!picker) {
+            btn.disabled = false;
+            btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Report Bug`;
+            return;
+        }
+
+        selectedElement = picker.element;
+        selectionCoords = picker.coords;
+
         btn.textContent = "Capturing…";
 
         try {
@@ -332,6 +354,102 @@
         btn.disabled = false;
         btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Report Bug`;
         renderModal();
+    }
+
+    function startElementPicker() {
+        return new Promise((resolve) => {
+            const overlay = document.createElement("div");
+            overlay.style.cssText = "position:fixed;inset:0;z-index:2147483645;cursor:crosshair;background:rgba(79,93,255,0.05);";
+            
+            const highlight = document.createElement("div");
+            highlight.style.cssText = "position:fixed;pointer-events:none;border:2px solid #4f5dff;background:rgba(79,93,255,0.1);z-index:2147483646;display:none;transition:all 0.1s ease;";
+            
+            const label = document.createElement("div");
+            label.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1d27;color:#fff;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;z-index:2147483647;box-shadow:0 4px 20px rgba(0,0,0,0.3);border:1px solid #2a2d3e;";
+            label.textContent = "Click on the issue to select it (Esc to cancel)";
+
+            document.body.appendChild(overlay);
+            document.body.appendChild(highlight);
+            document.body.appendChild(label);
+
+            const onMove = (e) => {
+                overlay.style.pointerEvents = "none";
+                const el = document.elementFromPoint(e.clientX, e.clientY);
+                overlay.style.pointerEvents = "auto";
+
+                if (el && el !== overlay && el !== highlight && el !== label && el !== btn) {
+                    const rect = el.getBoundingClientRect();
+                    highlight.style.display = "block";
+                    highlight.style.top = `${rect.top}px`;
+                    highlight.style.left = `${rect.left}px`;
+                    highlight.style.width = `${rect.width}px`;
+                    highlight.style.height = `${rect.height}px`;
+                } else {
+                    highlight.style.display = "none";
+                }
+            };
+
+            const onClick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                overlay.style.pointerEvents = "none";
+                const el = document.elementFromPoint(e.clientX, e.clientY);
+                cleanup();
+                
+                if (el && el !== btn) {
+                    resolve({
+                        element: el,
+                        coords: { x: e.clientX, y: e.clientY }
+                    });
+                } else {
+                    resolve(null);
+                }
+            };
+
+            const onKey = (e) => {
+                if (e.key === "Escape") {
+                    cleanup();
+                    resolve(null);
+                }
+            };
+
+            const cleanup = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("click", onClick, true);
+                window.removeEventListener("keydown", onKey);
+                overlay.remove();
+                highlight.remove();
+                label.remove();
+            };
+
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("click", onClick, true);
+            window.addEventListener("keydown", onKey);
+        });
+    }
+
+    function getQuerySelector(el) {
+        if (el.id) return `#${el.id}`;
+        if (el.tagName === "BODY") return "body";
+        let path = [];
+        while (el && el.nodeType === Node.ELEMENT_NODE) {
+            let selector = el.nodeName.toLowerCase();
+            if (el.id) {
+                selector += `#${el.id}`;
+                path.unshift(selector);
+                break;
+            } else {
+                let sib = el, nth = 1;
+                while (sib = sib.previousElementSibling) {
+                    if (sib.nodeName.toLowerCase() == selector) nth++;
+                }
+                if (nth != 1) selector += `:nth-of-type(${nth})`;
+            }
+            path.unshift(selector);
+            el = el.parentNode;
+        }
+        return path.join(" > ");
     }
 
     function loadHtmlToImage() {
@@ -473,6 +591,33 @@
         canvas.width = bgImage.width;
         canvas.height = bgImage.height;
         ctx.drawImage(bgImage, 0, 0);
+
+        // Auto-draw the selection marker if available
+        if (selectionCoords) {
+            ctx.save();
+            const r = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / window.innerWidth;
+            const scaleY = canvas.height / window.innerHeight;
+
+            if (selectedElement) {
+                const rect = selectedElement.getBoundingClientRect();
+                ctx.strokeStyle = "#ef4444";
+                ctx.lineWidth = 5;
+                ctx.strokeRect(rect.left * scaleX, rect.top * scaleY, rect.width * scaleX, rect.height * scaleY);
+                ctx.fillStyle = "rgba(239, 68, 68, 0.1)";
+                ctx.fillRect(rect.left * scaleX, rect.top * scaleY, rect.width * scaleX, rect.height * scaleY);
+            } else {
+                // Pulse marker for generic coordinates
+                ctx.beginPath();
+                ctx.arc(selectionCoords.x * scaleX, selectionCoords.y * scaleY, 20, 0, Math.PI * 2);
+                ctx.strokeStyle = "#ef4444";
+                ctx.lineWidth = 5;
+                ctx.stroke();
+                ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
+                ctx.fill();
+            }
+            ctx.restore();
+        }
 
         let drawing = false, mode = "pen", startX, startY, snapshot;
         const undoStack = [];
@@ -672,6 +817,9 @@
                 screenHeight: window.innerHeight,
                 scrollX: window.scrollX,
                 scrollY: window.scrollY,
+                x_coordinate: selectionCoords ? selectionCoords.x : window.scrollX,
+                y_coordinate: selectionCoords ? selectionCoords.y : window.scrollY,
+                element_selector: selectedElement ? getQuerySelector(selectedElement) : undefined,
                 consoleErrors: capturedErrors
             });
 
