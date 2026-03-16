@@ -18,6 +18,51 @@ function buildTrackerUrl(bug: any) {
     return `${String(rawUrl).split("#")[0]}#${params.toString()}`;
 }
 
+const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
+    owner: ["view_api", "view_settings", "manage_users", "delete_bugs", "update_bugs", "view_bugs"],
+    admin: ["view_settings", "manage_users", "delete_bugs", "update_bugs", "view_bugs"],
+    editor: ["update_bugs", "view_bugs"],
+    viewer: ["view_bugs"],
+};
+
+async function getProjectPermissionContext(ctx: any, projectId: any, identity: any) {
+    const project = await ctx.db.get(projectId);
+    if (!project) throw new Error("Project not found");
+
+    const user = await ctx.db
+        .query("users")
+        .withIndex("by_token_identifier", (q: any) => q.eq("tokenIdentifier", identity.subject))
+        .unique();
+
+    const adminEmails = (process.env.SUPER_ADMIN_EMAILS || "harshsharmaqa@gmail.com").split(",").map((e: string) => e.trim());
+    const isSuperAdmin = user?.role === "super_admin" || adminEmails.includes(identity.email ?? "");
+    if (isSuperAdmin) {
+        return { project, isSuperAdmin: true, permissions: new Set(Object.values(DEFAULT_ROLE_PERMISSIONS).flat()) };
+    }
+
+    const membership = await ctx.db
+        .query("projectMembers")
+        .withIndex("by_project_user", (q: any) => q.eq("projectId", projectId).eq("userId", identity.subject))
+        .unique();
+
+    let role = membership?.role;
+    if (!role && project.userId === identity.subject) {
+        role = "owner";
+    }
+
+    if (!role) {
+        throw new Error("Unauthorized");
+    }
+
+    const roleData = await ctx.db
+        .query("rolePermissions")
+        .withIndex("by_role", (q: any) => q.eq("role", role))
+        .unique();
+
+    const permissions = new Set(roleData?.permissions || DEFAULT_ROLE_PERMISSIONS[role] || []);
+    return { project, isSuperAdmin: false, permissions };
+}
+
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 /** Get all bugs for a project (with screenshot URLs resolved) */
@@ -27,20 +72,8 @@ export const getBugs = query({
         const identity = await getEffectiveIdentity(ctx, devToken);
         if (!identity) return [];
 
-        const project = await ctx.db.get(projectId);
-        if (!project) throw new Error("Project not found");
-
-        const adminEmails = (process.env.SUPER_ADMIN_EMAILS || "harshsharmaqa@gmail.com").split(",").map(e => e.trim());
-        const isSuperAdmin = adminEmails.includes(identity.email ?? "");
-
-        const membership = await ctx.db
-            .query("projectMembers")
-            .withIndex("by_project_user", (q: any) => q.eq("projectId", projectId).eq("userId", identity.subject))
-            .unique();
-
-        if (!isSuperAdmin && !membership && project.userId !== identity.subject) {
-            throw new Error("Unauthorized");
-        }
+        const permissionContext = await getProjectPermissionContext(ctx, projectId, identity);
+        if (!permissionContext.isSuperAdmin && !permissionContext.permissions.has("view_bugs")) throw new Error("Unauthorized");
 
         const bugs = await ctx.db
             .query("bugs")
@@ -71,20 +104,8 @@ export const getBug = query({
         const bug = await ctx.db.get(bugId);
         if (!bug) return null;
 
-        const adminEmails = (process.env.SUPER_ADMIN_EMAILS || "harshsharmaqa@gmail.com").split(",").map(e => e.trim());
-        const isSuperAdmin = adminEmails.includes(identity.email ?? "");
-
-        const project = await ctx.db.get(bug.projectId);
-        if (!project) return null;
-
-        const membership = await ctx.db
-            .query("projectMembers")
-            .withIndex("by_project_user", (q) => q.eq("projectId", bug.projectId).eq("userId", identity.subject))
-            .unique();
-
-        if (!isSuperAdmin && !membership && project.userId !== identity.subject) {
-            return null;
-        }
+        const permissionContext = await getProjectPermissionContext(ctx, bug.projectId, identity);
+        if (!permissionContext.isSuperAdmin && !permissionContext.permissions.has("view_bugs")) return null;
 
         const screenshotUrl = bug.screenshotStorageId
             ? await ctx.storage.getUrl(bug.screenshotStorageId)
@@ -107,20 +128,8 @@ export const getBugStats = query({
         const identity = await getEffectiveIdentity(ctx, devToken);
         if (!identity) return null;
 
-        const adminEmails = (process.env.SUPER_ADMIN_EMAILS || "harshsharmaqa@gmail.com").split(",").map(e => e.trim());
-        const isSuperAdmin = adminEmails.includes(identity.email ?? "");
-
-        const project = await ctx.db.get(projectId);
-        if (!project) throw new Error("Project not found");
-
-        const membership = await ctx.db
-            .query("projectMembers")
-            .withIndex("by_project_user", (q) => q.eq("projectId", projectId).eq("userId", identity.subject))
-            .unique();
-
-        if (!isSuperAdmin && !membership && project.userId !== identity.subject) {
-            throw new Error("Unauthorized");
-        }
+        const permissionContext = await getProjectPermissionContext(ctx, projectId, identity);
+        if (!permissionContext.isSuperAdmin && !permissionContext.permissions.has("view_bugs")) throw new Error("Unauthorized");
 
         const bugs = await ctx.db
             .query("bugs")
@@ -399,22 +408,8 @@ export const updateStatus = mutation({
         const bug = await ctx.db.get(bugId);
         if (!bug) throw new Error("Bug not found");
 
-        const project = await ctx.db.get(bug.projectId);
-        if (!project) throw new Error("Project not found");
-
-        const adminEmails = (process.env.SUPER_ADMIN_EMAILS || "harshsharmaqa@gmail.com").split(",").map(e => e.trim());
-        const isSuperAdmin = adminEmails.includes(identity.email ?? "");
-
-        const membership = await ctx.db
-            .query("projectMembers")
-            .withIndex("by_project_user", (q) => q.eq("projectId", bug.projectId).eq("userId", identity.subject))
-            .unique();
-
-        const canEdit = isSuperAdmin ||
-            (membership && (membership.role === "owner" || membership.role === "admin" || membership.role === "editor")) ||
-            (project.userId === identity.subject);
-
-        if (!canEdit) throw new Error("Unauthorized");
+        const permissionContext = await getProjectPermissionContext(ctx, bug.projectId, identity);
+        if (!permissionContext.isSuperAdmin && !permissionContext.permissions.has("update_bugs")) throw new Error("Unauthorized");
 
         const oldStatus = bug.status;
         await ctx.db.patch(bugId, { status, updatedAt: Date.now() });
