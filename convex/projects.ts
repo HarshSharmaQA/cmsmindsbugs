@@ -351,3 +351,56 @@ export const deleteProject = mutation({
         await ctx.db.delete(projectId);
     },
 });
+
+/** Delete a specific bucket (status) from a project */
+export const deleteBucket = mutation({
+    args: { 
+        projectId: v.id("projects"), 
+        status: v.string(),
+        devToken: v.optional(v.string()) 
+    },
+    handler: async (ctx, { projectId, status, devToken }) => {
+        const identity = await getEffectiveIdentity(ctx, devToken);
+        if (!identity) throw new Error("Unauthenticated");
+
+        const project = await ctx.db.get(projectId);
+        if (!project) throw new Error("Project not found");
+
+        const adminEmails = (process.env.SUPER_ADMIN_EMAILS || "harshsharmaqa@gmail.com").split(",").map(e => e.trim());
+        const isSuperAdmin = adminEmails.includes(identity.email ?? "");
+
+        const myMembership = await ctx.db
+            .query("projectMembers")
+            .withIndex("by_project_user", (q) => q.eq("projectId", projectId).eq("userId", identity.subject))
+            .unique();
+
+        const canDeleteBucket = isSuperAdmin ||
+            (myMembership && (myMembership.role === "owner" || myMembership.role === "admin")) ||
+            (project.userId === identity.subject);
+
+        if (!canDeleteBucket) throw new Error("Unauthorized to delete buckets");
+
+        // 1. Move all bugs in this bucket to "backlog" or "open"
+        const bugsInBucket = await ctx.db
+            .query("bugs")
+            .withIndex("by_project_status", (q) => q.eq("projectId", projectId).eq("status", status))
+            .collect();
+
+        for (const bug of bugsInBucket) {
+            await ctx.db.patch(bug._id, { status: "open" });
+        }
+
+        // 2. Remove from projectStatuses if it exists
+        const projectStatus = await ctx.db
+            .query("projectStatuses")
+            .withIndex("by_project", (q) => q.eq("projectId", projectId))
+            .filter((q) => q.eq(q.field("value"), status))
+            .unique();
+
+        if (projectStatus) {
+            await ctx.db.delete(projectStatus._id);
+        }
+
+        return { movedCount: bugsInBucket.length };
+    },
+});

@@ -14,7 +14,7 @@ import {
     Globe, Settings, Key, Eye, EyeOff, Shield, Zap,
     MessageSquare, Bug, Image as ImageIcon, Video, LayoutList,
     Kanban as KanbanIcon, X, Activity, Hash, Download,
-    Book, Info, HelpCircle, AlertCircle, Edit2, Target, ChevronLeft, ChevronRight
+    Book, Info, HelpCircle, AlertCircle, Edit2, Target, ChevronLeft, ChevronRight, Trash2
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { formatDistanceToNow } from "date-fns";
@@ -109,7 +109,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
 
 // ─── KanbanColumn ─────────────────────────────────────────────────────────────
 
-function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateToLocation, canReorder, isFirst, isLast, onMoveLeft, onMoveRight, isReordering }: {
+function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateToLocation, canReorder, isFirst, isLast, onMoveLeft, onMoveRight, isReordering, onDeleteBucket, isSuperAdmin }: {
     status: Status; label: string; icon: React.ReactNode; color: string;
     bugs: any[]; onSelect: (id: Id<"bugs">) => void;
     onNavigateToLocation: (bug: any) => void;
@@ -119,6 +119,8 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
     onMoveLeft?: () => void;
     onMoveRight?: () => void;
     isReordering?: boolean;
+    onDeleteBucket?: (status: string) => void;
+    isSuperAdmin?: boolean;
 }) {
     return (
         <Droppable droppableId={status}>
@@ -140,22 +142,39 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                         <span className="ml-auto bg-surface-elevated text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-surface-border">
                             {bugs.length}
                         </span>
-                        {canReorder && (
+                        {(canReorder || isSuperAdmin) && (
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={onMoveLeft}
-                                    disabled={!!isFirst || isReordering}
-                                    className="w-7 h-7 rounded-lg border border-surface-border bg-surface-elevated text-slate-500 hover:text-white disabled:opacity-30 flex items-center justify-center transition-all hover:border-slate-500"
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={onMoveRight}
-                                    disabled={!!isLast || isReordering}
-                                    className="w-7 h-7 rounded-lg border border-surface-border bg-surface-elevated text-slate-500 hover:text-white disabled:opacity-30 flex items-center justify-center transition-all hover:border-slate-500"
-                                >
-                                    <ChevronRight className="w-4 h-4" />
-                                </button>
+                                {canReorder && (
+                                    <>
+                                        <button
+                                            onClick={onMoveLeft}
+                                            disabled={!!isFirst || isReordering}
+                                            className="w-7 h-7 rounded-lg border border-surface-border bg-surface-elevated text-slate-500 hover:text-white disabled:opacity-30 flex items-center justify-center transition-all hover:border-slate-500"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={onMoveRight}
+                                            disabled={!!isLast || isReordering}
+                                            className="w-7 h-7 rounded-lg border border-surface-border bg-surface-elevated text-slate-500 hover:text-white disabled:opacity-30 flex items-center justify-center transition-all hover:border-slate-500"
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </>
+                                )}
+                                {isSuperAdmin && onDeleteBucket && (
+                                    <button
+                                        onClick={() => {
+                                            if (confirm(`Are you sure you want to delete the "${label}" bucket? All issues inside will be moved to "Open".`)) {
+                                                onDeleteBucket(status);
+                                            }
+                                        }}
+                                        className="w-7 h-7 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all"
+                                        title="Delete bucket (Super Admin)"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -1643,6 +1662,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const updateStatus = useMutation(api.bugs.updateStatus);
     const addStatus = useMutation(api.statuses.addStatus);
     const moveStatus = useMutation(api.statuses.moveStatus);
+    const deleteBucket = useMutation(api.projects.deleteBucket);
 
     const [selectedBugId, setSelectedBugId] = useState<Id<"bugs"> | null>(null);
     const [showCreateBugModal, setShowCreateBugModal] = useState(false);
@@ -1682,6 +1702,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const canManageUsers = myPermissions?.includes("manage_users") || false;
     const canDeleteBugs = myPermissions?.includes("delete_bugs") || false;
     const canUpdateBugs = myPermissions?.includes("update_bugs") || false;
+    const isSuperAdmin = currentUser?.role === "super_admin";
     const statusColumnCount = projectStatuses && projectStatuses.length ? projectStatuses.length : DEFAULT_COLUMNS.length;
 
     useEffect(() => {
@@ -1793,6 +1814,21 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         }
     };
 
+    const handleDeleteBucket = async (status: string) => {
+        if (!projectId) return;
+        const token = devToken || localStorage.getItem("bugscribe_dev_token") || undefined;
+        try {
+            const result = await deleteBucket({
+                projectId,
+                status,
+                devToken: token
+            });
+            alert(`Bucket deleted. ${result.movedCount} issues moved to "Open".`);
+        } catch (error: any) {
+            alert(error.message || "Failed to delete bucket.");
+        }
+    };
+
     const handleMoveBucket = async (statusValue: string, direction: "left" | "right") => {
         if (!projectId) return;
         const token = devToken || localStorage.getItem("bugscribe_dev_token") || undefined;
@@ -1878,28 +1914,28 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     return (
         <div className="min-h-screen flex flex-col bg-[#09090E]">
             <Navbar />
-            <div className="flex-1 flex flex-col max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex-1 flex flex-col max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-10 py-10">
                 {/* Breadcrumb & Title */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                            <Link href="/" className="hover:text-brand-400 transition-colors flex items-center gap-1">
-                                <ArrowLeft className="w-3 h-3" /> Projects
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
+                            <Link href="/" className="hover:text-brand-400 transition-all flex items-center gap-1.5 group">
+                                <ArrowLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" /> Projects
                             </Link>
-                            <span className="text-slate-700">/</span>
-                            <span className="text-slate-300 truncate max-w-[200px]">{project.name}</span>
+                            <span className="text-slate-800">/</span>
+                            <span className="text-slate-400 truncate max-w-[200px]">{project.name}</span>
                         </div>
-                        <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+                        <h1 className="text-4xl font-black text-white tracking-tight flex items-center gap-4">
                             {project.name}
                             {project.domain && (
                                 <a 
                                     href={project.domain.startsWith('http') ? project.domain : `https://${project.domain}`} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="p-1.5 rounded-lg bg-surface-elevated border border-surface-border text-slate-500 hover:text-brand-400 transition-all hover:border-brand-500/30 group"
+                                    className="p-2 rounded-xl bg-surface-elevated border border-surface-border text-slate-500 hover:text-brand-400 transition-all hover:border-brand-500/30 group shadow-lg"
                                     title="Visit website"
                                 >
-                                    <ExternalLink className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                                    <ExternalLink className="w-4 h-4 group-hover:scale-110 transition-transform" />
                                 </a>
                             )}
                         </h1>
@@ -1907,19 +1943,19 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
                     {/* Stats */}
                     {stats && (
-                        <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
                             {[
-                                { label: "Total", value: stats.total, color: "from-slate-500/20 to-slate-500/5", textColor: "text-white", icon: <Hash className="w-3 h-3" /> },
-                                { label: "Open", value: stats.open, color: "from-blue-500/20 to-blue-500/5", textColor: "text-blue-400", icon: <CircleDot className="w-3 h-3" /> },
-                                { label: "Critical", value: stats.critical, color: "from-red-500/20 to-red-500/5", textColor: "text-red-400", icon: <AlertTriangle className="w-3 h-3" /> },
-                                { label: "Resolved", value: stats.resolved, color: "from-green-500/20 to-green-500/5", textColor: "text-green-400", icon: <CheckCircle2 className="w-3 h-3" /> },
+                                { label: "Total", value: stats.total, color: "from-slate-500/20 to-slate-500/5", textColor: "text-white", icon: <Hash className="w-3.5 h-3.5" /> },
+                                { label: "Open", value: stats.open, color: "from-blue-500/20 to-blue-500/5", textColor: "text-blue-400", icon: <CircleDot className="w-3.5 h-3.5" /> },
+                                { label: "Critical", value: stats.critical, color: "from-red-500/20 to-red-500/5", textColor: "text-red-400", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+                                { label: "Resolved", value: stats.resolved, color: "from-green-500/20 to-green-500/5", textColor: "text-green-400", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
                             ].map((s) => (
-                                <div key={s.label} className={`flex flex-col min-w-[90px] p-2.5 rounded-xl border border-surface-border bg-gradient-to-br ${s.color} backdrop-blur-sm transition-all hover:border-surface-border/80`}>
-                                    <div className="flex items-center gap-1.5 mb-1">
+                                <div key={s.label} className={`flex flex-col min-w-[110px] p-4 rounded-2xl border border-surface-border bg-gradient-to-br ${s.color} backdrop-blur-md transition-all hover:border-surface-border/80 hover:translate-y-[-2px] shadow-xl`}>
+                                    <div className="flex items-center gap-2 mb-2">
                                         <span className={s.textColor}>{s.icon}</span>
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{s.label}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">{s.label}</span>
                                     </div>
-                                    <p className={`text-xl font-bold ${s.textColor} leading-none`}>{s.value}</p>
+                                    <p className={`text-2xl font-black ${s.textColor} leading-none tracking-tight`}>{s.value}</p>
                                 </div>
                             ))}
                         </div>
@@ -1927,27 +1963,27 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 </div>
 
                 {/* Sticky Header Section */}
-                <div className="sticky top-0 z-40 bg-[#09090E]/95 backdrop-blur-2xl border-b border-surface-border/50 -mx-4 px-4 pt-3 lg:-mx-8 lg:px-8 mb-6 shadow-xl shadow-black/20">
+                <div className="sticky top-0 z-40 bg-[#09090E]/95 backdrop-blur-3xl border-b border-surface-border/50 -mx-4 px-4 pt-4 lg:-mx-10 lg:px-10 mb-10 shadow-2xl shadow-black/40">
                     {/* Toolbar */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                        <div className="flex gap-1 p-1 bg-surface-card/50 border border-surface-border rounded-xl w-full md:w-auto">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+                        <div className="flex gap-1.5 p-1.5 bg-surface-card/50 border border-surface-border rounded-2xl w-full md:w-auto shadow-inner">
                             {(["kanban", "list"] as const).map((v) => (
                                 <button
                                     key={v}
                                     onClick={() => setView(v)}
-                                    className={`flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-lg transition-all ${view === v ? "bg-brand-500 text-white shadow-lg shadow-brand-500/20" : "text-slate-400 hover:text-slate-200 hover:bg-surface-elevated"}`}
+                                    className={`flex-1 md:flex-none px-6 py-2.5 text-xs font-bold uppercase tracking-widest rounded-xl transition-all ${view === v ? "bg-brand-500 text-white shadow-xl shadow-brand-500/25" : "text-slate-500 hover:text-slate-200 hover:bg-surface-elevated"}`}
                                 >
-                                    <span className="flex items-center gap-2 justify-center">
-                                        {v === "kanban" ? <KanbanIcon className="w-3.5 h-3.5" /> : <LayoutList className="w-3.5 h-3.5" />}
+                                    <span className="flex items-center gap-2.5 justify-center">
+                                        {v === "kanban" ? <KanbanIcon className="w-4 h-4" /> : <LayoutList className="w-4 h-4" />}
                                         {TAB_LABELS[v]}
                                     </span>
                                 </button>
                             ))}
 
-                            <div className="w-px h-4 bg-surface-border my-auto mx-1 hidden md:block" />
+                            <div className="w-px h-5 bg-surface-border my-auto mx-2 hidden md:block" />
 
                             {/* Admin Sections */}
-                            <div className="flex gap-1">
+                            <div className="flex gap-1.5">
                                 {(["team", "integrations", "settings"] as const).map((v) => {
                                     if (v === "team" && !canManageUsers) return null;
                                     if (v === "integrations" && !canViewApi) return null;
@@ -1956,29 +1992,29 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                         <button
                                             key={v}
                                             onClick={() => setView(v)}
-                                            className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all ${view === v ? "bg-brand-500 text-white shadow-lg shadow-brand-500/20" : "text-slate-500 hover:text-slate-300 hover:bg-surface-elevated"}`}
+                                            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all ${view === v ? "bg-brand-500 text-white shadow-xl shadow-brand-500/25" : "text-slate-500 hover:text-slate-300 hover:bg-surface-elevated"}`}
                                             title={TAB_LABELS[v]}
                                         >
-                                            {v === "team" && <Users className="w-3.5 h-3.5" />}
-                                            {v === "integrations" && <Zap className="w-3.5 h-3.5" />}
-                                            {v === "settings" && <Settings className="w-3.5 h-3.5" />}
+                                            {v === "team" && <Users className="w-4 h-4" />}
+                                            {v === "integrations" && <Zap className="w-4 h-4" />}
+                                            {v === "settings" && <Settings className="w-4 h-4" />}
                                         </button>
                                     );
                                 })}
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 w-full md:w-auto">
-                            <button onClick={() => setShowCreateBugModal(true)} className="flex-1 md:flex-none btn-primary text-xs flex items-center gap-2 px-4 h-10 shadow-lg shadow-brand-500/20">
-                                <Plus className="w-4 h-4" /> New Issue
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                            <button onClick={() => setShowCreateBugModal(true)} className="flex-1 md:flex-none btn-primary text-xs font-bold uppercase tracking-widest flex items-center gap-2.5 px-6 h-12 shadow-xl shadow-brand-500/20">
+                                <Plus className="w-5 h-5" /> New Issue
                             </button>
                             {isProjectAdmin && (
                                 <button
                                     onClick={handleExport}
-                                    className="p-2.5 rounded-xl border border-surface-border bg-surface-card text-slate-400 hover:text-white hover:border-slate-500 transition-all shadow-sm"
+                                    className="p-3 rounded-2xl border border-surface-border bg-surface-card text-slate-400 hover:text-white hover:border-slate-500 transition-all shadow-lg hover:bg-surface-elevated"
                                     title="Export all issues to CSV"
                                 >
-                                    <Download className="w-4 h-4" />
+                                    <Download className="w-5 h-5" />
                                 </button>
                             )}
                         </div>
@@ -1986,25 +2022,25 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
                     {/* Search / Filter bar for list/kanban */}
                     {(view === "kanban" || view === "list") && (
-                        <div className="flex flex-col gap-4 pb-4">
-                            <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+                        <div className="flex flex-col gap-6 pb-6">
+                            <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
                                 <div className="relative flex-1 group">
-                                    <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 group-focus-within:text-brand-400 transition-colors" />
+                                    <Search className="w-5 h-5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-brand-400 transition-colors" />
                                     <input
                                         type="text"
-                                        className="input pl-10 h-10 text-sm w-full bg-surface-card/50 border-surface-border/50 focus:border-brand-500/50 transition-all"
+                                        className="input pl-12 h-12 text-sm w-full bg-surface-card/50 border-surface-border/50 focus:border-brand-500/50 transition-all rounded-2xl shadow-inner"
                                         placeholder="Search by title, URL, or ID..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                     />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1.5 px-3 h-10 bg-surface-card/50 border border-surface-border/50 rounded-xl">
-                                        <CircleDot className="w-3.5 h-3.5 text-slate-500" />
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2 px-4 h-12 bg-surface-card/50 border border-surface-border/50 rounded-2xl shadow-inner">
+                                        <CircleDot className="w-4 h-4 text-slate-500" />
                                         <select
                                             value={statusFilter}
                                             onChange={(e) => setStatusFilter(e.target.value)}
-                                            className="bg-transparent text-xs font-semibold text-slate-300 outline-none w-[100px] cursor-pointer"
+                                            className="bg-transparent text-xs font-bold uppercase tracking-widest text-slate-300 outline-none w-[120px] cursor-pointer"
                                         >
                                             <option value="all">All Status</option>
                                             {kanbanColumns.map((statusCol) => (
@@ -2014,12 +2050,12 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-3 h-10 bg-surface-card/50 border border-surface-border/50 rounded-xl">
-                                        <AlertTriangle className="w-3.5 h-3.5 text-slate-500" />
+                                    <div className="flex items-center gap-2 px-4 h-12 bg-surface-card/50 border border-surface-border/50 rounded-2xl shadow-inner">
+                                        <AlertTriangle className="w-4 h-4 text-slate-500" />
                                         <select
                                             value={priorityFilter}
                                             onChange={(e) => setPriorityFilter(e.target.value)}
-                                            className="bg-transparent text-xs font-semibold text-slate-300 outline-none w-[100px] cursor-pointer"
+                                            className="bg-transparent text-xs font-bold uppercase tracking-widest text-slate-300 outline-none w-[120px] cursor-pointer"
                                         >
                                             <option value="all">All Priority</option>
                                             <option value="low">Low</option>
@@ -2113,6 +2149,8 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                                 onMoveLeft={() => handleMoveBucket(col.status, "left")}
                                                 onMoveRight={() => handleMoveBucket(col.status, "right")}
                                                 isReordering={movingBucketStatus === col.status}
+                                                onDeleteBucket={handleDeleteBucket}
+                                                isSuperAdmin={isSuperAdmin}
                                             />
                                         </div>
                                     ))}

@@ -228,41 +228,123 @@
     #bs-canvas-wrapper {
         position: relative;
         width: 100%;
-        height: 350px;
+        height: 450px;
         margin-bottom: 20px;
         background: #0f1117;
-        border-radius: 8px;
+        border-radius: 12px;
         border: 1px solid #2a2d3e;
-        overflow: auto;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
     #bs-toolbar {
-        position: sticky;
-        top: 8px;
+        position: absolute;
+        top: 16px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(42, 45, 62, 0.95);
-        backdrop-filter: blur(8px);
-        padding: 6px;
-        border-radius: 8px;
+        background: rgba(15, 17, 26, 0.85);
+        backdrop-filter: blur(16px);
+        padding: 6px 10px;
+        border-radius: 99px;
         display: flex;
-        gap: 6px;
+        align-items: center;
+        gap: 8px;
         z-index: 100;
-        border: 1px solid rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.1);
         width: fit-content;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        cursor: grab;
+        user-select: none;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s;
+        overflow: hidden;
     }
+    #bs-toolbar.collapsed {
+        width: 40px;
+        padding: 6px;
+        justify-content: center;
+    }
+    #bs-toolbar.collapsed > *:not(#bs-toggle-toolbar) {
+        display: none !important;
+    }
+    #bs-toggle-toolbar {
+        all: unset;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.05);
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+    #bs-toggle-toolbar:hover {
+        background: rgba(255,255,255,0.15);
+        transform: scale(1.1);
+    }
+    #bs-toggle-toolbar svg {
+        transition: transform 0.3s;
+    }
+    #bs-toolbar.collapsed #bs-toggle-toolbar svg {
+        transform: rotate(180deg);
+    }
+    
+    .bs-color-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.2s;
+    }
+    .bs-color-dot.active { border-color: #fff; transform: scale(1.2); }
+
     .bs-tool {
         all: unset;
         background: transparent;
         color: #94a3b8;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 500;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.15s;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        text-transform: capitalize;
     }
     .bs-tool:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
-    .bs-tool.active { background: #4f5dff; color: #fff; }
+    .bs-tool.active { background: #4f5dff; color: #fff; box-shadow: 0 4px 12px rgba(79,93,255,0.3); }
+
+    .bs-divider {
+        width: 1px;
+        height: 16px;
+        background: rgba(255,255,255,0.1);
+        margin: 0 4px;
+    }
+
+    .bs-action-btn {
+        all: unset;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+    #bs-undo { background: rgba(79,93,255,0.1); color: #818cf8; }
+    #bs-undo:hover { background: rgba(79,93,255,0.2); }
+    #bs-done { background: #22c55e; color: #fff; }
+    #bs-done:hover { background: #16a34a; }
+    #bs-close-canvas { background: #ef4444; color: #fff; padding: 6px; border-radius: 8px; }
+    #bs-close-canvas:hover { background: #dc2626; }
 
     #bs-draw-canvas { 
         display: block; 
@@ -503,80 +585,106 @@
         overlay.id = "bugscribe-modal-overlay";
         overlay.innerHTML = `
             <div id="bugscribe-modal">
-                <header style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div>
-                        <h2 style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:20px;">🐛</span> Report a Bug
+                <div id="bs-step-1" style="display: ${bgImage ? 'block' : 'none'};">
+                    <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h2 style="display:flex; align-items:center; gap:8px; font-size:16px;">
+                            🎨 Annotate Screenshot
                         </h2>
-                        <span style="font-size:10px; color:#818cf8; text-transform:uppercase; font-weight:700; background:rgba(129,140,248,0.1); padding:2px 6px; border-radius:4px; margin-top:4px; display:inline-block;">
-                            Workspace: <span id="bs-project-name-display">${PROJECT_NAME}</span>
+                        <span style="font-size:10px; color:#64748b; font-weight:600; background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:6px;">
+                            ${PROJECT_NAME}
                         </span>
-                    </div>
-                </header>
-                <p class="sub" style="margin-bottom:20px;">Help us fix this. Your report goes straight to the team.</p>
-
-                ${bgImage ? `
-                <div id="bs-canvas-wrapper">
-                    <div id="bs-toolbar">
-                        <button type="button" class="bs-tool active" data-tool="pen">✏️ Pen</button>
-                        <button type="button" class="bs-tool" data-tool="arrow">↗ Arrow</button>
-                        <button type="button" class="bs-tool" data-tool="rect">⬜ Box</button>
-                        <button type="button" class="bs-tool" data-tool="circle">⭕ Circle</button>
-                        <button type="button" class="bs-tool" data-tool="text">T Text</button>
-                        <button type="button" class="bs-tool" data-tool="blur">💧 Blur</button>
-                        <button type="button" class="bs-tool" data-tool="redact">⬛ Redact</button>
-                        <div style="width:1px; background:rgba(255,255,255,0.1); height:16px; margin:0 4px;"></div>
-                        <button type="button" class="bs-tool" id="bs-undo" title="Undo (Ctrl+Z)">↩️ Undo</button>
-                    </div>
-                    <canvas id="bs-draw-canvas"></canvas>
-                </div>` : ""}
-
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
-                    <div>
-                        <label>Bug Title *</label>
-                        <input id="bs-title" type="text" placeholder="What went wrong?" style="margin-bottom:0;" />
-                    </div>
-                    <div>
-                        <label>Bug Type</label>
-                        <select id="bs-type" style="margin-bottom:0;">
-                            <option value="general">General</option>
-                            <option value="ui_ux">UI/UX</option>
-                            <option value="performance">Performance</option>
-                            <option value="security">Security</option>
-                            <option value="crash">Crash</option>
-                            <option value="network">Network</option>
-                        </select>
+                    </header>
+                    
+                    <div id="bs-canvas-wrapper">
+                        <div id="bs-toolbar">
+                            <button type="button" id="bs-toggle-toolbar" title="Toggle toolbar">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M15 18l-6-6 6-6"/>
+                                </svg>
+                            </button>
+                            <div style="display:flex; gap:6px; padding:0 4px;">
+                                <div class="bs-color-dot active" style="background:#ef4444;" data-color="#ef4444"></div>
+                                <div class="bs-color-dot" style="background:#f59e0b;" data-color="#f59e0b"></div>
+                                <div class="bs-color-dot" style="background:#10b981;" data-color="#10b981"></div>
+                                <div class="bs-color-dot" style="background:#3b82f6;" data-color="#3b82f6"></div>
+                                <div class="bs-color-dot" style="background:#ffffff;" data-color="#ffffff"></div>
+                            </div>
+                            <div class="bs-divider"></div>
+                            <button type="button" class="bs-tool active" data-tool="pen">✏️ Pen</button>
+                            <button type="button" class="bs-tool" data-tool="arrow">↗ Arrow</button>
+                            <button type="button" class="bs-tool" data-tool="rect">⬜ Box</button>
+                            <button type="button" class="bs-tool" data-tool="circle">⭕ Circle</button>
+                            <button type="button" class="bs-tool" data-tool="blur">💧 Blur</button>
+                            <button type="button" class="bs-tool" data-tool="text">T Text</button>
+                            <div class="bs-divider"></div>
+                            <button type="button" class="bs-action-btn" id="bs-undo">↩️ Undo</button>
+                            <button type="button" class="bs-action-btn" id="bs-done">✅ Done</button>
+                            <button type="button" id="bs-close-canvas" title="Close editor">✕</button>
+                        </div>
+                        <canvas id="bs-draw-canvas"></canvas>
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
-                    <div>
-                        <label>Priority</label>
-                        <select id="bs-priority" style="margin-bottom:0;">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Your Name</label>
-                        <input id="bs-reporter-name" type="text" placeholder="John Doe" style="margin-bottom:0;" />
-                    </div>
-                </div>
-                <label>Description</label>
-                <textarea id="bs-desc" placeholder="Steps to reproduce..." style="min-height:70px;"></textarea>
+                <div id="bs-step-2" style="display: ${bgImage ? 'none' : 'block'};">
+                    <header style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        <div>
+                            <h2 style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:20px;">🐛</span> Report a Bug
+                            </h2>
+                            <span style="font-size:10px; color:#818cf8; text-transform:uppercase; font-weight:700; background:rgba(129,140,248,0.1); padding:2px 6px; border-radius:4px; margin-top:4px; display:inline-block;">
+                                Workspace: <span id="bs-project-name-display">${PROJECT_NAME}</span>
+                            </span>
+                        </div>
+                    </header>
+                    <p class="sub" style="margin-bottom:20px;">Help us fix this. Your report goes straight to the team.</p>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:0px;">
-                    <div>
-                        <label>Your Email</label>
-                        <input id="bs-reporter-email" type="email" placeholder="john@example.com" />
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+                        <div>
+                            <label>Bug Title *</label>
+                            <input id="bs-title" type="text" placeholder="What went wrong?" style="margin-bottom:0;" />
+                        </div>
+                        <div>
+                            <label>Bug Type</label>
+                            <select id="bs-type" style="margin-bottom:0;">
+                                <option value="general">General</option>
+                                <option value="ui_ux">UI/UX</option>
+                                <option value="performance">Performance</option>
+                                <option value="security">Security</option>
+                                <option value="crash">Crash</option>
+                                <option value="network">Network</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
 
-                <div id="bugscribe-actions">
-                    <button id="bs-submit" class="bs-primary-btn">Submit Report</button>
-                    <button id="bs-cancel" class="bs-secondary-btn">Cancel</button>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+                        <div>
+                            <label>Priority</label>
+                            <select id="bs-priority" style="margin-bottom:0;">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Your Name</label>
+                            <input id="bs-reporter-name" type="text" placeholder="John Doe" style="margin-bottom:0;" />
+                        </div>
+                    </div>
+                    <label>Description</label>
+                    <textarea id="bs-desc" placeholder="Steps to reproduce..." style="min-height:70px;"></textarea>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:0px;">
+                        <div>
+                            <label>Your Email</label>
+                            <input id="bs-reporter-email" type="email" placeholder="john@example.com" />
+                        </div>
+                    </div>
+
+                    <div id="bugscribe-actions">
+                        <button id="bs-submit" class="bs-primary-btn">Submit Report</button>
+                        <button id="bs-cancel" class="bs-secondary-btn">Cancel</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -591,47 +699,62 @@
     function initCanvas() {
         const canvas = document.getElementById("bs-draw-canvas");
         const ctx = canvas.getContext("2d");
+        const toolbar = document.getElementById("bs-toolbar");
 
         canvas.width = bgImage.width;
         canvas.height = bgImage.height;
         ctx.drawImage(bgImage, 0, 0);
 
-        // Auto-draw the selection marker if available
+        // --- Draggable Toolbar ---
+        let isDragging = false, dragX, dragY;
+        toolbar.onmousedown = (e) => {
+            if (e.target.closest("button") || e.target.closest(".bs-color-dot")) return;
+            isDragging = true;
+            dragX = e.clientX - toolbar.offsetLeft;
+            dragY = e.clientY - toolbar.offsetTop;
+        };
+        window.onmousemove = (e) => {
+            if (!isDragging) return;
+            toolbar.style.left = (e.clientX - dragX) + "px";
+            toolbar.style.top = (e.clientY - dragY) + "px";
+            toolbar.style.transform = "none";
+        };
+        window.onmouseup = () => isDragging = false;
+
+        // --- Toggle Toolbar ---
+        const toggleBtn = document.getElementById("bs-toggle-toolbar");
+        toggleBtn.onclick = (e) => {
+            e.stopPropagation();
+            toolbar.classList.toggle("collapsed");
+        };
+
+        // Auto-draw selection marker...
         if (selectionCoords) {
             ctx.save();
-            const r = canvas.getBoundingClientRect();
             const scaleX = canvas.width / window.innerWidth;
             const scaleY = canvas.height / window.innerHeight;
-
             if (selectedElement) {
                 const rect = selectedElement.getBoundingClientRect();
-                ctx.strokeStyle = "#ef4444";
-                ctx.lineWidth = 5;
+                ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 5;
                 ctx.strokeRect(rect.left * scaleX, rect.top * scaleY, rect.width * scaleX, rect.height * scaleY);
                 ctx.fillStyle = "rgba(239, 68, 68, 0.1)";
                 ctx.fillRect(rect.left * scaleX, rect.top * scaleY, rect.width * scaleX, rect.height * scaleY);
             } else {
-                // Pulse marker for generic coordinates
-                ctx.beginPath();
-                ctx.arc(selectionCoords.x * scaleX, selectionCoords.y * scaleY, 20, 0, Math.PI * 2);
-                ctx.strokeStyle = "#ef4444";
-                ctx.lineWidth = 5;
-                ctx.stroke();
-                ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(selectionCoords.x * scaleX, selectionCoords.y * scaleY, 20, 0, Math.PI * 2);
+                ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 5; ctx.stroke();
+                ctx.fillStyle = "rgba(239, 68, 68, 0.2)"; ctx.fill();
             }
             ctx.restore();
         }
 
-        let drawing = false, mode = "pen", startX, startY, snapshot;
+        let drawing = false, mode = "pen", color = "#ef4444", startX, startY, snapshot;
         const undoStack = [];
 
         const saveState = () => {
             if (undoStack.length >= 20) undoStack.shift();
             undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
         };
-
-        saveState(); // Initial state
+        saveState();
 
         document.getElementById("bs-undo").onclick = (e) => {
             e.stopPropagation();
@@ -640,6 +763,29 @@
                 ctx.putImageData(undoStack[undoStack.length - 1], 0, 0);
             }
         };
+
+        document.getElementById("bs-done").onclick = (e) => {
+            e.stopPropagation();
+            document.getElementById("bs-step-1").style.display = "none";
+            document.getElementById("bs-step-2").style.display = "block";
+        };
+
+        document.getElementById("bs-close-canvas").onclick = (e) => {
+            e.stopPropagation();
+            if (confirm("Remove screenshot and go back to form?")) {
+                bgImage = null;
+                document.getElementById("bs-step-1").style.display = "none";
+                document.getElementById("bs-step-2").style.display = "block";
+            }
+        };
+
+        document.querySelectorAll(".bs-color-dot").forEach(dot => {
+            dot.onclick = () => {
+                document.querySelectorAll(".bs-color-dot").forEach(d => d.classList.remove("active"));
+                dot.classList.add("active");
+                color = dot.dataset.color;
+            };
+        });
 
         document.querySelectorAll(".bs-tool[data-tool]").forEach(t => {
             t.onclick = () => {
@@ -660,11 +806,10 @@
             };
         };
 
-        /** Draw filled-head arrow on ctx from (x1,y1) to (x2,y2) */
         const drawArrow = (x1, y1, x2, y2) => {
             const headLen = 20;
             const angle = Math.atan2(y2 - y1, x2 - x1);
-            ctx.strokeStyle = "#ef4444"; ctx.fillStyle = "#ef4444";
+            ctx.strokeStyle = color; ctx.fillStyle = color;
             ctx.lineWidth = 5; ctx.lineCap = "round";
             ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
             ctx.beginPath();
@@ -676,14 +821,14 @@
 
         const start = (e) => {
             if (e.target.closest("#bs-toolbar")) return;
-            if (mode === "text") return; // handled via click
+            if (mode === "text") return;
             const pos = getPos(e);
             drawing = true;
             startX = pos.x; startY = pos.y;
             snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
             if (mode === "pen") {
                 ctx.beginPath(); ctx.moveTo(startX, startY);
-                ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 5;
+                ctx.strokeStyle = color; ctx.lineWidth = 5;
                 ctx.lineCap = "round"; ctx.lineJoin = "round";
             }
         };
@@ -695,24 +840,14 @@
             if (mode === "pen") {
                 ctx.lineTo(pos.x, pos.y); ctx.stroke();
             } else {
-                ctx.putImageData(snapshot, 0, 0); // restore for live preview
-                if (mode === "arrow") {
-                    drawArrow(startX, startY, pos.x, pos.y);
-                } else if (mode === "rect") {
-                    ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 5;
-                    ctx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
-                } else if (mode === "circle") {
-                    const rx = Math.abs(pos.x - startX) / 2;
-                    const ry = Math.abs(pos.y - startY) / 2;
-                    const cx = startX + (pos.x - startX) / 2;
-                    const cy = startY + (pos.y - startY) / 2;
-                    ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 5;
-                    ctx.beginPath();
-                    ctx.ellipse(cx, cy, Math.max(rx, 1), Math.max(ry, 1), 0, 0, 2 * Math.PI);
-                    ctx.stroke();
-                } else if (mode === "redact") {
-                    ctx.fillStyle = "#000";
-                    ctx.fillRect(startX, startY, pos.x - startX, pos.y - startY);
+                ctx.putImageData(snapshot, 0, 0);
+                ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 5;
+                if (mode === "arrow") drawArrow(startX, startY, pos.x, pos.y);
+                else if (mode === "rect") ctx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
+                else if (mode === "circle") {
+                    const rx = Math.abs(pos.x - startX) / 2, ry = Math.abs(pos.y - startY) / 2;
+                    const cx = startX + (pos.x - startX) / 2, cy = startY + (pos.y - startY) / 2;
+                    ctx.beginPath(); ctx.ellipse(cx, cy, Math.max(rx, 1), Math.max(ry, 1), 0, 0, 2 * Math.PI); ctx.stroke();
                 } else if (mode === "blur") {
                     ctx.filter = "blur(15px)";
                     ctx.drawImage(canvas, startX, startY, pos.x - startX, pos.y - startY, startX, startY, pos.x - startX, pos.y - startY);
@@ -721,36 +856,28 @@
             }
         };
 
-        const stop = () => {
-            if (drawing) { drawing = false; saveState(); }
-        };
+        const stop = () => { if (drawing) { drawing = false; saveState(); } };
 
-        // Text tool – click to place
         canvas.addEventListener("click", (e) => {
             if (mode !== "text") return;
             const text = prompt("Enter annotation text:");
             if (!text) return;
             saveState();
             const pos = getPos(e);
-            ctx.font      = "bold 20px Inter, system-ui, sans-serif";
-            ctx.fillStyle = "#ef4444";
-            ctx.strokeStyle = "rgba(0,0,0,0.5)";
-            ctx.lineWidth   = 3;
-            ctx.strokeText(text, pos.x, pos.y);
-            ctx.fillText(text, pos.x, pos.y);
+            ctx.font = "bold 20px Inter, system-ui, sans-serif";
+            ctx.fillStyle = color;
+            ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 3;
+            ctx.strokeText(text, pos.x, pos.y); ctx.fillText(text, pos.x, pos.y);
             saveState();
         });
 
         canvas.addEventListener("mousedown", start);
         canvas.addEventListener("touchstart", start, { passive: false });
-
         window.addEventListener("mousemove", move, { passive: false });
         window.addEventListener("touchmove", move, { passive: false });
-
         window.addEventListener("mouseup", stop);
         window.addEventListener("touchend", stop);
 
-        // Cleanup on modal close
         const observer = new MutationObserver(() => {
             if (!document.getElementById("bugscribe-modal")) {
                 window.removeEventListener("mousemove", move);
