@@ -35,7 +35,7 @@ async function getDetailedAnalysis(url: string) {
                 h1: document.querySelector('h1')?.textContent?.trim() || '',
                 navLinks: Array.from(document.querySelectorAll('nav a, header a')).map(a => a.textContent?.trim()).filter(Boolean).slice(0, 10),
                 dropdowns: Array.from(document.querySelectorAll('select')).map(select => ({
-                    label: getLabels(select)[0] || select.name || select.placeholder || 'Filter',
+                    label: getLabels(select)[0] || select.name || (select as any).placeholder || 'Filter',
                     options: Array.from(select.options).map(o => o.text.trim()).filter(t => t && !t.toLowerCase().includes('select')).slice(0, 5)
                 })),
                 buttons: Array.from(document.querySelectorAll('button, input[type="submit"], input[type="button"]'))
