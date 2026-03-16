@@ -146,7 +146,7 @@ export const loginUser = mutation({
         }
 
         // Check if deactivated
-        if (existing?.isDeactivated) {
+        if (existing && (existing as any).isDeactivated) {
             throw new Error("This account has been deactivated. Please contact support.");
         }
 
@@ -366,41 +366,7 @@ export const deleteUser = mutation({
     },
 });
 
-/**
- * Super Admin tool: Deactivate/Reactivate a user account
- */
-export const toggleUserDeactivation = mutation({
-    args: {
-        email: v.string(),
-        deactivate: v.boolean(),
-        devToken: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-        const identity = await getEffectiveIdentity(ctx, args.devToken);
-        if (!identity) throw new Error("Unauthenticated");
 
-        const requester = await ctx.db
-            .query("users")
-            .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
-            .unique();
-
-        if (!requester || requester.role !== "super_admin") {
-            throw new Error("Unauthorized: Only super admins can deactivated users");
-        }
-
-        const targetUser = await ctx.db
-            .query("users")
-            .withIndex("by_email", (q) => q.eq("email", args.email))
-            .unique();
-
-        if (!targetUser) throw new Error("User not found");
-        if (targetUser.role === "super_admin" && args.deactivate) {
-            throw new Error("Cannot deactivate a Super Admin");
-        }
-
-        await ctx.db.patch(targetUser._id, { isDeactivated: args.deactivate });
-    },
-});
 
 
 

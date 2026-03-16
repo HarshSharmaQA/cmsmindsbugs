@@ -22,7 +22,7 @@ export default function UserDirectoryPage() {
     const allUsers = useQuery(api.admin.getStats, { devToken: devToken || undefined })?.recentUsers || [];
     const deleteUser = useMutation(api.users.deleteUser);
     const setPassword = useMutation(api.users.setUserPassword);
-    const toggleDeactivation = useMutation(api.users.toggleUserDeactivation);
+    const toggleDeactivation = useMutation(api.admin.toggleUserDeactivation);
 
     const filteredUsers = allUsers.filter((u: any) => 
         u.email.toLowerCase().includes(search.toLowerCase()) || 
