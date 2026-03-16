@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navbar } from "@/components/Navbar";
 import { useState, useEffect } from "react";
@@ -20,11 +20,38 @@ export default function UserDirectoryPage() {
     const userResult = useQuery(api.users.currentUser, { devToken: devToken || undefined });
     const isSuperAdmin = userResult?.role === "super_admin";
     const allUsers = useQuery(api.admin.getStats, { devToken: devToken || undefined })?.recentUsers || [];
+    const deleteUser = useMutation(api.users.deleteUser);
+    const setPassword = useMutation(api.users.setUserPassword);
 
     const filteredUsers = allUsers.filter((u: any) => 
         u.email.toLowerCase().includes(search.toLowerCase()) || 
         (u.name && u.name.toLowerCase().includes(search.toLowerCase()))
     );
+
+    const handleDelete = async (email: string) => {
+        if (!window.confirm(`Are you sure you want to permanently delete user ${email}? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            await deleteUser({ email, devToken: devToken || undefined });
+            alert("User deleted successfully.");
+        } catch (err: any) {
+            alert(err.message || "Failed to delete user.");
+        }
+    };
+
+    const handleSetPassword = async (email: string) => {
+        const newPassword = window.prompt(`Enter new password for ${email}:`);
+        if (!newPassword) return;
+
+        try {
+            await setPassword({ email, password: newPassword, devToken: devToken || undefined });
+            alert("Password updated successfully.");
+        } catch (err: any) {
+            alert(err.message || "Failed to update password.");
+        }
+    };
 
     const handleExport = () => {
         const headers = ["Name", "Email", "Role", "Created"];
@@ -144,10 +171,18 @@ export default function UserDirectoryPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-brand-400 hover:bg-brand-400/10 transition-all shadow-sm" title="Change Password">
+                                                <button 
+                                                    onClick={() => handleSetPassword(user.email)}
+                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-brand-400 hover:bg-brand-400/10 transition-all shadow-sm" 
+                                                    title="Set New Password"
+                                                >
                                                     <Key className="w-4 h-4" />
                                                 </button>
-                                                <button className="p-2 rounded-lg bg-red-500/5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all shadow-sm" title="Deactivate">
+                                                <button 
+                                                    onClick={() => handleDelete(user.email)}
+                                                    className="p-2 rounded-lg bg-red-500/5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all shadow-sm" 
+                                                    title="Permanently Delete User"
+                                                >
                                                     <UserMinus className="w-4 h-4" />
                                                 </button>
                                             </div>

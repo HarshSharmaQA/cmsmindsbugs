@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navbar } from "@/components/Navbar";
 import { useState, useEffect } from "react";
-import { Map as MapIcon, Users, Layout, Bug, ShieldAlert, BarChart3, Clock, ArrowLeft, Key, FileText, ChevronRight, CalendarDays, AlertCircle, Menu } from "lucide-react";
+import { Map as MapIcon, Users, Layout, Bug, ShieldAlert, BarChart3, Clock, ArrowLeft, Key, FileText, ChevronRight, CalendarDays, AlertCircle, Menu, Download } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
@@ -233,6 +233,19 @@ function AdminDashboardContent() {
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 transition-colors" />
                     </Link>
+                    <a href="/bugscribe-extension-v2.zip" download className="card p-5 flex items-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group">
+                        <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 group-hover:bg-orange-500/20 transition-all">
+                            <Download className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-white font-semibold text-sm flex items-center gap-1.5">
+                                Browser Extension
+                                <span className="text-[8px] bg-orange-500/20 text-orange-400 px-1 py-0.5 rounded leading-none">V2.0</span>
+                            </p>
+                            <p className="text-slate-500 text-xs mt-0.5">Download & load unpacked in Chrome</p>
+                        </div>
+                        <Download className="w-4 h-4 text-slate-600 group-hover:text-orange-400 transition-colors" />
+                    </a>
                 </div>
 
                 {/* Stat Grid */}
