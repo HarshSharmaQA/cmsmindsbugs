@@ -16,6 +16,45 @@
         return;
     }
 
+    // Check for highlight parameter in URL
+    window.addEventListener("load", () => {
+        const hash = window.location.hash;
+        if (hash.startsWith("#bugscribe-highlight=")) {
+            const coords = hash.replace("#bugscribe-highlight=", "").split(",");
+            if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                const x = parseInt(coords[0], 10);
+                const y = parseInt(coords[1], 10);
+                window.scrollTo({ left: x, top: y, behavior: "smooth" });
+                
+                // Add a visual highlight overlay briefly
+                const highlight = document.createElement("div");
+                highlight.style.position = "absolute";
+                highlight.style.left = "0";
+                highlight.style.top = `${y}px`;
+                highlight.style.width = "100%";
+                highlight.style.height = `${window.innerHeight}px`;
+                highlight.style.boxShadow = "inset 0 0 0 8px rgba(239, 68, 68, 0.8), inset 0 0 40px rgba(239, 68, 68, 0.4)";
+                highlight.style.pointerEvents = "none";
+                highlight.style.zIndex = "2147483647";
+                highlight.style.transition = "opacity 1s ease-out";
+                highlight.style.background = "rgba(239, 68, 68, 0.1)";
+                
+                // Draw a targeting reticle in the center
+                highlight.innerHTML = `
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100px; height: 100px; border: 4px dashed rgba(239, 68, 68, 0.9); border-radius: 50%; animation: pulse 2s infinite;"></div>
+                    <style>@keyframes pulse { 0% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; } 50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; } 100% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; } }</style>
+                `;
+                
+                document.body.appendChild(highlight);
+                
+                setTimeout(() => {
+                    highlight.style.opacity = "0";
+                    setTimeout(() => highlight.remove(), 1000);
+                }, 3000);
+            }
+        }
+    });
+
     // Initialize: Fetch fresh project info from Convex
     (async function init() {
         try {
@@ -585,6 +624,8 @@
                 url: window.location.href,
                 screenWidth: window.innerWidth,
                 screenHeight: window.innerHeight,
+                scrollX: window.scrollX,
+                scrollY: window.scrollY,
                 consoleErrors: capturedErrors
             });
 

@@ -270,7 +270,8 @@
   }
 
   /* Option list — controls the dropdown popup */
-  select option {
+  select option,
+  select optgroup {
     background-color: #111118 !important;
     color: #E8EAF0 !important;
   }

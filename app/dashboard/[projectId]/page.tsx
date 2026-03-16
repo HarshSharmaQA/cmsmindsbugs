@@ -14,7 +14,7 @@ import {
     Globe, Settings, Key, Eye, EyeOff, Shield, Zap,
     MessageSquare, Bug, Image as ImageIcon, Video, LayoutList,
     Kanban as KanbanIcon, X, Activity, Hash, Download,
-    Book, Info, HelpCircle, AlertCircle, Edit2
+    Book, Info, HelpCircle, AlertCircle, Edit2, Target
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { formatDistanceToNow } from "date-fns";
@@ -22,10 +22,11 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 
 export const dynamic = 'force-dynamic';
 
-type Status = "open" | "in_progress" | "resolved" | "closed";
+// Statuses are now dynamic
+type Status = string;
 type Priority = "low" | "medium" | "high" | "critical";
 
-const COLUMNS: { status: Status; label: string; icon: React.ReactNode; color: string }[] = [
+const DEFAULT_COLUMNS = [
     { status: "open", label: "New Issues", icon: <CircleDot className="w-4 h-4" />, color: "text-blue-400" },
     { status: "in_progress", label: "In Progress", icon: <AlertTriangle className="w-4 h-4" />, color: "text-amber-400" },
     { status: "resolved", label: "Resolved", icon: <CheckCircle2 className="w-4 h-4" />, color: "text-green-400" },
@@ -62,19 +63,26 @@ function PriorityBadge({ priority }: { priority: Priority }) {
     );
 }
 
-function StatusBadge({ status }: { status: Status }) {
-    const map: Record<Status, string> = {
-        open: "bg-blue-900/50 text-blue-300 border border-blue-800",
-        in_progress: "bg-amber-900/50 text-amber-300 border border-amber-800",
-        resolved: "bg-green-900/50 text-green-300 border border-green-800",
-        closed: "bg-slate-800 text-slate-400 border border-slate-700",
+function StatusBadge({ status, projectStatuses }: { status: Status; projectStatuses?: any[] }) {
+    const s = projectStatuses?.find(ps => ps.value === status) || DEFAULT_COLUMNS.find(c => c.status === status) || { label: status, color: "text-slate-400" };
+
+    const colorMap: Record<string, string> = {
+        "text-blue-400": "bg-blue-900/50 text-blue-300 border border-blue-800",
+        "text-amber-400": "bg-amber-900/50 text-amber-300 border border-amber-800",
+        "text-green-400": "bg-green-900/50 text-green-300 border border-green-800",
+        "text-slate-500": "bg-slate-800 text-slate-400 border border-slate-700",
+        "text-red-400": "bg-red-900/50 text-red-300 border border-red-800",
+        "text-indigo-400": "bg-indigo-900/50 text-indigo-300 border border-indigo-800",
+        "text-purple-400": "bg-purple-900/50 text-purple-300 border border-purple-800",
+        "text-pink-400": "bg-pink-900/50 text-pink-300 border border-pink-800",
+        "text-cyan-400": "bg-cyan-900/50 text-cyan-300 border border-cyan-800",
     };
-    const label: Record<Status, string> = {
-        open: "Open", in_progress: "In Progress", resolved: "Resolved", closed: "Closed",
-    };
+
+    const badgeClass = colorMap[s.color] || "bg-slate-800 text-slate-400 border border-slate-700";
+
     return (
-        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${map[status]}`}>
-            {label[status]}
+        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badgeClass}`}>
+            {s.label || status}
         </span>
     );
 }
@@ -112,8 +120,8 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect }: {
                         }`}
                 >
                     {/* Column Header */}
-                    <div className={`flex items-center gap-2 px-4 py-3 border-b border-surface-border ${color}`}>
-                        {icon}
+                    <div className={`flex items-center gap-2 px-4 py-3 border-b border-surface-border ${color} sticky top-[130px] md:top-[146px] lg:top-[154px] z-30 bg-[#111118]/95 backdrop-blur-2xl rounded-t-xl group-hover:bg-[#16161F]`}>
+                        {icon || <CircleDot className="w-4 h-4" />}
                         <span className="text-sm font-semibold">{label}</span>
                         <span className="ml-auto bg-surface-border text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                             {bugs.length}
@@ -135,27 +143,50 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect }: {
                                             }`}
                                     >
                                         {bug.screenshotUrl && bug.mediaType !== "video" && (
-                                            <div className="w-full h-32 border-b border-surface-border bg-slate-900/50 relative overflow-hidden shrink-0">
+                                            <div className="w-full h-40 border-b border-surface-border bg-slate-900/50 relative overflow-hidden shrink-0 group-hover:h-48 transition-all duration-300">
                                                 <img
                                                     src={bug.screenshotUrl}
                                                     alt={bug.title}
-                                                    className="w-full h-full object-cover object-top opacity-80 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-300"
+                                                    className="w-full h-full object-cover object-top opacity-90 group-hover:opacity-100 transition-opacity"
                                                 />
                                             </div>
                                         )}
                                         <div className="p-3 relative flex-1 flex flex-col">
                                             <div
                                                 {...provided.dragHandleProps}
-                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-white p-1 bg-surface-elevated/80 rounded backdrop-blur-sm"
+                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-white p-1 bg-surface-elevated/80 rounded backdrop-blur-sm z-50 mb-1"
+                                                title="Drag to move"
                                             >
                                                 <GripVertical className="w-3.5 h-3.5" />
                                             </div>
-                                            <div className="flex items-start gap-2 mb-2 pr-6">
+                                            {bug.url && bug.url !== "Unknown" && (
+                                                <button
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        let exactUrl = bug.url;
+                                                        if (bug.scrollX !== undefined && bug.scrollY !== undefined) {
+                                                            const separator = exactUrl.includes('#') ? '&' : '#';
+                                                            exactUrl = `${exactUrl}${separator}bugscribe-highlight=${bug.scrollX},${bug.scrollY}`;
+                                                        }
+                                                        window.open(exactUrl, '_blank');
+                                                    }}
+                                                    className="absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity text-brand-400 hover:text-brand-300 p-1 bg-surface-elevated/80 rounded backdrop-blur-sm z-50"
+                                                    title="Locate bug on page"
+                                                >
+                                                    <Target className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                            <div className="flex items-start gap-2 mb-2 pr-12">
                                                 <Bug className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
                                                 <p className="text-sm font-medium text-white leading-tight line-clamp-2">{bug.title}</p>
                                             </div>
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 <PriorityBadge priority={bug.priority} />
+                                                {bug.type && bug.type !== "general" && (
+                                                    <span className="inline-flex items-center gap-0.5 text-[10px] text-brand-300 bg-brand-900/30 border border-brand-800/50 px-1.5 py-0.5 rounded font-medium capitalize">
+                                                        {bug.type.replace(/-/g, ' ')}
+                                                    </span>
+                                                )}
                                                 {bug.screenshotUrl && bug.mediaType === "video" && (
                                                     <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 bg-surface-border px-1.5 py-0.5 rounded font-medium">
                                                         <Video className="w-3 h-3" /> Video
@@ -244,7 +275,7 @@ function ListView({ bugs, onSelect }: { bugs: any[]; onSelect: (id: Id<"bugs">) 
                                 </div>
                             </td>
                             <td className="px-4 py-3 hidden md:table-cell">
-                                <StatusBadge status={bug.status} />
+                                <StatusBadge status={bug.status} projectStatuses={[]} />
                             </td>
                             <td className="px-4 py-3 hidden sm:table-cell">
                                 <PriorityBadge priority={bug.priority} />
@@ -262,17 +293,36 @@ function ListView({ bugs, onSelect }: { bugs: any[]; onSelect: (id: Id<"bugs">) 
                                 {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
                             </td>
                             <td className="px-4 py-3">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        const href = typeof window !== "undefined" ? `${window.location.origin}/dashboard/${bug.projectId}?bugId=${bug._id}` : "";
-                                        if (href) navigator.clipboard.writeText(href);
-                                    }}
-                                    className="p-1.5 rounded hover:bg-surface-elevated transition-colors"
-                                    title="Copy shareable link"
-                                >
-                                    <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-colors" />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                    {bug.url && bug.url !== "Unknown" && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                let exactUrl = bug.url;
+                                                if (bug.scrollX !== undefined && bug.scrollY !== undefined) {
+                                                    const separator = exactUrl.includes('#') ? '&' : '#';
+                                                    exactUrl = `${exactUrl}${separator}bugscribe-highlight=${bug.scrollX},${bug.scrollY}`;
+                                                }
+                                                window.open(exactUrl, '_blank');
+                                            }}
+                                            className="p-1.5 rounded hover:bg-surface-elevated transition-colors"
+                                            title="Locate bug on page"
+                                        >
+                                            <Target className="w-3.5 h-3.5 text-brand-400 hover:text-brand-300 transition-colors" />
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const href = typeof window !== "undefined" ? `${window.location.origin}/dashboard/${bug.projectId}?bugId=${bug._id}` : "";
+                                            if (href) navigator.clipboard.writeText(href);
+                                        }}
+                                        className="p-1.5 rounded hover:bg-surface-elevated transition-colors"
+                                        title="Copy shareable link"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-colors" />
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     ))}
@@ -645,10 +695,14 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
 
     const bug = useQuery(api.bugs.getBug, { bugId, devToken: token });
     const activities = useQuery(api.activities.getActivities, { bugId, devToken: token });
+    const customModules = useQuery(api.modules.listModules, { devToken: token || undefined });
+    const currentUser = useQuery(api.users.currentUser, { devToken: token || undefined });
     const addComment = useMutation(api.comments.addComment);
     const deleteBug = useMutation(api.bugs.deleteBug);
     const updatePriority = useMutation(api.bugs.updatePriority);
     const updateBug = useMutation(api.bugs.updateBug);
+
+    const isSuperAdmin = currentUser?.role === "super_admin";
 
     const [comment, setComment] = useState("");
     const [posting, setPosting] = useState(false);
@@ -666,6 +720,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
     const [savingType, setSavingType] = useState(false);
     const [bugCategory, setBugCategory] = useState("");
     const [savingCategory, setSavingCategory] = useState(false);
+    const [showQuickAddType, setShowQuickAddType] = useState(false);
 
     // Sync local state when bug loads
     useEffect(() => {
@@ -757,7 +812,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
         } catch (err: any) { alert(err.message); } finally { setSavingCategory(false); }
     };
 
-    return (
+    return (<>
         <div className="fixed inset-0 z-50 flex">
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -858,16 +913,37 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                     {/* Categorization & Assignment */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Type</label>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <label className="text-[10px] text-slate-500 uppercase tracking-wider">Type</label>
+                                                {isSuperAdmin && canUpdate && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowQuickAddType(true)}
+                                                        className="inline-flex items-center gap-1 text-[10px] text-brand-400 hover:text-brand-300 transition-colors font-medium"
+                                                        title="Add new module type"
+                                                    >
+                                                        <Plus className="w-2.5 h-2.5" /> New Type
+                                                    </button>
+                                                )}
+                                            </div>
                                             <select
                                                 value={bugType}
                                                 onChange={(e) => handleTypeChange(e.target.value)}
                                                 className="input text-xs h-8 w-full"
                                                 disabled={!canUpdate || savingType}
                                             >
-                                                {BUG_TYPES.map(t => (
-                                                    <option key={t.value} value={t.value}>{t.label}</option>
-                                                ))}
+                                                <optgroup label="Bug Types">
+                                                    {BUG_TYPES.map(t => (
+                                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                                    ))}
+                                                </optgroup>
+                                                {customModules && customModules.length > 0 && (
+                                                    <optgroup label="Dashboard Modules">
+                                                        {customModules.map((mod: any) => (
+                                                            <option key={mod.slug} value={mod.slug}>{mod.name}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                )}
                                             </select>
                                         </div>
                                         <div>
@@ -959,7 +1035,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                             <div className="flex items-start gap-2 text-xs">
                                                 <Globe className="w-3 h-3 text-slate-600 mt-0.5 shrink-0" />
                                                 <span className="text-slate-500 w-16 shrink-0">Page</span>
-                                                <a href={bug.url} target="_blank" rel="noopener noreferrer"
+                                                <a href={bug.scrollX !== undefined && bug.scrollY !== undefined ? `${bug.url}${bug.url.includes('#') ? '&' : '#'}bugscribe-highlight=${bug.scrollX},${bug.scrollY}` : bug.url} target="_blank" rel="noopener noreferrer"
                                                     className="text-brand-400 hover:underline truncate flex-1" title={bug.url}>
                                                     {bug.url.replace(/^https?:\/\//, "").substring(0, 50)}
                                                 </a>
@@ -1162,27 +1238,125 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                 )}
             </div>
         </div>
+        {showQuickAddType && (
+            <QuickAddModuleModal
+                devToken={devToken}
+                onClose={() => setShowQuickAddType(false)}
+                onCreated={(slug) => {
+                    handleTypeChange(slug);
+                    setShowQuickAddType(false);
+                }}
+            />
+        )}
+    </>);
+}
+
+// ─── Quick Add Module Modal ───────────────────────────────────────────────────
+
+function QuickAddModuleModal({ devToken, onClose, onCreated }: {
+    devToken: string | null; onClose: () => void; onCreated: (slug: string) => void;
+}) {
+    const addModule = useMutation(api.modules.addModule);
+    const modules = useQuery(api.modules.listModules, { devToken: devToken || undefined });
+    const [name, setName] = useState("");
+    const [saving, setSaving] = useState(false);
+
+    const handleCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim()) return;
+        const slug = name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+        setSaving(true);
+        try {
+            await addModule({
+                name: name.trim(),
+                slug,
+                icon: "LayoutList",
+                order: (modules?.length ?? 0),
+                devToken: devToken || undefined,
+            });
+            onCreated(slug);
+        } catch (err: any) {
+            alert(err.message || "Failed to create module");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative w-full max-w-sm bg-surface-card border border-surface-border rounded-xl shadow-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                    <Plus className="w-4 h-4 text-brand-400" />
+                    <h3 className="text-sm font-semibold text-white">New Module Type</h3>
+                    <button onClick={onClose} className="ml-auto btn-ghost p-1 text-slate-500">
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+                <form onSubmit={handleCreate} className="space-y-3">
+                    <div>
+                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">Module Name</label>
+                        <input
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="input w-full text-sm h-9"
+                            placeholder="e.g. Suggestions, Client Requests..."
+                            autoFocus
+                            required
+                        />
+                        {name && (
+                            <p className="text-[10px] text-slate-500 mt-1 font-mono">
+                                slug: {name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}
+                            </p>
+                        )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 bg-surface-elevated rounded-lg px-3 py-2 border border-surface-border">
+                        💡 You can customize the icon and description later in <strong className="text-slate-300">Admin → Dashboard Modules</strong>.
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                        <button type="button" onClick={onClose} className="btn-ghost flex-1 text-sm h-9">Cancel</button>
+                        <button type="submit" disabled={saving || !name.trim()} className="btn-primary flex-1 text-sm h-9">
+                            {saving ? "Creating..." : "Create & Select"}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     );
 }
 
 // ─── Create Bug Modal ─────────────────────────────────────────────────────────
 
 
-function CreateBugModal({ projectId, devToken, onClose }: {
-    projectId: Id<"projects">; devToken: string | null; onClose: () => void;
+function CreateBugModal({ projectId, devToken, onClose, initialType }: {
+    projectId: Id<"projects">; devToken: string | null; onClose: () => void; initialType?: string;
 }) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [priority, setPriority] = useState<Priority>("medium");
+    const [type, setType] = useState(initialType || "general");
+    const [category, setCategory] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showQuickAdd, setShowQuickAdd] = useState(false);
     const createBug = useMutation(api.bugs.dashboardManualCreateBug);
+    const customModules = useQuery(api.modules.listModules, { devToken: devToken || undefined });
+    const currentUser = useQuery(api.users.currentUser, { devToken: devToken || undefined });
+    const isSuperAdmin = currentUser?.role === "super_admin";
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim() || !devToken) return;
         setLoading(true);
         try {
-            await createBug({ projectId, title: title.trim(), description: description.trim(), priority, devToken });
+            await createBug({
+                projectId,
+                title: title.trim(),
+                description: description.trim(),
+                priority,
+                type: type === "general" ? undefined : type,
+                category: category.trim() || undefined,
+                devToken
+            });
             onClose();
         } catch (err: any) {
             alert(err.message || "Failed to create bug");
@@ -1192,45 +1366,85 @@ function CreateBugModal({ projectId, devToken, onClose }: {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-md bg-surface-card border border-surface-border rounded-xl shadow-2xl p-6">
-                <div className="flex items-center gap-2 mb-5">
-                    <Plus className="w-4 h-4 text-brand-400" />
-                    <h3 className="text-sm font-semibold text-white">New Issue</h3>
-                    <button onClick={onClose} className="ml-auto btn-ghost p-1.5 text-slate-500">
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">Title *</label>
-                        <input value={title} onChange={(e) => setTitle(e.target.value)} className="input w-full text-sm h-9" placeholder="Short, clear bug title" required />
-                    </div>
-                    <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">Description</label>
-                        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="input w-full text-sm resize-none pt-2" placeholder="Steps to reproduce, expected vs. actual…" />
-                    </div>
-                    <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">Priority</label>
-                        <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)} className="input w-full text-sm h-9">
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
-                    </div>
-                    <div className="flex gap-2 justify-end pt-1">
-                        <button type="button" onClick={onClose} className="btn-ghost text-sm h-9 px-4">Cancel</button>
-                        <button type="submit" disabled={loading || !title.trim()} className="btn-primary text-sm h-9 px-5">
-                            {loading ? "Creating…" : "Create Issue"}
+        <>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+                <div className="relative w-full max-w-md bg-surface-card border border-surface-border rounded-xl shadow-2xl p-6">
+                    <div className="flex items-center gap-2 mb-5">
+                        <Plus className="w-4 h-4 text-brand-400" />
+                        <h3 className="text-sm font-semibold text-white">New Issue</h3>
+                        <button onClick={onClose} className="ml-auto btn-ghost p-1.5 text-slate-500">
+                            <X className="w-4 h-4" />
                         </button>
                     </div>
-                </form>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Title *</label>
+                            <input value={title} onChange={(e) => setTitle(e.target.value)} className="input w-full text-sm h-9" placeholder="Short, clear bug title" required />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Description</label>
+                            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="input w-full text-sm resize-none pt-2" placeholder="Steps to reproduce, expected vs. actual…" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs text-slate-400 mb-1.5 font-medium">Priority</label>
+                                <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)} className="input w-full text-sm h-9">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label className="text-xs text-slate-400 font-medium">Type / Module</label>
+                                    {isSuperAdmin && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowQuickAdd(true)}
+                                            className="inline-flex items-center gap-1 text-[10px] text-brand-400 hover:text-brand-300 transition-colors font-medium"
+                                            title="Add new module type"
+                                        >
+                                            <Plus className="w-3 h-3" /> New Type
+                                        </button>
+                                    )}
+                                </div>
+                                <select value={type} onChange={(e) => setType(e.target.value)} className="input w-full text-sm h-9">
+                                    <option value="general">🐛 General Bug</option>
+                                    {(customModules || []).map((mod: any) => (
+                                        <option key={mod.slug} value={mod.slug}>{mod.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Category (Optional)</label>
+                            <input value={category} onChange={(e) => setCategory(e.target.value)} className="input w-full text-sm h-9" placeholder="e.g. Header, Billing, API..." />
+                        </div>
+                        <div className="flex gap-2 justify-end pt-1">
+                            <button type="button" onClick={onClose} className="btn-ghost text-sm h-9 px-4">Cancel</button>
+                            <button type="submit" disabled={loading || !title.trim()} className="btn-primary text-sm h-9 px-5">
+                                {loading ? "Creating…" : "Create Issue"}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </div>
+            {showQuickAdd && (
+                <QuickAddModuleModal
+                    devToken={devToken}
+                    onClose={() => setShowQuickAdd(false)}
+                    onCreated={(slug) => {
+                        setType(slug);
+                        setShowQuickAdd(false);
+                    }}
+                />
+            )}
+        </>
     );
 }
+
 
 // ─── DashboardContent ─────────────────────────────────────────────────────────
 
@@ -1255,6 +1469,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const [showCreateBugModal, setShowCreateBugModal] = useState(false);
     const [view, setView] = useState<string>("kanban");
     const [searchQuery, setSearchQuery] = useState("");
+    const [typeFilter, setTypeFilter] = useState<string>("all");
 
     const customModules = useQuery(api.modules.listModules, { devToken: devToken || undefined });
 
@@ -1291,10 +1506,26 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
     const filteredBugs = (bugs ?? []).filter((bug: any) => {
         const q = searchQuery.toLowerCase();
-        return bug.title.toLowerCase().includes(q) || bug.url?.toLowerCase().includes(q);
+        const matchesSearch = bug.title.toLowerCase().includes(q) || bug.url?.toLowerCase().includes(q);
+        const matchesType = typeFilter === "all" ||
+            (typeFilter === "general" ? (!bug.type || bug.type === "general") : bug.type === typeFilter);
+        return matchesSearch && matchesType;
     });
 
     const bugsByStatus = (status: Status) => filteredBugs.filter((b: any) => b.status === status);
+
+    // Build type filter pills from default types + custom modules
+    const defaultTypeFilters = [
+        { value: "all", label: "All Types", icon: null, count: (bugs ?? []).length },
+        { value: "general", label: "General Bug", icon: null, count: (bugs ?? []).filter((b: any) => !b.type || b.type === "general").length },
+    ];
+    const moduleTypeFilters = (customModules || []).map((mod: any) => ({
+        value: mod.slug,
+        label: mod.name,
+        icon: ICON_OPTIONS_MAP[mod.icon] || null,
+        count: (bugs ?? []).filter((b: any) => b.type === mod.slug).length,
+    }));
+    const allTypeFilters = [...defaultTypeFilters, ...moduleTypeFilters];
 
     const handleDragEnd = async (result: DropResult) => {
         const { destination, source, draggableId } = result;
@@ -1308,7 +1539,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
         const token = devToken || localStorage.getItem("bugscribe_dev_token") || undefined;
         try {
-            await updateStatus({ bugId: draggableId as Id<"bugs">, status: newStatus, devToken: token });
+            await updateStatus({ bugId: draggableId as Id<"bugs">, status: newStatus as any, devToken: token });
         } catch (error: any) {
             alert(error.message || "Failed to update status.");
         }
@@ -1410,8 +1641,10 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                     </div>
                 )}
 
-                {/* Toolbar */}
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                {/* Sticky Header Section */}
+                <div className="sticky top-0 z-40 bg-[#09090E]/95 backdrop-blur-2xl border-b border-surface-border/50 -mx-4 px-4 pt-2 lg:-mx-8 lg:px-8 mb-4 shadow-xl shadow-black/20">
+                    {/* Toolbar */}
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <h2 className="font-semibold text-white w-full sm:w-auto">Issue Tracking</h2>
                     <div className="flex gap-1 p-1 bg-surface-card border border-surface-border rounded-lg overflow-x-auto w-full sm:w-auto" style={{ scrollbarWidth: 'none' }}>
                         {(["kanban", "list"] as const).map((v) => (
@@ -1421,18 +1654,6 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                 className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md whitespace-nowrap transition-all ${view === v ? "bg-brand-500 text-white shadow-sm" : "text-slate-400 hover:text-white"}`}
                             >
                                 {TAB_LABELS[v]}
-                            </button>
-                        ))}
-                        
-                        {/* Custom Modules */}
-                        {(customModules || []).map((mod: any) => (
-                            <button
-                                key={mod.slug}
-                                onClick={() => setView(mod.slug)}
-                                className={`px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-md whitespace-nowrap flex items-center gap-1.5 transition-all ${view === mod.slug ? "bg-brand-500 text-white shadow-sm" : "text-slate-400 hover:text-white"}`}
-                            >
-                                {ICON_OPTIONS_MAP[mod.icon] || <LayoutList className="w-3 h-3" />}
-                                {mod.name}
                             </button>
                         ))}
 
@@ -1456,39 +1677,84 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
                 {/* Search / New Issue bar for list/kanban */}
                 {(view === "kanban" || view === "list") && (
-                    <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between mb-6">
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => setShowCreateBugModal(true)} className="btn-primary text-xs flex items-center gap-1.5 self-start">
-                                <Plus className="w-3.5 h-3.5" /> New Issue
-                            </button>
-                            {isProjectAdmin && (
-                                <button
-                                    onClick={handleExport}
-                                    className="btn-ghost border border-surface-border text-xs flex items-center gap-1.5 self-start px-3 h-8 hover:bg-surface-elevated transition-colors"
-                                    title="Export all issues to CSV"
-                                >
-                                    <Download className="w-3.5 h-3.5" /> Export CSV
+                    <div className="flex flex-col gap-3 mb-4">
+                        {/* Action Bar */}
+                        <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setShowCreateBugModal(true)} className="btn-primary text-xs flex items-center gap-1.5 self-start">
+                                    <Plus className="w-3.5 h-3.5" /> New Issue
                                 </button>
-                            )}
+                                {isProjectAdmin && (
+                                    <button
+                                        onClick={handleExport}
+                                        className="btn-ghost border border-surface-border text-xs flex items-center gap-1.5 self-start px-3 h-8 hover:bg-surface-elevated transition-colors"
+                                        title="Export all issues to CSV"
+                                    >
+                                        <Download className="w-3.5 h-3.5" /> Export CSV
+                                    </button>
+                                )}
+                            </div>
+                            <div className="relative w-full md:w-auto mt-2 md:mt-0">
+                                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    className="input pl-9 h-9 text-xs w-full md:w-[220px]"
+                                    placeholder="Search issues…"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
                         </div>
-                        <div className="relative w-full md:w-auto mt-2 md:mt-0">
-                            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <input
-                                type="text"
-                                className="input pl-9 h-9 text-xs w-full md:w-[220px]"
-                                placeholder="Search issues…"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
+
+                        {/* Type Filter Pills */}
+                        {allTypeFilters.length > 2 && (
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium shrink-0">Filter by type:</span>
+                                <div className="flex gap-1.5 flex-wrap">
+                                    {allTypeFilters.map((tf) => (
+                                        <button
+                                            key={tf.value}
+                                            onClick={() => setTypeFilter(tf.value)}
+                                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-all ${typeFilter === tf.value
+                                                    ? "bg-brand-500 border-brand-400 text-white shadow-sm shadow-brand-500/30"
+                                                    : "bg-surface-card border-surface-border text-slate-400 hover:text-white hover:border-slate-600"
+                                                }`}
+                                        >
+                                            {tf.icon && <span className="w-3 h-3">{tf.icon}</span>}
+                                            {tf.label}
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter === tf.value ? "bg-white/20 text-white" : "bg-surface-elevated text-slate-500"
+                                                }`}>{tf.count}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                {typeFilter !== "all" && (
+                                    <button
+                                        onClick={() => setTypeFilter("all")}
+                                        className="text-[10px] text-slate-500 hover:text-white flex items-center gap-1 transition-colors"
+                                    >
+                                        <X className="w-3 h-3" /> Clear
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Active filter indicator */}
+                        {typeFilter !== "all" && (
+                            <div className="flex items-center gap-2 text-xs text-slate-400 bg-brand-900/20 border border-brand-800/40 rounded-lg px-3 py-2">
+                                <Tag className="w-3.5 h-3.5 text-brand-400" />
+                                Showing <span className="font-semibold text-brand-300 capitalize">{typeFilter.replace(/-/g, ' ')}</span> issues only
+                                <span className="ml-auto text-[10px] bg-brand-800/40 px-2 py-0.5 rounded-full">{filteredBugs.length} issue{filteredBugs.length !== 1 ? 's' : ''}</span>
+                            </div>
+                        )}
                     </div>
                 )}
+                </div>
 
                 {/* Views */}
                 {view === "kanban" && (
                     <DragDropContext onDragEnd={handleDragEnd}>
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1 items-start">
-                            {COLUMNS.map((col) => (
+                            {DEFAULT_COLUMNS.map((col: { status: string; label: string; icon: React.ReactNode; color: string }) => (
                                 <KanbanColumn
                                     key={col.status}
                                     {...col}
@@ -1510,10 +1776,10 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 )}
                 {view === "integrations" && <IntegrationsView project={project} devToken={devToken} />}
                 {view === "settings" && <SettingsView project={project} devToken={devToken} isAdmin={isProjectAdmin} />}
-                
+
                 {/* Dynamic Module Content */}
                 {customModules?.find((m: any) => m.slug === view) && (
-                    <ModuleView 
+                    <ModuleView
                         moduleId={customModules.find((m: any) => m.slug === view)!._id}
                         projectId={project._id}
                         devToken={devToken}
@@ -1527,7 +1793,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 <BugDetailDrawer
                     bugId={selectedBugId}
                     onClose={() => setSelectedBugId(null)}
-                    onStatusChange={async (s) => {
+                    onStatusChange={async (s: string) => {
                         await updateStatus({ bugId: selectedBugId, status: s, devToken: devToken || undefined });
                     }}
                     devToken={devToken}
@@ -1540,6 +1806,13 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 <CreateBugModal
                     projectId={projectId}
                     devToken={devToken}
+                    initialType={
+                        // If viewing a module tab, pre-select that module
+                        (view !== "kanban" && view !== "list" && view !== "team" && view !== "settings" && view !== "integrations")
+                            ? view
+                            // If a type filter is active on kanban/list, pre-select that type
+                            : (typeFilter !== "all" ? typeFilter : undefined)
+                    }
                     onClose={() => setShowCreateBugModal(false)}
                 />
             )}
@@ -1549,10 +1822,10 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
 // ── ModuleView ──────────────────────────────────────────────────────────────
 
-function ModuleView({ moduleId, projectId, devToken, module }: { 
-    moduleId: Id<"dashboardModules">; 
-    projectId: Id<"projects">; 
-    devToken: string | null; 
+function ModuleView({ moduleId, projectId, devToken, module }: {
+    moduleId: Id<"dashboardModules">;
+    projectId: Id<"projects">;
+    devToken: string | null;
     module: any;
 }) {
     const entries = useQuery(api.modules.listEntries, { moduleId, projectId, devToken: devToken || undefined });
@@ -1564,7 +1837,13 @@ function ModuleView({ moduleId, projectId, devToken, module }: {
     const [selectedEntry, setSelectedEntry] = useState<any>(null);
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(false);
+
+    const filteredEntries = (entries || []).filter(e =>
+        e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        e.content.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1609,37 +1888,42 @@ function ModuleView({ moduleId, projectId, devToken, module }: {
                     </h2>
                     {module.description && <p className="text-sm text-slate-500 mt-1">{module.description}</p>}
                 </div>
-                <button 
-                    onClick={() => { setIsAdding(true); setSelectedEntry(null); setTitle(""); setContent(""); }}
-                    className="btn-primary text-xs flex items-center gap-1.5"
-                >
-                    <Plus className="w-3.5 h-3.5" /> Add {module.name.replace(/s$/, '')}
-                </button>
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            placeholder={`Search ${module.name.toLowerCase()}...`}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="input h-9 text-xs pl-9 w-48 md:w-64"
+                        />
+                    </div>
+                    <button
+                        onClick={() => { setIsAdding(true); setSelectedEntry(null); setTitle(""); setContent(""); }}
+                        className="btn-primary text-xs h-9 px-4 flex items-center gap-1.5"
+                    >
+                        <Plus className="w-3.5 h-3.5" /> Add {module.name.replace(/s$/, '')}
+                    </button>
+                </div>
             </div>
 
-            {entries?.length === 0 ? (
+            {filteredEntries.length === 0 ? (
                 <div className="card p-12 text-center flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 text-slate-600">
                         {ICON_OPTIONS_MAP[module.icon] || <LayoutList className="w-6 h-6" />}
                     </div>
-                    <p className="text-slate-400 text-sm">No entries yet</p>
-                    <p className="text-slate-500 text-xs mt-1">Be the first to add a {module.name.toLowerCase()} entry!</p>
+                    <p className="text-slate-400 text-sm">{searchTerm ? "No matches found" : "No entries yet"}</p>
+                    <p className="text-slate-500 text-xs mt-1">
+                        {searchTerm ? "Try a different search term" : `Be the first to add a ${module.name.toLowerCase()} entry!`}
+                    </p>
                 </div>
             ) : (
-                <div className="grid gap-4">
-                    {entries?.map((entry: any) => (
-                        <div key={entry._id} className="card p-4 group">
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <h3 className="font-semibold text-white mb-1">{entry.title}</h3>
-                                    <div className="text-sm text-slate-400 whitespace-pre-wrap">
-                                        {entry.content}
-                                    </div>
-                                    <div className="mt-3 flex items-center gap-3 text-[10px] text-slate-600 font-medium uppercase tracking-wider">
-                                        <span>Added {formatDistanceToNow(entry.createdAt, { addSuffix: true })}</span>
-                                        {entry.updatedAt !== entry.createdAt && <span>• Updated</span>}
-                                    </div>
-                                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredEntries.map((entry: any) => (
+                        <div key={entry._id} className="card p-5 group flex flex-col hover:border-brand-500/30 transition-all">
+                            <div className="flex items-start justify-between mb-3">
+                                <h3 className="font-semibold text-white group-hover:text-brand-400 transition-colors line-clamp-1">{entry.title}</h3>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onClick={() => handleEdit(entry)} className="p-1.5 hover:bg-slate-800 rounded">
                                         <Edit2 className="w-3.5 h-3.5 text-slate-400" />
@@ -1648,6 +1932,16 @@ function ModuleView({ moduleId, projectId, devToken, module }: {
                                         <Trash className="w-3.5 h-3.5 text-red-400" />
                                     </button>
                                 </div>
+                            </div>
+                            <p className="text-sm text-slate-400 line-clamp-3 leading-relaxed mb-4 flex-1">
+                                {entry.content}
+                            </p>
+                            <div className="mt-auto flex items-center justify-between text-[10px] text-slate-600 font-medium pt-3 border-t border-surface-border/50">
+                                <div className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatDistanceToNow(entry.createdAt, { addSuffix: true })}
+                                </div>
+                                {entry.updatedAt !== entry.createdAt && <span className="bg-surface-border px-1.5 py-0.5 rounded">Edited</span>}
                             </div>
                         </div>
                     ))}
@@ -1668,7 +1962,7 @@ function ModuleView({ moduleId, projectId, devToken, module }: {
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-xs text-slate-400 mb-1.5 font-medium uppercase tracking-wider">Title</label>
-                                <input 
+                                <input
                                     value={title}
                                     onChange={e => setTitle(e.target.value)}
                                     className="input w-full"
@@ -1679,7 +1973,7 @@ function ModuleView({ moduleId, projectId, devToken, module }: {
                             </div>
                             <div>
                                 <label className="block text-xs text-slate-400 mb-1.5 font-medium uppercase tracking-wider">Content</label>
-                                <textarea 
+                                <textarea
                                     value={content}
                                     onChange={e => setContent(e.target.value)}
                                     className="input w-full min-h-[200px] resize-none py-3"

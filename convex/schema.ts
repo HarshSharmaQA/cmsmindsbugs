@@ -66,12 +66,7 @@ export default defineSchema({
         category: v.optional(v.string()), // Free-form category label
 
         // Workflow
-        status: v.union(
-            v.literal("open"),
-            v.literal("in_progress"),
-            v.literal("resolved"),
-            v.literal("closed")
-        ),
+        status: v.string(),
         priority: v.union(
             v.literal("low"),
             v.literal("medium"),
@@ -92,6 +87,8 @@ export default defineSchema({
         url: v.string(),
         screenWidth: v.optional(v.number()),
         screenHeight: v.optional(v.number()),
+        scrollX: v.optional(v.number()),
+        scrollY: v.optional(v.number()),
         consoleErrors: v.optional(v.array(v.string())),
 
         // Visual evidence
@@ -227,4 +224,16 @@ export default defineSchema({
     })
         .index("by_module", ["moduleId"])
         .index("by_project_module", ["projectId", "moduleId"]),
+
+    // ── Project Statuses ──────────────────────────────────────────────────────
+    projectStatuses: defineTable({
+        projectId: v.id("projects"),
+        value: v.string(),           // e.g. "open"
+        label: v.string(),           // e.g. "New Issues"
+        color: v.string(),           // Tailwind text color class, e.g. "text-blue-400"
+        icon: v.optional(v.string()), // Lucide icon name
+        order: v.number(),
+    })
+        .index("by_project", ["projectId"])
+        .index("by_project_order", ["projectId", "order"]),
 });

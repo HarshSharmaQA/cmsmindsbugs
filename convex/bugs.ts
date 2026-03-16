@@ -174,6 +174,8 @@ export const createBug = mutation({
         url: v.string(),
         screenWidth: v.optional(v.number()),
         screenHeight: v.optional(v.number()),
+        scrollX: v.optional(v.number()),
+        scrollY: v.optional(v.number()),
         consoleErrors: v.optional(v.array(v.string())),
         screenshotStorageId: v.optional(v.id("_storage")),
         mediaType: v.optional(v.string()),
@@ -207,6 +209,8 @@ export const createBug = mutation({
             url: args.url,
             screenWidth: args.screenWidth,
             screenHeight: args.screenHeight,
+            scrollX: args.scrollX,
+            scrollY: args.scrollY,
             consoleErrors: args.consoleErrors ?? [],
             screenshotStorageId: args.screenshotStorageId,
             mediaType: args.mediaType,
@@ -273,6 +277,8 @@ export const dashboardManualCreateBug = mutation({
         title: v.string(),
         description: v.optional(v.string()),
         priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical"))),
+        type: v.optional(v.string()),
+        category: v.optional(v.string()),
         devToken: v.string(),
     },
     handler: async (ctx, args) => {
@@ -292,6 +298,8 @@ export const dashboardManualCreateBug = mutation({
             url: "Dashboard",
             status: "open",
             priority: args.priority || "medium",
+            type: args.type || "general",
+            category: args.category,
             createdAt: now,
             updatedAt: now,
         });
@@ -320,12 +328,7 @@ export const dashboardManualCreateBug = mutation({
 export const updateStatus = mutation({
     args: {
         bugId: v.id("bugs"),
-        status: v.union(
-            v.literal("open"),
-            v.literal("in_progress"),
-            v.literal("resolved"),
-            v.literal("closed")
-        ),
+        status: v.string(),
         devToken: v.optional(v.string()),
     },
     handler: async (ctx, { bugId, status, devToken }) => {
