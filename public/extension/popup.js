@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         project: document.getElementById("projectView"),
         actions: document.getElementById("actionsView"),
         bugs: document.getElementById("bugListView"),
+        report: document.getElementById("reportView"),
     };
 
     const banners = {
@@ -38,10 +39,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     const backToActionsBtn = document.getElementById("backToActionsBtn");
     const refreshBugsBtn = document.getElementById("refreshBugsBtn");
 
+    // Report Elements
+    const cancelReportBtn = document.getElementById("cancelReportBtn");
+    const submitBugBtn = document.getElementById("submitBugBtn");
+    const annotationCanvas = document.getElementById("annotationCanvas");
+    const bugTitleInput = document.getElementById("bugTitle");
+    const bugDescInput = document.getElementById("bugDescription");
+    const bugTypeInput = document.getElementById("bugType");
+    const bugPriorityInput = document.getElementById("bugPriority");
+    const undoBtn = document.getElementById("undoBtn");
+    const clearCanvasBtn = document.getElementById("clearCanvasBtn");
+
     // ── State ────────────────────────────────────────────────────────────────
     let currentUser = null;
     let projects = [];
     let selectedProject = null;
+    let currentScreenshot = null;
+    let canvasCtx = null;
+    let drawing = false;
+    let currentTool = "pen";
+    let currentColor = "#ef4444";
+    let startX, startY, snapshot;
+    let undoStack = [];
 
     // ── Utils ────────────────────────────────────────────────────────────────
     function switchView(viewName) {
@@ -348,28 +367,248 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // ── Action Handlers ──────────────────────────────────────────────────────
     reportBtn.addEventListener("click", () => {
+        reportBtn.disabled = true;
+        reportBtn.innerHTML = '<div class="loading-spinner"></div> Capturing...';
+        
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (!tabs[0]) return;
-            const tabId = tabs[0].id;
-
-            chrome.tabs.sendMessage(tabId, { action: "trigger-report" }, (response) => {
-                if (chrome.runtime.lastError) {
-                    chrome.scripting.executeScript({
-                        target: { tabId },
-                        files: ["content.js"]
-                    }, () => {
-                        setTimeout(() => {
-                            chrome.tabs.sendMessage(tabId, { action: "trigger-report" }, (resp2) => {
-                                if (chrome.runtime.lastError) {
-                                    showBanner("error", "Could not connect to page. Refresh the page and try again.");
-                                }
-                            });
-                        }, 500);
-                    });
+            if (!tabs[0]) {
+                reportBtn.disabled = false;
+                reportBtn.innerHTML = "<span>📸</span> Report Bug on Current Page";
+                return;
+            }
+            
+            chrome.runtime.sendMessage({ action: "capture-screenshot" }, async (response) => {
+                reportBtn.disabled = false;
+                reportBtn.innerHTML = "<span>📸</span> Report Bug on Current Page";
+                
+                if (response && response.dataUrl) {
+                    currentScreenshot = response.dataUrl;
+                    await initReportView(response.dataUrl);
+                } else {
+                    showBanner("error", "Failed to capture screenshot. Try refreshing the page.");
                 }
             });
         });
     });
+
+    async function initReportView(dataUrl) {
+        switchView("report");
+        bugTitleInput.value = "";
+        bugDescInput.value = "";
+        
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise(r => img.onload = r);
+        
+        // Setup canvas size based on image aspect ratio while keeping width manageable
+        const container = annotationCanvas.parentElement;
+        const width = container.clientWidth;
+        const height = (img.height / img.width) * width;
+        
+        annotationCanvas.width = img.width;
+        annotationCanvas.height = img.height;
+        
+        canvasCtx = annotationCanvas.getContext("2d");
+        canvasCtx.drawImage(img, 0, 0);
+        
+        undoStack = [];
+        saveCanvasState();
+        
+        initCanvasEvents();
+    }
+
+    function saveCanvasState() {
+        if (undoStack.length >= 20) undoStack.shift();
+        undoStack.push(canvasCtx.getImageData(0, 0, annotationCanvas.width, annotationCanvas.height));
+    }
+
+    function initCanvasEvents() {
+        const getPos = (e) => {
+            const rect = annotationCanvas.getBoundingClientRect();
+            const scaleX = annotationCanvas.width / rect.width;
+            const scaleY = annotationCanvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        };
+
+        const start = (e) => {
+            drawing = true;
+            const pos = getPos(e);
+            startX = pos.x; startY = pos.y;
+            snapshot = canvasCtx.getImageData(0, 0, annotationCanvas.width, annotationCanvas.height);
+            
+            if (currentTool === "pen") {
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(startX, startY);
+                canvasCtx.strokeStyle = currentColor;
+                canvasCtx.lineWidth = 10;
+                canvasCtx.lineCap = "round";
+                canvasCtx.lineJoin = "round";
+            }
+        };
+
+        const move = (e) => {
+            if (!drawing) return;
+            const pos = getPos(e);
+            
+            if (currentTool === "pen") {
+                canvasCtx.lineTo(pos.x, pos.y);
+                canvasCtx.stroke();
+            } else {
+                canvasCtx.putImageData(snapshot, 0, 0);
+                canvasCtx.strokeStyle = currentColor;
+                canvasCtx.lineWidth = 10;
+                
+                if (currentTool === "arrow") {
+                    drawArrow(startX, startY, pos.x, pos.y);
+                } else if (currentTool === "rect") {
+                    canvasCtx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
+                } else if (currentTool === "circle") {
+                    const rx = Math.abs(pos.x - startX) / 2;
+                    const ry = Math.abs(pos.y - startY) / 2;
+                    const cx = startX + (pos.x - startX) / 2;
+                    const cy = startY + (pos.y - startY) / 2;
+                    canvasCtx.beginPath();
+                    canvasCtx.ellipse(cx, cy, Math.max(rx, 1), Math.max(ry, 1), 0, 0, 2 * Math.PI);
+                    canvasCtx.stroke();
+                } else if (currentTool === "blur") {
+                    canvasCtx.filter = "blur(20px)";
+                    canvasCtx.drawImage(annotationCanvas, startX, startY, pos.x - startX, pos.y - startY, startX, startY, pos.x - startX, pos.y - startY);
+                    canvasCtx.filter = "none";
+                }
+            }
+        };
+
+        const stop = () => {
+            if (drawing) {
+                drawing = false;
+                saveCanvasState();
+            }
+        };
+
+        const drawArrow = (x1, y1, x2, y2) => {
+            const headLen = 40;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(x1, y1);
+            canvasCtx.lineTo(x2, y2);
+            canvasCtx.stroke();
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(x2, y2);
+            canvasCtx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            canvasCtx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            canvasCtx.closePath();
+            canvasCtx.fillStyle = currentColor;
+            canvasCtx.fill();
+        };
+
+        // Text tool – click to place
+        const handleText = (e) => {
+            if (currentTool !== "text" || drawing) return;
+            const text = prompt("Enter annotation text:");
+            if (!text) return;
+            const pos = getPos(e);
+            canvasCtx.font = "bold 60px Inter, sans-serif";
+            canvasCtx.fillStyle = currentColor;
+            canvasCtx.fillText(text, pos.x, pos.y);
+            saveCanvasState();
+        };
+
+        annotationCanvas.onmousedown = start;
+        window.onmousemove = move;
+        window.onmouseup = stop;
+        annotationCanvas.onclick = handleText;
+    }
+
+    // Tool selection
+    document.querySelectorAll(".tool-btn[data-tool]").forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentTool = btn.dataset.tool;
+        };
+    });
+
+    // Color selection
+    document.querySelectorAll(".color-dot").forEach(dot => {
+        dot.onclick = () => {
+            document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("active"));
+            dot.classList.add("active");
+            currentColor = dot.dataset.color;
+        };
+    });
+
+    undoBtn.onclick = () => {
+        if (undoStack.length > 1) {
+            undoStack.pop();
+            canvasCtx.putImageData(undoStack[undoStack.length - 1], 0, 0);
+        }
+    };
+
+    clearCanvasBtn.onclick = () => {
+        const img = new Image();
+        img.src = currentScreenshot;
+        img.onload = () => {
+            canvasCtx.drawImage(img, 0, 0);
+            undoStack = [];
+            saveCanvasState();
+        };
+    };
+
+    cancelReportBtn.onclick = () => switchView("actions");
+
+    submitBugBtn.onclick = async () => {
+        const title = bugTitleInput.value.trim();
+        if (!title) {
+            showBanner("error", "Please enter a bug title.");
+            bugTitleInput.focus();
+            return;
+        }
+
+        submitBugBtn.disabled = true;
+        submitBugBtn.textContent = "Submitting...";
+
+        try {
+            // 1. Get image blob from canvas
+            const blob = await new Promise(r => annotationCanvas.toBlob(r, "image/jpeg", 0.8));
+            
+            // 2. Get upload URL from Convex
+            const uploadUrl = await mutation("bugs:generateUploadUrl", {});
+            
+            // 3. Upload to storage
+            const uploadResp = await fetch(uploadUrl, { method: "POST", body: blob });
+            const { storageId } = await uploadResp.json();
+
+            // 4. Create bug record
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            const tab = tabs[0];
+
+            await mutation("bugs:createBug", {
+                projectId: selectedProject.id,
+                apiKey: selectedProject.apiKey,
+                title,
+                description: bugDescInput.value,
+                type: bugTypeInput.value,
+                priority: bugPriorityInput.value,
+                screenshotStorageId: storageId,
+                url: tab.url,
+                browser: navigator.userAgent,
+                os: "Extension",
+                screenWidth: tab.width,
+                screenHeight: tab.height
+            });
+
+            showBanner("success", "Bug reported successfully!");
+            switchView("actions");
+        } catch (err) {
+            showBanner("error", "Failed to submit: " + err.message);
+        } finally {
+            submitBugBtn.disabled = false;
+            submitBugBtn.textContent = "Submit Bug Report";
+        }
+    };
 
     openDashboardBtn.addEventListener("click", () => {
         const url = selectedProject

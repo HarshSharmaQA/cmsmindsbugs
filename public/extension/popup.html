@@ -347,6 +347,126 @@
             margin-bottom: 12px;
             display: none;
         }
+        /* ── Bug Report View ── */
+        .annotation-toolbar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            background: rgba(30, 41, 59, 0.5);
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .tool-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover { background: #334155; color: white; }
+        .tool-btn.active { background: var(--primary); color: white; border-color: var(--secondary); }
+
+        .color-picker {
+            display: flex;
+            gap: 8px;
+            margin: 12px 0;
+            align-items: center;
+        }
+
+        .color-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .color-dot:hover { transform: scale(1.1); }
+        .color-dot.active { border-color: white; transform: scale(1.1); }
+
+        .tracking-steps {
+            background: rgba(79, 70, 229, 0.05);
+            border: 1px solid rgba(79, 70, 229, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+
+        .tracking-steps-title {
+            font-size: 9px;
+            font-weight: 800;
+            color: var(--secondary);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .step-item {
+            font-size: 11px;
+            color: var(--text);
+            display: flex;
+            gap: 6px;
+        }
+
+        .field-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            font-size: 13px;
+            font-family: inherit;
+            resize: none;
+            margin-bottom: 12px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .screenshot-preview-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+
+        #reportScreenshot {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 
@@ -451,6 +571,82 @@
 
             <button id="refreshBugsBtn" class="btn-outline" style="margin-top:12px; font-size:11px;">
                 Refresh List
+            </button>
+        </div>
+
+        <!-- ── VIEW 5: REPORT FORM ── -->
+        <div id="reportView" class="view">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                <button id="cancelReportBtn" class="btn-outline" style="width:auto; padding:6px 10px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m15 18-6-6 6-6" />
+                    </svg>
+                </button>
+                <span class="section-label" style="margin:0">New Bug Report</span>
+            </div>
+
+            <div class="annotation-toolbar">
+                <div class="tool-btn active" data-tool="pen"><span>✏️</span> Pen</div>
+                <div class="tool-btn" data-tool="arrow"><span>↗️</span> Arrow</div>
+                <div class="tool-btn" data-tool="rect"><span>⬜</span> Box</div>
+                <div class="tool-btn" data-tool="circle"><span>⭕</span> Circle</div>
+                <div class="tool-btn" data-tool="blur"><span>💧</span> Blur</div>
+                <div class="tool-btn" data-tool="text"><span>T</span> Text</div>
+                <div class="tool-btn" id="undoBtn"><span>↩️</span> Undo</div>
+                <div class="tool-btn" id="clearCanvasBtn"><span>🗑️</span> Clear</div>
+            </div>
+
+            <div class="color-picker">
+                <span class="section-label" style="margin:0">Color:</span>
+                <div class="color-dot active" data-color="#ef4444" style="background:#ef4444"></div>
+                <div class="color-dot" data-color="#f59e0b" style="background:#f59e0b"></div>
+                <div class="color-dot" data-color="#10b981" style="background:#10b981"></div>
+                <div class="color-dot" data-color="#3b82f6" style="background:#3b82f6"></div>
+                <div class="color-dot" data-color="#ffffff" style="background:#ffffff"></div>
+            </div>
+
+            <div class="screenshot-preview-container">
+                <canvas id="annotationCanvas" style="width:100%; height:100%; display:block;"></canvas>
+            </div>
+
+            <div class="tracking-steps">
+                <div class="tracking-steps-title">Dynamic Tracking Steps</div>
+                <div class="step-item">
+                    <span>1.</span>
+                    <span>Annotated screenshot on page</span>
+                </div>
+            </div>
+
+            <label class="section-label">Title *</label>
+            <input type="text" id="bugTitle" placeholder="What went wrong?" />
+
+            <label class="section-label">Description</label>
+            <textarea id="bugDescription" placeholder="Steps to reproduce..." rows="3"></textarea>
+
+            <div class="field-group">
+                <div>
+                    <label class="section-label">Type</label>
+                    <select id="bugType">
+                        <option value="general">General</option>
+                        <option value="ui_ux">UI/UX</option>
+                        <option value="performance">Performance</option>
+                        <option value="crash">Crash</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="section-label">Priority</label>
+                    <select id="bugPriority">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="submitBugBtn" style="margin-top:12px;">
+                Submit Bug Report
             </button>
         </div>
     </div>
