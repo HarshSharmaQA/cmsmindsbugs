@@ -3,6 +3,150 @@ let mediaRecorder = null;
 let stream = null;
 let steps = [];
 let overlay = null;
+let latestBugContext = null;
+
+// --- Error and Network Capture ---
+let consoleErrors = [];
+let networkLogs = [];
+
+const MAX_LOGS = 50;
+
+function captureConsoleError(msg, file, line, col, error) {
+    const errorLog = {
+        message: msg,
+        file: file || "Unknown",
+        line: line || 0,
+        column: col || 0,
+        stack: error ? error.stack : "No stack trace",
+        timestamp: Date.now()
+    };
+    consoleErrors.push(errorLog);
+    if (consoleErrors.length > MAX_LOGS) consoleErrors.shift();
+}
+
+window.addEventListener('error', (event) => {
+    captureConsoleError(event.message, event.filename, event.lineno, event.colno, event.error);
+}, true);
+
+window.addEventListener('unhandledrejection', (event) => {
+    captureConsoleError(
+        `Unhandled Promise Rejection: ${event.reason}`,
+        "Unknown", 0, 0,
+        event.reason instanceof Error ? event.reason : null
+    );
+}, true);
+
+// Hook into fetch
+const originalFetch = window.fetch;
+window.fetch = async (...args) => {
+    const startTime = Date.now();
+    const url = args[0] instanceof Request ? args[0].url : args[0];
+    const method = (args[1] && args[1].method) || (args[0] instanceof Request ? args[0].method : 'GET');
+    
+    try {
+        const response = await originalFetch(...args);
+        if (!response.ok) {
+            networkLogs.push({
+                url,
+                method,
+                status: response.status,
+                responseTime: Date.now() - startTime,
+                timestamp: Date.now()
+            });
+            if (networkLogs.length > MAX_LOGS) networkLogs.shift();
+        }
+        return response;
+    } catch (error) {
+        networkLogs.push({
+            url,
+            method,
+            status: 0, // Failed to fetch (e.g. CORS or Network error)
+            error: error.message,
+            responseTime: Date.now() - startTime,
+            timestamp: Date.now()
+        });
+        if (networkLogs.length > MAX_LOGS) networkLogs.shift();
+        throw error;
+    }
+};
+
+// Hook into XHR
+const originalXHR = window.XMLHttpRequest.prototype.open;
+const originalXHRSend = window.XMLHttpRequest.prototype.send;
+
+window.XMLHttpRequest.prototype.open = function(method, url) {
+    this._method = method;
+    this._url = url;
+    this._startTime = Date.now();
+    return originalXHR.apply(this, arguments);
+};
+
+window.XMLHttpRequest.prototype.send = function() {
+    this.addEventListener('load', function() {
+        if (this.status >= 400 || this.status === 0) {
+            networkLogs.push({
+                url: this._url,
+                method: this._method,
+                status: this.status,
+                responseTime: Date.now() - this._startTime,
+                timestamp: Date.now()
+            });
+            if (networkLogs.length > MAX_LOGS) networkLogs.shift();
+        }
+    });
+    this.addEventListener('error', function() {
+        networkLogs.push({
+            url: this._url,
+            method: this._method,
+            status: 0,
+            error: "Network error",
+            responseTime: Date.now() - this._startTime,
+            timestamp: Date.now()
+        });
+        if (networkLogs.length > MAX_LOGS) networkLogs.shift();
+    });
+    return originalXHRSend.apply(this, arguments);
+};
+
+function buildSelector(element) {
+    if (!element || element.nodeType !== 1) return "";
+    if (element.id) return `#${CSS.escape(element.id)}`;
+
+    const segments = [];
+    let current = element;
+    while (current && current.nodeType === 1 && current !== document.body) {
+        let segment = current.tagName.toLowerCase();
+        if (current.classList && current.classList.length > 0) {
+            const className = current.classList[0];
+            if (className) segment += `.${CSS.escape(className)}`;
+        }
+        if (current.parentElement) {
+            const siblings = Array.from(current.parentElement.children).filter(
+                (sibling) => sibling.tagName === current.tagName
+            );
+            if (siblings.length > 1) {
+                segment += `:nth-of-type(${siblings.indexOf(current) + 1})`;
+            }
+        }
+        segments.unshift(segment);
+        current = current.parentElement;
+    }
+    return segments.join(" > ");
+}
+
+function updateLatestBugContext(event) {
+    if (!event || !event.target || event.target.closest('#bugscribe-recording-overlay')) return;
+    latestBugContext = {
+        page_url: window.location.href,
+        x_coordinate: Math.round(event.clientX),
+        y_coordinate: Math.round(event.clientY),
+        scroll_position: Math.round(window.scrollY),
+        scrollX: Math.round(window.scrollX),
+        scrollY: Math.round(window.scrollY),
+        element_selector: buildSelector(event.target),
+        created_at: Date.now(),
+    };
+}
 
 function getActionDescription(e) {
     const tag = e.target.tagName.toLowerCase();
@@ -14,25 +158,52 @@ function getActionDescription(e) {
 const clickListener = (e) => {
     // Avoid logging clicks on our own overlay
     if (e.target.closest('#bugscribe-recording-overlay')) return;
+    updateLatestBugContext(e);
     steps.push(getActionDescription(e));
 };
 
 const inputListener = (e) => {
     if (e.target.closest('#bugscribe-recording-overlay')) return;
+    updateLatestBugContext(e);
     const name = e.target.name || e.target.placeholder || e.target.id || 'input';
     steps.push(`Typed in ${name}`);
 };
+
+document.addEventListener("pointerdown", updateLatestBugContext, true);
+document.addEventListener("mousemove", (e) => {
+    if (!latestBugContext) updateLatestBugContext(e);
+}, { capture: true, passive: true });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "START_RECORDING") {
         startRecording();
         sendResponse({ status: "started" });
     } else if (request.action === "GET_ENV_DATA") {
+        const pageLoadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
         sendResponse({
             localStorage: JSON.stringify(Object.entries(localStorage)),
             sessionStorage: JSON.stringify(Object.entries(sessionStorage)),
             cookies: document.cookie,
-            windowSize: `${window.innerWidth}x${window.innerHeight}`
+            windowSize: `${window.innerWidth}x${window.innerHeight}`,
+            screenResolution: `${window.screen.width}x${window.screen.height}`,
+            userAgent: navigator.userAgent,
+            pageLoadTime: pageLoadTime > 0 ? pageLoadTime : "Still loading",
+            consoleErrors: JSON.stringify(consoleErrors),
+            networkLogs: JSON.stringify(networkLogs),
+            deviceType: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? "Mobile" : "Desktop"
+        });
+    } else if (request.action === "GET_BUG_CONTEXT") {
+        const fallbackX = Math.round(window.innerWidth / 2);
+        const fallbackY = Math.round(window.innerHeight / 2);
+        sendResponse({
+            page_url: window.location.href,
+            x_coordinate: latestBugContext?.x_coordinate ?? fallbackX,
+            y_coordinate: latestBugContext?.y_coordinate ?? fallbackY,
+            scroll_position: latestBugContext?.scroll_position ?? Math.round(window.scrollY),
+            scrollX: latestBugContext?.scrollX ?? Math.round(window.scrollX),
+            scrollY: latestBugContext?.scrollY ?? Math.round(window.scrollY),
+            element_selector: latestBugContext?.element_selector || "",
+            created_at: latestBugContext?.created_at ?? Date.now(),
         });
     } else if (request.action === "HIDE_IFRAME") {
         const fab = document.getElementById('bugscribe-iframe-widget-container');
@@ -202,7 +373,7 @@ function startAnnotation() {
     // Floating annotation toolbar
     const toolbar = document.createElement('div');
     toolbar.id = 'bugscribe-floating-toolbar';
-    toolbar.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:6px;padding:8px 14px;background:#1e293b;border-radius:999px;border:1px solid #334155;box-shadow:0 8px 32px rgba(0,0,0,0.5);font-family:-apple-system,sans-serif;user-select:none;';
+    toolbar.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(15,23,42,0.95);backdrop-filter:blur(8px);border-radius:999px;border:1px solid #334155;box-shadow:0 10px 30px rgba(0,0,0,0.45);font-family:-apple-system,sans-serif;user-select:none;max-width:96vw;overflow-x:auto;';
 
     const colors = ['#ef4444', '#facc15', '#22c55e', '#3b82f6', '#ffffff'];
     colors.forEach(color => {
@@ -232,6 +403,7 @@ function startAnnotation() {
         { id: 'arrow',  emoji: '↗',  label: 'Arrow'  },
         { id: 'box',    emoji: '⬜', label: 'Box'    },
         { id: 'circle', emoji: '⭕', label: 'Circle' },
+        { id: 'blur',   emoji: '🌫️', label: 'Blur'   },
         { id: 'text',   emoji: 'T',  label: 'Text'   }
     ];
 
@@ -347,16 +519,51 @@ function startAnnotation() {
             ctx.beginPath();
             ctx.moveTo(startX, startY);
         } else if (currentTool === 'text') {
-            const text = prompt("Enter text to add:");
-            if (text) {
-                ctx.fillStyle = annotationColor;
-                ctx.font = 'bold 24px sans-serif';
-                ctx.strokeStyle = "rgba(0,0,0,0.4)";
-                ctx.lineWidth = 3;
-                ctx.strokeText(text, startX, startY);
-                ctx.fillText(text, startX, startY);
-                isDrawing = false;
-            }
+            isDrawing = false;
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.style.cssText = `
+                position: fixed;
+                left: ${startX}px;
+                top: ${startY - 15}px;
+                z-index: 2147483647;
+                background: #1e293b;
+                color: white;
+                border: 2px solid ${annotationColor};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-family: sans-serif;
+                font-weight: bold;
+                font-size: 16px;
+                outline: none;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+                min-width: 100px;
+            `;
+            
+            document.body.appendChild(input);
+            setTimeout(() => input.focus(), 10);
+
+            const commitText = () => {
+                const text = input.value.trim();
+                if (text) {
+                    ctx.fillStyle = annotationColor;
+                    ctx.font = 'bold 24px sans-serif';
+                    ctx.strokeStyle = "rgba(0,0,0,0.4)";
+                    ctx.lineWidth = 3;
+                    ctx.strokeText(text, startX, startY);
+                    ctx.fillText(text, startX, startY);
+                    strokeHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                }
+                input.remove();
+            };
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') commitText();
+                if (e.key === 'Escape') input.remove();
+            });
+            
+            input.addEventListener('blur', commitText);
         }
     });
 
@@ -372,6 +579,18 @@ function startAnnotation() {
         if (currentTool === 'pen') {
             ctx.lineTo(e.clientX, e.clientY);
             ctx.stroke();
+        } else if (currentTool === 'blur') {
+            ctx.putImageData(snapshot, 0, 0);
+            const w = e.clientX - startX;
+            const h = e.clientY - startY;
+            
+            ctx.save();
+            ctx.filter = 'blur(10px)';
+            ctx.drawImage(canvas, startX * window.devicePixelRatio, startY * window.devicePixelRatio, w * window.devicePixelRatio, h * window.devicePixelRatio, startX, startY, w, h);
+            ctx.restore();
+            
+            ctx.fillStyle = 'rgba(150, 150, 150, 0.2)';
+            ctx.fillRect(startX, startY, w, h);
         } else {
             ctx.putImageData(snapshot, 0, 0);
             const w = e.clientX - startX;
@@ -398,6 +617,92 @@ chrome.storage.local.get(["bugscribeConnectionKey"], (res) => {
         injectIframeWidget();
     }
 });
+
+function parseHighlightParams() {
+    if (!window.location.hash) return null;
+    const hashValue = window.location.hash.replace(/^#/, "");
+    const params = new URLSearchParams(hashValue);
+    const coordsRaw = params.get("bugscribe-highlight");
+    if (!coordsRaw) return null;
+    const [xRaw, yRaw] = coordsRaw.split(",");
+    const x = Number(xRaw);
+    const y = Number(yRaw);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return {
+        x,
+        y,
+        scroll: Number(params.get("bugscribe-scroll")),
+        selector: params.get("bugscribe-selector"),
+    };
+}
+
+function showLocationHighlight() {
+    const payload = parseHighlightParams();
+    if (!payload) return;
+
+    const scrollTop = Number.isFinite(payload.scroll) ? payload.scroll : Math.max(0, payload.y - Math.round(window.innerHeight / 2));
+    window.scrollTo({ top: scrollTop, left: 0, behavior: "smooth" });
+
+    const showPulseMarker = (x, y) => {
+        const safeX = Number.isFinite(x) ? x : Math.round(window.innerWidth / 2);
+        const safeY = Number.isFinite(y) ? y : Math.round(window.innerHeight / 2);
+        const marker = document.createElement("div");
+        marker.style.position = "fixed";
+        marker.style.left = `${Math.max(0, safeX - 18)}px`;
+        marker.style.top = `${Math.max(0, safeY - 18)}px`;
+        marker.style.width = "36px";
+        marker.style.height = "36px";
+        marker.style.border = "3px solid #ef4444";
+        marker.style.borderRadius = "9999px";
+        marker.style.boxShadow = "0 0 0 6px rgba(239,68,68,0.25)";
+        marker.style.background = "rgba(239,68,68,0.15)";
+        marker.style.zIndex = "2147483647";
+        marker.style.pointerEvents = "none";
+        marker.style.transition = "opacity 0.5s ease";
+        document.documentElement.appendChild(marker);
+        setTimeout(() => {
+            marker.style.opacity = "0";
+            setTimeout(() => marker.remove(), 500);
+        }, 2600);
+    };
+
+    const showElementBox = (rect) => {
+        const box = document.createElement("div");
+        box.style.position = "fixed";
+        box.style.left = `${Math.max(0, rect.left)}px`;
+        box.style.top = `${Math.max(0, rect.top)}px`;
+        box.style.width = `${Math.max(24, rect.width)}px`;
+        box.style.height = `${Math.max(24, rect.height)}px`;
+        box.style.border = "2px solid #ef4444";
+        box.style.background = "rgba(239,68,68,0.08)";
+        box.style.boxShadow = "0 0 0 4px rgba(239,68,68,0.18)";
+        box.style.zIndex = "2147483647";
+        box.style.pointerEvents = "none";
+        box.style.transition = "opacity 0.5s ease";
+        document.documentElement.appendChild(box);
+        setTimeout(() => {
+            box.style.opacity = "0";
+            setTimeout(() => box.remove(), 500);
+        }, 2600);
+        showPulseMarker(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    };
+
+    setTimeout(() => {
+        if (payload.selector) {
+            try {
+                const selector = decodeURIComponent(payload.selector);
+                const el = document.querySelector(selector);
+                if (el) {
+                    showElementBox(el.getBoundingClientRect());
+                    return;
+                }
+            } catch {}
+        }
+        showPulseMarker(payload.x, payload.y);
+    }, 450);
+}
+
+showLocationHighlight();
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local' && changes.bugscribeConnectionKey) {

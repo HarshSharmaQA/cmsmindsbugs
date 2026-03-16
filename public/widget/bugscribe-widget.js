@@ -16,43 +16,89 @@
         return;
     }
 
-    // Check for highlight parameter in URL
-    window.addEventListener("load", () => {
+    function parseHighlightPayload() {
         const hash = window.location.hash;
-        if (hash.startsWith("#bugscribe-highlight=")) {
-            const coords = hash.replace("#bugscribe-highlight=", "").split(",");
-            if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
-                const x = parseInt(coords[0], 10);
-                const y = parseInt(coords[1], 10);
-                window.scrollTo({ left: x, top: y, behavior: "smooth" });
-                
-                // Add a visual highlight overlay briefly
-                const highlight = document.createElement("div");
-                highlight.style.position = "absolute";
-                highlight.style.left = "0";
-                highlight.style.top = `${y}px`;
-                highlight.style.width = "100%";
-                highlight.style.height = `${window.innerHeight}px`;
-                highlight.style.boxShadow = "inset 0 0 0 8px rgba(239, 68, 68, 0.8), inset 0 0 40px rgba(239, 68, 68, 0.4)";
-                highlight.style.pointerEvents = "none";
-                highlight.style.zIndex = "2147483647";
-                highlight.style.transition = "opacity 1s ease-out";
-                highlight.style.background = "rgba(239, 68, 68, 0.1)";
-                
-                // Draw a targeting reticle in the center
-                highlight.innerHTML = `
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100px; height: 100px; border: 4px dashed rgba(239, 68, 68, 0.9); border-radius: 50%; animation: pulse 2s infinite;"></div>
-                    <style>@keyframes pulse { 0% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; } 50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; } 100% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; } }</style>
-                `;
-                
-                document.body.appendChild(highlight);
-                
-                setTimeout(() => {
-                    highlight.style.opacity = "0";
-                    setTimeout(() => highlight.remove(), 1000);
-                }, 3000);
+        if (!hash) return null;
+        const hashValue = hash.replace(/^#/, "");
+        const params = new URLSearchParams(hashValue);
+        const coordsRaw = params.get("bugscribe-highlight");
+        if (!coordsRaw) return null;
+        const [xRaw, yRaw] = coordsRaw.split(",");
+        const x = Number(xRaw);
+        const y = Number(yRaw);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return {
+            x,
+            y,
+            scroll: Number(params.get("bugscribe-scroll")),
+            selector: params.get("bugscribe-selector"),
+        };
+    }
+
+    function showPulseMarker(x, y) {
+        const safeX = Number.isFinite(x) ? x : Math.round(window.innerWidth / 2);
+        const safeY = Number.isFinite(y) ? y : Math.round(window.innerHeight / 2);
+        const marker = document.createElement("div");
+        marker.style.position = "fixed";
+        marker.style.left = `${Math.max(0, safeX - 18)}px`;
+        marker.style.top = `${Math.max(0, safeY - 18)}px`;
+        marker.style.width = "36px";
+        marker.style.height = "36px";
+        marker.style.border = "3px solid #ef4444";
+        marker.style.borderRadius = "9999px";
+        marker.style.boxShadow = "0 0 0 6px rgba(239,68,68,0.25)";
+        marker.style.background = "rgba(239,68,68,0.15)";
+        marker.style.pointerEvents = "none";
+        marker.style.zIndex = "2147483647";
+        marker.style.transition = "opacity 0.5s ease";
+        document.documentElement.appendChild(marker);
+        setTimeout(() => {
+            marker.style.opacity = "0";
+            setTimeout(() => marker.remove(), 500);
+        }, 2600);
+    }
+
+    function showElementBox(rect) {
+        const box = document.createElement("div");
+        box.style.position = "fixed";
+        box.style.left = `${Math.max(0, rect.left)}px`;
+        box.style.top = `${Math.max(0, rect.top)}px`;
+        box.style.width = `${Math.max(24, rect.width)}px`;
+        box.style.height = `${Math.max(24, rect.height)}px`;
+        box.style.border = "2px solid #ef4444";
+        box.style.background = "rgba(239,68,68,0.08)";
+        box.style.boxShadow = "0 0 0 4px rgba(239,68,68,0.18)";
+        box.style.pointerEvents = "none";
+        box.style.zIndex = "2147483647";
+        box.style.transition = "opacity 0.5s ease";
+        document.documentElement.appendChild(box);
+        setTimeout(() => {
+            box.style.opacity = "0";
+            setTimeout(() => box.remove(), 500);
+        }, 2600);
+        showPulseMarker(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    }
+
+    window.addEventListener("load", () => {
+        const payload = parseHighlightPayload();
+        if (!payload) return;
+
+        const scrollTop = Number.isFinite(payload.scroll) ? payload.scroll : Math.max(0, payload.y - Math.round(window.innerHeight / 2));
+        window.scrollTo({ left: 0, top: scrollTop, behavior: "smooth" });
+
+        setTimeout(() => {
+            if (payload.selector) {
+                try {
+                    const selector = decodeURIComponent(payload.selector);
+                    const el = document.querySelector(selector);
+                    if (el) {
+                        showElementBox(el.getBoundingClientRect());
+                        return;
+                    }
+                } catch { }
             }
-        }
+            showPulseMarker(payload.x, payload.y);
+        }, 450);
     });
 
     // Initialize: Fetch fresh project info from Convex

@@ -85,11 +85,21 @@ export default defineSchema({
         browser: v.string(),
         os: v.optional(v.string()),
         url: v.string(),
+        page_url: v.optional(v.string()),
         screenWidth: v.optional(v.number()),
         screenHeight: v.optional(v.number()),
         scrollX: v.optional(v.number()),
         scrollY: v.optional(v.number()),
-        consoleErrors: v.optional(v.array(v.string())),
+        x_coordinate: v.optional(v.number()),
+        y_coordinate: v.optional(v.number()),
+        scroll_position: v.optional(v.number()),
+        element_selector: v.optional(v.string()),
+        consoleErrors: v.optional(v.array(v.any())),
+        networkLogs: v.optional(v.array(v.any())),
+        screenResolution: v.optional(v.string()),
+        userAgent: v.optional(v.string()),
+        pageLoadTime: v.optional(v.union(v.number(), v.string())),
+        deviceType: v.optional(v.string()),
 
         // Visual evidence
         screenshotStorageId: v.optional(v.id("_storage")),
@@ -98,6 +108,7 @@ export default defineSchema({
         environmentData: v.optional(v.any()), // auto-captured local storage, cookies, etc.
 
         createdAt: v.number(),
+        created_at: v.optional(v.number()),
         updatedAt: v.number(),
     })
         .index("by_project", ["projectId"])

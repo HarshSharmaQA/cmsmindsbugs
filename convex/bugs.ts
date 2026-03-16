@@ -4,6 +4,20 @@ import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getEffectiveIdentity } from "./users";
 
+function buildTrackerUrl(bug: any) {
+    const rawUrl = bug?.page_url || bug?.url;
+    if (!rawUrl || rawUrl === "Unknown" || rawUrl === "Dashboard") return "";
+    const x = bug?.x_coordinate ?? bug?.scrollX;
+    const y = bug?.y_coordinate ?? bug?.scrollY;
+    if (x === undefined || y === undefined) return String(rawUrl);
+    const scrollPosition = bug?.scroll_position ?? bug?.scrollY ?? 0;
+    const params = new URLSearchParams();
+    params.set("bugscribe-highlight", `${Math.round(x)},${Math.round(y)}`);
+    params.set("bugscribe-scroll", String(Math.round(scrollPosition)));
+    if (bug?.element_selector) params.set("bugscribe-selector", encodeURIComponent(bug.element_selector));
+    return `${String(rawUrl).split("#")[0]}#${params.toString()}`;
+}
+
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 /** Get all bugs for a project (with screenshot URLs resolved) */
@@ -38,6 +52,7 @@ export const getBugs = query({
         return Promise.all(
             bugs.map(async (bug: any) => ({
                 ...bug,
+                trackerUrl: buildTrackerUrl(bug),
                 screenshotUrl: bug.screenshotStorageId
                     ? await ctx.storage.getUrl(bug.screenshotStorageId)
                     : null,
@@ -81,7 +96,7 @@ export const getBug = query({
             .order("asc")
             .collect();
 
-        return { ...bug, screenshotUrl, comments };
+        return { ...bug, trackerUrl: buildTrackerUrl(bug), screenshotUrl, comments };
     },
 });
 
@@ -172,17 +187,28 @@ export const createBug = mutation({
         browser: v.string(),
         os: v.optional(v.string()),
         url: v.string(),
+        page_url: v.optional(v.string()),
         screenWidth: v.optional(v.number()),
         screenHeight: v.optional(v.number()),
         scrollX: v.optional(v.number()),
         scrollY: v.optional(v.number()),
-        consoleErrors: v.optional(v.array(v.string())),
+        x_coordinate: v.optional(v.number()),
+        y_coordinate: v.optional(v.number()),
+        scroll_position: v.optional(v.number()),
+        element_selector: v.optional(v.string()),
+        consoleErrors: v.optional(v.array(v.any())),
+        networkLogs: v.optional(v.array(v.any())),
+        screenResolution: v.optional(v.string()),
+        userAgent: v.optional(v.string()),
+        pageLoadTime: v.optional(v.union(v.number(), v.string())),
+        deviceType: v.optional(v.string()),
         screenshotStorageId: v.optional(v.id("_storage")),
         mediaType: v.optional(v.string()),
         steps: v.optional(v.array(v.string())),
         environmentData: v.optional(v.any()),
         reporterName: v.optional(v.string()),
         reporterEmail: v.optional(v.string()),
+        created_at: v.optional(v.number()),
         priority: v.optional(
             v.union(
                 v.literal("low"),
@@ -200,6 +226,26 @@ export const createBug = mutation({
             throw new Error("Invalid project ID or API key");
         }
         const now = Date.now();
+        const createdAt = args.created_at ?? now;
+        // Smart Assignment Logic
+        let assignedId: string | undefined = undefined;
+        if (args.page_url) {
+            const url = args.page_url.toLowerCase();
+            const members = await ctx.db
+                .query("projectMembers")
+                .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+                .collect();
+
+            // Example rule: /checkout or /payment goes to the first admin/editor found
+            // In a real app, you'd have a rules table
+            if (url.includes("/checkout") || url.includes("/payment") || url.includes("/admin")) {
+                const potentialAssignee = members.find(m => m.role === "admin" || m.role === "editor");
+                if (potentialAssignee) {
+                    assignedId = potentialAssignee.userId;
+                }
+            }
+        }
+
         const bugId = await ctx.db.insert("bugs", {
             projectId: args.projectId,
             title: args.title,
@@ -207,11 +253,21 @@ export const createBug = mutation({
             browser: args.browser,
             os: args.os,
             url: args.url,
+            page_url: args.page_url ?? args.url,
             screenWidth: args.screenWidth,
             screenHeight: args.screenHeight,
             scrollX: args.scrollX,
             scrollY: args.scrollY,
+            x_coordinate: args.x_coordinate,
+            y_coordinate: args.y_coordinate,
+            scroll_position: args.scroll_position ?? args.scrollY,
+            element_selector: args.element_selector,
             consoleErrors: args.consoleErrors ?? [],
+            networkLogs: args.networkLogs ?? [],
+            screenResolution: args.screenResolution,
+            userAgent: args.userAgent,
+            pageLoadTime: args.pageLoadTime,
+            deviceType: args.deviceType,
             screenshotStorageId: args.screenshotStorageId,
             mediaType: args.mediaType,
             steps: args.steps ?? [],
@@ -222,7 +278,9 @@ export const createBug = mutation({
             category: args.category,
             status: "open",
             priority: args.priority ?? "medium",
-            createdAt: now,
+            assigneeId: assignedId,
+            createdAt,
+            created_at: createdAt,
             updatedAt: now,
         });
 
@@ -234,7 +292,7 @@ export const createBug = mutation({
             actorName,
             actorEmail: args.reporterEmail,
             type: "created",
-            detail: `Created bug via widget`,
+            detail: assignedId ? `Created and auto-assigned` : `Created bug via widget`,
         });
 
         // Log asset addition if applicable
@@ -296,11 +354,14 @@ export const dashboardManualCreateBug = mutation({
             browser: "Manual",
             os: "Dashboard",
             url: "Dashboard",
+            page_url: "Dashboard",
+            scroll_position: 0,
             status: "open",
             priority: args.priority || "medium",
             type: args.type || "general",
             category: args.category,
             createdAt: now,
+            created_at: now,
             updatedAt: now,
         });
 

@@ -14,7 +14,7 @@ import {
     Globe, Settings, Key, Eye, EyeOff, Shield, Zap,
     MessageSquare, Bug, Image as ImageIcon, Video, LayoutList,
     Kanban as KanbanIcon, X, Activity, Hash, Download,
-    Book, Info, HelpCircle, AlertCircle, Edit2, Target
+    Book, Info, HelpCircle, AlertCircle, Edit2, Target, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { formatDistanceToNow } from "date-fns";
@@ -54,10 +54,15 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = 
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
+function Skeleton({ className }: { className?: string }) {
+    return <div className={`animate-pulse bg-surface-border rounded ${className}`} />;
+}
+
 function PriorityBadge({ priority }: { priority: Priority }) {
     const cfg = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG.medium;
     return (
-        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cfg.className}`}>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${cfg.className}`}>
+            <span className={`w-1 h-1 rounded-full mr-1.5 ${priority === 'critical' ? 'bg-red-400 animate-pulse' : 'bg-current'}`} />
             {cfg.label}
         </span>
     );
@@ -67,21 +72,21 @@ function StatusBadge({ status, projectStatuses }: { status: Status; projectStatu
     const s = projectStatuses?.find(ps => ps.value === status) || DEFAULT_COLUMNS.find(c => c.status === status) || { label: status, color: "text-slate-400" };
 
     const colorMap: Record<string, string> = {
-        "text-blue-400": "bg-blue-900/50 text-blue-300 border border-blue-800",
-        "text-amber-400": "bg-amber-900/50 text-amber-300 border border-amber-800",
-        "text-green-400": "bg-green-900/50 text-green-300 border border-green-800",
-        "text-slate-500": "bg-slate-800 text-slate-400 border border-slate-700",
-        "text-red-400": "bg-red-900/50 text-red-300 border border-red-800",
-        "text-indigo-400": "bg-indigo-900/50 text-indigo-300 border border-indigo-800",
-        "text-purple-400": "bg-purple-900/50 text-purple-300 border border-purple-800",
-        "text-pink-400": "bg-pink-900/50 text-pink-300 border border-pink-800",
-        "text-cyan-400": "bg-cyan-900/50 text-cyan-300 border border-cyan-800",
+        "text-blue-400": "bg-blue-500/10 text-blue-400 border-blue-500/20",
+        "text-amber-400": "bg-amber-500/10 text-amber-400 border-amber-500/20",
+        "text-green-400": "bg-green-500/10 text-green-400 border-green-500/20",
+        "text-slate-500": "bg-slate-500/10 text-slate-400 border-slate-500/20",
+        "text-red-400": "bg-red-500/10 text-red-400 border-red-500/20",
+        "text-indigo-400": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+        "text-purple-400": "bg-purple-500/10 text-purple-400 border-purple-500/20",
+        "text-pink-400": "bg-pink-500/10 text-pink-400 border-pink-500/20",
+        "text-cyan-400": "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
     };
 
-    const badgeClass = colorMap[s.color] || "bg-slate-800 text-slate-400 border border-slate-700";
+    const badgeClass = colorMap[s.color] || "bg-slate-500/10 text-slate-400 border-slate-500/20";
 
     return (
-        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badgeClass}`}>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeClass}`}>
             {s.label || status}
         </span>
     );
@@ -104,9 +109,16 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
 
 // ─── KanbanColumn ─────────────────────────────────────────────────────────────
 
-function KanbanColumn({ status, label, icon, color, bugs, onSelect }: {
+function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateToLocation, canReorder, isFirst, isLast, onMoveLeft, onMoveRight, isReordering }: {
     status: Status; label: string; icon: React.ReactNode; color: string;
     bugs: any[]; onSelect: (id: Id<"bugs">) => void;
+    onNavigateToLocation: (bug: any) => void;
+    canReorder?: boolean;
+    isFirst?: boolean;
+    isLast?: boolean;
+    onMoveLeft?: () => void;
+    onMoveRight?: () => void;
+    isReordering?: boolean;
 }) {
     return (
         <Droppable droppableId={status}>
@@ -120,16 +132,36 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect }: {
                         }`}
                 >
                     {/* Column Header */}
-                    <div className={`flex items-center gap-2 px-4 py-3 border-b border-surface-border ${color} sticky top-[130px] md:top-[146px] lg:top-[154px] z-30 bg-[#111118]/95 backdrop-blur-2xl rounded-t-xl group-hover:bg-[#16161F]`}>
+                    <div className={`flex items-center gap-2 px-4 py-3 border-b border-surface-border ${color} sticky top-0 z-30 bg-[#111118]/95 backdrop-blur-2xl rounded-t-xl group-hover:bg-[#16161F]`}>
                         {icon || <CircleDot className="w-4 h-4" />}
                         <span className="text-sm font-semibold">{label}</span>
                         <span className="ml-auto bg-surface-border text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                             {bugs.length}
                         </span>
+                        {canReorder && (
+                            <div className="flex items-center gap-1 ml-1">
+                                <button
+                                    onClick={onMoveLeft}
+                                    disabled={!!isFirst || isReordering}
+                                    className="w-6 h-6 rounded-md border border-surface-border bg-surface-card text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                                    title="Move bucket left"
+                                >
+                                    <ChevronLeft className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={onMoveRight}
+                                    disabled={!!isLast || isReordering}
+                                    className="w-6 h-6 rounded-md border border-surface-border bg-surface-card text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                                    title="Move bucket right"
+                                >
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Cards */}
-                    <div className="flex-1 flex flex-col gap-2 p-3 overflow-y-auto">
+                    <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto min-h-0">
                         {bugs.map((bug, index) => (
                             <Draggable key={bug._id} draggableId={bug._id} index={index}>
                                 {(provided, snapshot) => (
@@ -137,69 +169,82 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect }: {
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         onClick={() => onSelect(bug._id)}
-                                        className={`group relative rounded-lg border flex flex-col overflow-hidden cursor-pointer transition-all ${snapshot.isDragging
-                                            ? "border-brand-500 shadow-xl shadow-brand-500/20 rotate-2 bg-surface-elevated scale-[1.02] z-50"
-                                            : "border-surface-border bg-surface-elevated hover:border-slate-600 hover:shadow-md hover:-translate-y-0.5"
+                                        className={`group relative rounded-xl border flex flex-col overflow-hidden cursor-pointer transition-all duration-200 ${snapshot.isDragging
+                                            ? "border-brand-500 shadow-2xl shadow-brand-500/30 rotate-[1deg] bg-surface-elevated scale-[1.03] z-50"
+                                            : "border-surface-border bg-surface-elevated hover:border-brand-500/40 hover:shadow-lg hover:shadow-black/40 hover:-translate-y-1"
                                             }`}
                                     >
                                         {bug.screenshotUrl && bug.mediaType !== "video" && (
-                                            <div className="w-full h-40 border-b border-surface-border bg-slate-900/50 relative overflow-hidden shrink-0 group-hover:h-48 transition-all duration-300">
+                                            <div className="w-full h-36 border-b border-surface-border bg-slate-950/50 relative overflow-hidden shrink-0">
                                                 <img
                                                     src={bug.screenshotUrl}
                                                     alt={bug.title}
-                                                    className="w-full h-full object-cover object-top opacity-90 group-hover:opacity-100 transition-opacity"
+                                                    className="w-full h-full object-cover object-top opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
                                                 />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                             </div>
                                         )}
-                                        <div className="p-3 relative flex-1 flex flex-col">
-                                            <div
-                                                {...provided.dragHandleProps}
-                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-white p-1 bg-surface-elevated/80 rounded backdrop-blur-sm z-50 mb-1"
-                                                title="Drag to move"
-                                            >
-                                                <GripVertical className="w-3.5 h-3.5" />
-                                            </div>
-                                            {bug.url && bug.url !== "Unknown" && (
-                                                <button
-                                                    onClick={(e) => { 
-                                                        e.stopPropagation(); 
-                                                        let exactUrl = bug.url;
-                                                        if (bug.scrollX !== undefined && bug.scrollY !== undefined) {
-                                                            const separator = exactUrl.includes('#') ? '&' : '#';
-                                                            exactUrl = `${exactUrl}${separator}bugscribe-highlight=${bug.scrollX},${bug.scrollY}`;
-                                                        }
-                                                        window.open(exactUrl, '_blank');
-                                                    }}
-                                                    className="absolute top-2 right-10 opacity-0 group-hover:opacity-100 transition-opacity text-brand-400 hover:text-brand-300 p-1 bg-surface-elevated/80 rounded backdrop-blur-sm z-50"
-                                                    title="Locate bug on page"
-                                                >
-                                                    <Target className="w-3.5 h-3.5" />
-                                                </button>
-                                            )}
-                                            <div className="flex items-start gap-2 mb-2 pr-12">
-                                                <Bug className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
-                                                <p className="text-sm font-medium text-white leading-tight line-clamp-2">{bug.title}</p>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <PriorityBadge priority={bug.priority} />
-                                                {bug.type && bug.type !== "general" && (
-                                                    <span className="inline-flex items-center gap-0.5 text-[10px] text-brand-300 bg-brand-900/30 border border-brand-800/50 px-1.5 py-0.5 rounded font-medium capitalize">
-                                                        {bug.type.replace(/-/g, ' ')}
-                                                    </span>
-                                                )}
-                                                {bug.screenshotUrl && bug.mediaType === "video" && (
-                                                    <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 bg-surface-border px-1.5 py-0.5 rounded font-medium">
-                                                        <Video className="w-3 h-3" /> Video
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="mt-3 pt-2 border-t border-surface-border flex items-center gap-1.5 text-[10px] text-slate-500 mt-auto">
-                                                <Clock className="w-3 h-3 text-slate-600" />
-                                                {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                                        <div className="p-4 relative flex-1 flex flex-col gap-3">
+                                            {/* Action Buttons (Visible on Hover) */}
+                                            <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0 z-10">
                                                 {bug.url && bug.url !== "Unknown" && (
-                                                    <span className="ml-auto truncate max-w-[80px]" title={bug.url}>
-                                                        {new URL(bug.url).hostname}
-                                                    </span>
+                                                    <button
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            onNavigateToLocation(bug);
+                                                        }}
+                                                        className="p-1.5 bg-surface-card/90 border border-surface-border rounded-lg text-brand-400 hover:text-brand-300 hover:border-brand-500/50 backdrop-blur-md transition-all"
+                                                        title="Locate bug on page"
+                                                    >
+                                                        <Target className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                                <div
+                                                    {...provided.dragHandleProps}
+                                                    className="p-1.5 bg-surface-card/90 border border-surface-border rounded-lg text-slate-500 hover:text-white cursor-grab active:cursor-grabbing backdrop-blur-md transition-all"
+                                                    title="Drag to move"
+                                                >
+                                                    <GripVertical className="w-3.5 h-3.5" />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col gap-2">
+                                                <div className="flex items-start gap-2.5">
+                                                    <div className="mt-1 p-1 rounded-md bg-surface-card border border-surface-border shrink-0">
+                                                        <Bug className="w-3 h-3 text-slate-400" />
+                                                    </div>
+                                                    <h4 className="text-[13px] font-semibold text-white leading-snug line-clamp-2 group-hover:text-brand-300 transition-colors">
+                                                        {bug.title}
+                                                    </h4>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <PriorityBadge priority={bug.priority} />
+                                                    {bug.type && bug.type !== "general" && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-500/5 text-brand-400 border border-brand-500/10 capitalize">
+                                                            {bug.type.replace(/-/g, ' ')}
+                                                        </span>
+                                                    )}
+                                                    {bug.screenshotUrl && bug.mediaType === "video" && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/10">
+                                                            <Video className="w-2.5 h-2.5" /> Video
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-auto pt-3 border-t border-surface-border/50 flex items-center justify-between text-[10px] text-slate-500 font-medium">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock className="w-3 h-3 text-slate-600" />
+                                                    {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                                                </div>
+                                                {bug.url && bug.url !== "Unknown" && (
+                                                    <div className="flex items-center gap-1 max-w-[100px] bg-surface-card/50 px-1.5 py-0.5 rounded border border-surface-border/50">
+                                                        <Globe className="w-2.5 h-2.5 text-slate-600" />
+                                                        <span className="truncate" title={bug.url}>
+                                                            {new URL(bug.url).hostname.replace('www.', '')}
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -209,8 +254,11 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect }: {
                         ))}
                         {provided.placeholder}
                         {bugs.length === 0 && (
-                            <div className="flex-1 flex items-center justify-center text-slate-700 text-xs py-8">
-                                Drop issues here
+                            <div className="flex-1 flex flex-col items-center justify-center py-12 border-2 border-dashed border-surface-border/50 rounded-xl m-2 group/empty transition-colors hover:border-surface-border">
+                                <div className="w-10 h-10 rounded-full bg-surface-border/20 flex items-center justify-center mb-3 group-hover/empty:scale-110 transition-transform duration-300">
+                                    <Plus className="w-5 h-5 text-slate-600 group-hover/empty:text-slate-400" />
+                                </div>
+                                <p className="text-slate-600 text-[11px] font-medium group-hover/empty:text-slate-400">No issues here</p>
                             </div>
                         )}
                     </div>
@@ -222,7 +270,7 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect }: {
 
 // ─── ListView ─────────────────────────────────────────────────────────────────
 
-function ListView({ bugs, onSelect }: { bugs: any[]; onSelect: (id: Id<"bugs">) => void }) {
+function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { bugs: any[]; onSelect: (id: Id<"bugs">) => void; onNavigateToLocation: (bug: any) => void; projectStatuses: any[] }) {
     if (bugs.length === 0) {
         return (
             <div className="card p-12 text-center">
@@ -275,7 +323,7 @@ function ListView({ bugs, onSelect }: { bugs: any[]; onSelect: (id: Id<"bugs">) 
                                 </div>
                             </td>
                             <td className="px-4 py-3 hidden md:table-cell">
-                                <StatusBadge status={bug.status} projectStatuses={[]} />
+                                <StatusBadge status={bug.status} projectStatuses={projectStatuses} />
                             </td>
                             <td className="px-4 py-3 hidden sm:table-cell">
                                 <PriorityBadge priority={bug.priority} />
@@ -298,12 +346,7 @@ function ListView({ bugs, onSelect }: { bugs: any[]; onSelect: (id: Id<"bugs">) 
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                let exactUrl = bug.url;
-                                                if (bug.scrollX !== undefined && bug.scrollY !== undefined) {
-                                                    const separator = exactUrl.includes('#') ? '&' : '#';
-                                                    exactUrl = `${exactUrl}${separator}bugscribe-highlight=${bug.scrollX},${bug.scrollY}`;
-                                                }
-                                                window.open(exactUrl, '_blank');
+                                                onNavigateToLocation(bug);
                                             }}
                                             className="p-1.5 rounded hover:bg-surface-elevated transition-colors"
                                             title="Locate bug on page"
@@ -311,6 +354,16 @@ function ListView({ bugs, onSelect }: { bugs: any[]; onSelect: (id: Id<"bugs">) 
                                             <Target className="w-3.5 h-3.5 text-brand-400 hover:text-brand-300 transition-colors" />
                                         </button>
                                     )}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onSelect(bug._id);
+                                        }}
+                                        className="p-1.5 rounded hover:bg-surface-elevated transition-colors"
+                                        title="View issue details"
+                                    >
+                                        <Eye className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-colors" />
+                                    </button>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -697,6 +750,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
     const activities = useQuery(api.activities.getActivities, { bugId, devToken: token });
     const customModules = useQuery(api.modules.listModules, { devToken: token || undefined });
     const currentUser = useQuery(api.users.currentUser, { devToken: token || undefined });
+    const statusOptions = useQuery(api.statuses.getProjectStatuses, bug ? { projectId: bug.projectId, devToken: token } : "skip");
     const addComment = useMutation(api.comments.addComment);
     const deleteBug = useMutation(api.bugs.deleteBug);
     const updatePriority = useMutation(api.bugs.updatePriority);
@@ -707,7 +761,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
     const [comment, setComment] = useState("");
     const [posting, setPosting] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [activeTab, setActiveTab] = useState<"details" | "screenshot" | "env" | "activity">("details");
+    const [activeTab, setActiveTab] = useState<"details" | "screenshot" | "env" | "console" | "network" | "activity">("details");
 
     // Editable field states
     const [tagInput, setTagInput] = useState<string[]>([]);
@@ -818,7 +872,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
             {/* Drawer */}
-            <div className="relative ml-auto w-full max-w-[540px] h-full bg-surface-card border-l border-surface-border flex flex-col shadow-2xl overflow-hidden">
+            <div className="relative ml-auto w-full max-w-[540px] h-full bg-surface-card border-l border-surface-border flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right-8 duration-300">
                 {!bug ? (
                     <div className="flex-1 flex items-center justify-center">
                         <div className="skeleton w-12 h-12 rounded-full" />
@@ -831,7 +885,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                             <div className="flex-1 min-w-0">
                                 <h2 className="text-sm font-semibold text-white leading-snug">{bug.title}</h2>
                                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                    <StatusBadge status={bug.status as Status} />
+                                    <StatusBadge status={bug.status as Status} projectStatuses={statusOptions || []} />
                                     <PriorityBadge priority={bug.priority as Priority} />
                                     <span className="text-[10px] text-slate-500">
                                         {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
@@ -865,13 +919,18 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                 <select
                                     value={bug.status}
                                     onChange={(e) => onStatusChange(e.target.value as Status)}
-                                    className="input text-xs h-8 w-full"
+                                    className="input text-xs h-9 w-full !py-0 leading-none"
                                     disabled={!canUpdate}
                                 >
-                                    <option value="open">Open</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="resolved">Resolved</option>
-                                    <option value="closed">Closed</option>
+                                    {(statusOptions && statusOptions.length ? statusOptions : DEFAULT_COLUMNS).map((status: any) => {
+                                        const value = status.value ?? status.status;
+                                        const label = status.label ?? value;
+                                        return (
+                                            <option key={value} value={value}>
+                                                {label}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
                             </div>
                             <div className="flex-1">
@@ -879,7 +938,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                 <select
                                     value={bug.priority}
                                     onChange={(e) => updatePriority({ bugId, priority: e.target.value as Priority, devToken: token })}
-                                    className="input text-xs h-8 w-full"
+                                    className="input text-xs h-9 w-full !py-0 leading-none"
                                     disabled={!canUpdate}
                                 >
                                     <option value="low">Low</option>
@@ -892,7 +951,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
 
                         {/* Tabs */}
                         <div className="flex gap-0 border-b border-surface-border px-5 shrink-0 overflow-x-auto whitespace-nowrap" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                            {(["details", "screenshot", "env", "activity"] as const).map((tab) => (
+                            {(["details", "screenshot", "env", "console", "network", "activity"] as const).map((tab) => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
@@ -911,149 +970,164 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                             {activeTab === "details" && (
                                 <>
                                     {/* Categorization & Assignment */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <div className="flex items-center justify-between mb-1">
-                                                <label className="text-[10px] text-slate-500 uppercase tracking-wider">Type</label>
-                                                {isSuperAdmin && canUpdate && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowQuickAddType(true)}
-                                                        className="inline-flex items-center gap-1 text-[10px] text-brand-400 hover:text-brand-300 transition-colors font-medium"
-                                                        title="Add new module type"
-                                                    >
-                                                        <Plus className="w-2.5 h-2.5" /> New Type
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <select
-                                                value={bugType}
-                                                onChange={(e) => handleTypeChange(e.target.value)}
-                                                className="input text-xs h-8 w-full"
-                                                disabled={!canUpdate || savingType}
-                                            >
-                                                <optgroup label="Bug Types">
-                                                    {BUG_TYPES.map(t => (
-                                                        <option key={t.value} value={t.value}>{t.label}</option>
-                                                    ))}
-                                                </optgroup>
-                                                {customModules && customModules.length > 0 && (
-                                                    <optgroup label="Dashboard Modules">
-                                                        {customModules.map((mod: any) => (
-                                                            <option key={mod.slug} value={mod.slug}>{mod.name}</option>
+                                    <div className="bg-surface-elevated/50 border border-surface-border rounded-xl p-4 space-y-4">
+                                        <div className="flex items-center gap-2 mb-2 text-brand-400">
+                                            <Shield className="w-3.5 h-3.5" />
+                                            <span className="text-[11px] font-bold uppercase tracking-widest">Management</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <label className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Type</label>
+                                                    {isSuperAdmin && canUpdate && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowQuickAddType(true)}
+                                                            className="inline-flex items-center gap-1 text-[10px] text-brand-400 hover:text-brand-300 transition-colors font-medium"
+                                                            title="Add new module type"
+                                                        >
+                                                            <Plus className="w-2.5 h-2.5" /> New
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <select
+                                                    value={bugType}
+                                                    onChange={(e) => handleTypeChange(e.target.value)}
+                                                    className="input text-xs h-9 w-full bg-surface-card"
+                                                    disabled={!canUpdate || savingType}
+                                                >
+                                                    <optgroup label="Bug Types">
+                                                        {BUG_TYPES.map(t => (
+                                                            <option key={t.value} value={t.value}>{t.label}</option>
                                                         ))}
                                                     </optgroup>
-                                                )}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Category</label>
-                                            <input
-                                                value={bugCategory}
-                                                onChange={(e) => setBugCategory(e.target.value)}
-                                                onBlur={() => handleCategoryChange(bugCategory)}
-                                                placeholder="e.g. Authentication"
-                                                className="input text-xs h-8 w-full"
-                                                disabled={!canUpdate || savingCategory}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Due Date</label>
-                                            <input
-                                                type="date"
-                                                value={dueDate}
-                                                onChange={(e) => handleDueDateChange(e.target.value)}
-                                                className="input text-xs h-8 w-full"
-                                                disabled={!canUpdate || savingDue}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Assignee</label>
-                                            <select
-                                                value={selectedAssignee ?? ""}
-                                                onChange={(e) => handleAssigneeChange(e.target.value)}
-                                                className="input text-xs h-8 w-full"
-                                                disabled={!canUpdate || savingAssignee}
-                                            >
-                                                <option value="">Unassigned</option>
-                                                {projectMembers.map((m: any) => (
-                                                    <option key={m.userId} value={m.userId}>
-                                                        {m.name || m.email || m.userId}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                    {customModules && customModules.length > 0 && (
+                                                        <optgroup label="Dashboard Modules">
+                                                            {customModules.map((mod: any) => (
+                                                                <option key={mod.slug} value={mod.slug}>{mod.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                    )}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1.5 font-semibold">Category</label>
+                                                <input
+                                                    value={bugCategory}
+                                                    onChange={(e) => setBugCategory(e.target.value)}
+                                                    onBlur={() => handleCategoryChange(bugCategory)}
+                                                    placeholder="e.g. Authentication"
+                                                    className="input text-xs h-9 w-full bg-surface-card"
+                                                    disabled={!canUpdate || savingCategory}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1.5 font-semibold">Due Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={dueDate}
+                                                    onChange={(e) => handleDueDateChange(e.target.value)}
+                                                    className="input text-xs h-9 w-full bg-surface-card"
+                                                    disabled={!canUpdate || savingDue}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1.5 font-semibold">Assignee</label>
+                                                <select
+                                                    value={selectedAssignee ?? ""}
+                                                    onChange={(e) => handleAssigneeChange(e.target.value)}
+                                                    className="input text-xs h-9 w-full bg-surface-card"
+                                                    disabled={!canUpdate || savingAssignee}
+                                                >
+                                                    <option value="">Unassigned</option>
+                                                    {projectMembers.map((m: any) => (
+                                                        <option key={m.userId} value={m.userId}>
+                                                            {m.name || m.email || m.userId}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Tags */}
-                                    <div>
-                                        <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1.5">Tags {savingTags && <span className="text-slate-600">(saving…)</span>}</label>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Tags {savingTags && <span className="text-slate-600">(saving…)</span>}</label>
                                         <TagsInput tags={tagInput} onChange={handleSaveTags} disabled={!canUpdate} />
                                     </div>
 
                                     <div className="divider" />
 
                                     {bug.description && (
-                                        <div>
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Description</p>
+                                        <div className="bg-surface-elevated/30 p-4 rounded-xl border border-surface-border">
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-semibold flex items-center gap-2">
+                                                <Edit2 className="w-3 h-3" /> Description
+                                            </p>
                                             <p className="text-sm text-slate-300 leading-relaxed">{bug.description}</p>
                                         </div>
                                     )}
 
                                     {/* Steps */}
                                     {bug.steps && bug.steps.length > 0 && (
-                                        <div>
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Steps to Reproduce</p>
-                                            <ol className="list-decimal list-inside space-y-1">
+                                        <div className="bg-surface-elevated/30 p-4 rounded-xl border border-surface-border">
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-3 font-semibold flex items-center gap-2">
+                                                <LayoutList className="w-3 h-3" /> Steps to Reproduce
+                                            </p>
+                                            <ol className="space-y-2">
                                                 {bug.steps.map((step: string, i: number) => (
-                                                    <li key={i} className="text-xs text-slate-300">{step}</li>
+                                                    <li key={i} className="flex gap-3 text-xs text-slate-300 group">
+                                                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-surface-card border border-surface-border flex items-center justify-center text-[10px] font-bold text-slate-500 group-hover:border-brand-500 group-hover:text-brand-400 transition-colors">
+                                                            {i + 1}
+                                                        </span>
+                                                        <span className="mt-0.5">{step}</span>
+                                                    </li>
                                                 ))}
                                             </ol>
                                         </div>
                                     )}
 
                                     {/* Metadata */}
-                                    <div className="space-y-2">
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider">Details</p>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                    <div className="bg-surface-elevated/30 p-4 rounded-xl border border-surface-border space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Environment & Context</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-slate-600 font-mono">ID: {bug._id.substring(0, 8)}...</span>
+                                                <CopyButton text={bug._id} />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                                             {[
-                                                { label: "Source", value: bug.reporterName ? "User" : "Widget", icon: <Zap className="w-3 h-3" /> },
-                                                { label: "Reporter", value: bug.reporterEmail || bug.reporterName, icon: <Mail className="w-3 h-3" /> },
-                                                { label: "Browser", value: bug.browser?.split(" ").slice(0, 3).join(" "), icon: <Monitor className="w-3 h-3" /> },
-                                                { label: "OS", value: bug.os, icon: <Monitor className="w-3 h-3" /> },
-                                                { label: "Screen", value: bug.screenWidth ? `${bug.screenWidth}×${bug.screenHeight}` : null, icon: <Monitor className="w-3 h-3" /> },
-                                                { label: "DPI", value: null, icon: null },
+                                                { label: "Source", value: bug.reporterName ? "User" : "Widget", icon: <Zap className="w-3.5 h-3.5" /> },
+                                                { label: "Reporter", value: bug.reporterEmail || bug.reporterName, icon: <Mail className="w-3.5 h-3.5" /> },
+                                                { label: "Browser", value: bug.browser?.split(" ").slice(0, 3).join(" "), icon: <Monitor className="w-3.5 h-3.5" /> },
+                                                { label: "OS", value: bug.os, icon: <Monitor className="w-3.5 h-3.5" /> },
+                                                { label: "Screen", value: bug.screenResolution || (bug.screenWidth ? `${bug.screenWidth}×${bug.screenHeight}` : null), icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                                                { label: "Device", value: bug.deviceType, icon: <Monitor className="w-3.5 h-3.5" /> },
+                                                { label: "Load Time", value: typeof bug.pageLoadTime === 'number' ? `${bug.pageLoadTime}ms` : bug.pageLoadTime, icon: <Clock className="w-3.5 h-3.5" /> },
                                             ].filter(r => r.value && r.icon).map((row) => (
-                                                <div key={row.label} className="flex items-start gap-2 text-xs">
-                                                    <span className="text-slate-600 shrink-0 mt-0.5">{row.icon}</span>
+                                                <div key={row.label} className="flex items-center gap-3 text-xs group">
+                                                    <span className="text-slate-600 shrink-0 group-hover:text-brand-400 transition-colors">{row.icon}</span>
                                                     <span className="text-slate-500 w-16 shrink-0">{row.label}</span>
-                                                    <span className="text-slate-300 truncate flex-1" title={row.value ?? undefined}>{row.value}</span>
+                                                    <span className="text-slate-300 truncate flex-1 font-medium" title={row.value ?? undefined}>{row.value}</span>
                                                 </div>
                                             ))}
                                         </div>
-                                        {bug.url && bug.url !== "Unknown" && (
-                                            <div className="flex items-start gap-2 text-xs">
-                                                <Globe className="w-3 h-3 text-slate-600 mt-0.5 shrink-0" />
-                                                <span className="text-slate-500 w-16 shrink-0">Page</span>
-                                                <a href={bug.scrollX !== undefined && bug.scrollY !== undefined ? `${bug.url}${bug.url.includes('#') ? '&' : '#'}bugscribe-highlight=${bug.scrollX},${bug.scrollY}` : bug.url} target="_blank" rel="noopener noreferrer"
-                                                    className="text-brand-400 hover:underline truncate flex-1" title={bug.url}>
-                                                    {bug.url.replace(/^https?:\/\//, "").substring(0, 50)}
-                                                </a>
+                                        {(bug.url && bug.url !== "Unknown") && (
+                                            <div className="flex items-start gap-3 text-xs pt-2 border-t border-surface-border/50 group">
+                                                <Globe className="w-3.5 h-3.5 text-slate-600 mt-0.5 shrink-0 group-hover:text-brand-400 transition-colors" />
+                                                <span className="text-slate-500 w-16 shrink-0 mt-0.5">Page URL</span>
+                                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                                    <a href={bug.trackerUrl || bug.url} target="_blank" rel="noopener noreferrer"
+                                                        className="text-brand-400 hover:underline truncate font-medium" title={bug.url}>
+                                                        {bug.url}
+                                                    </a>
+                                                    <CopyButton text={bug.url} />
+                                                </div>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* Console Errors */}
-                                    {bug.consoleErrors && bug.consoleErrors.length > 0 && (
-                                        <div>
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Console Errors</p>
-                                            <div className="bg-red-950/30 border border-red-900/50 rounded-lg p-3 space-y-1 max-h-32 overflow-y-auto">
-                                                {bug.consoleErrors.map((e: string, i: number) => (
-                                                    <p key={i} className="text-xs text-red-300 font-mono leading-relaxed">{e}</p>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                                    <div className="divider" />
 
                                     {/* Comments */}
                                     <div>
@@ -1136,11 +1210,19 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                 <div className="space-y-4">
                                     {bug.environmentData ? (
                                         <>
+                                            {bug.userAgent && (
+                                                <div>
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">User Agent</p>
+                                                    <p className="text-xs text-slate-400 bg-surface-elevated rounded p-2 border border-surface-border font-mono break-all leading-relaxed">
+                                                        {bug.userAgent}
+                                                    </p>
+                                                </div>
+                                            )}
                                             {bug.environmentData.windowSize && (
                                                 <div>
                                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Window Size</p>
                                                     <p className="text-xs text-slate-300 font-mono">
-                                                        {bug.environmentData.windowSize.width}×{bug.environmentData.windowSize.height}
+                                                        {typeof bug.environmentData.windowSize === 'string' ? bug.environmentData.windowSize : `${bug.environmentData.windowSize.width}×${bug.environmentData.windowSize.height}`}
                                                     </p>
                                                 </div>
                                             )}
@@ -1167,6 +1249,56 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                         <div className="flex flex-col items-center justify-center py-12 text-slate-600">
                                             <Monitor className="w-10 h-10 mb-3" />
                                             <p className="text-sm">No environment data captured</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === "console" && (
+                                <div className="space-y-3">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Console Errors</p>
+                                    {bug.consoleErrors && bug.consoleErrors.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {bug.consoleErrors.map((e: any, i: number) => (
+                                                <div key={i} className="bg-red-950/20 border border-red-900/40 rounded-lg p-3 font-mono text-xs">
+                                                    <div className="text-red-300 font-bold mb-1">{typeof e === 'string' ? e : e.message}</div>
+                                                    {e.file && <div className="text-slate-500 text-[10px]">{e.file}:{e.line}:{e.column}</div>}
+                                                    {e.stack && <pre className="mt-2 text-[10px] text-slate-500 overflow-x-auto max-h-32 whitespace-pre-wrap">{e.stack}</pre>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-12 text-slate-600">
+                                            <LayoutList className="w-10 h-10 mb-3 opacity-20" />
+                                            <p className="text-sm">No console errors captured</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === "network" && (
+                                <div className="space-y-3">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Failed Network Requests</p>
+                                    {bug.networkLogs && bug.networkLogs.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {bug.networkLogs.map((log: any, i: number) => (
+                                                <div key={i} className="bg-surface-elevated border border-surface-border rounded-lg p-3 font-mono text-xs">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${log.status >= 500 ? 'bg-red-900 text-red-200' : 'bg-amber-900 text-amber-200'}`}>
+                                                            {log.status || 'ERR'}
+                                                        </span>
+                                                        <span className="text-slate-400 uppercase">{log.method}</span>
+                                                        <span className="text-slate-500 ml-auto">{log.responseTime}ms</span>
+                                                    </div>
+                                                    <div className="text-slate-300 break-all">{log.url}</div>
+                                                    {log.error && <div className="text-red-400 mt-1 text-[10px]">{log.error}</div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-12 text-slate-600">
+                                            <Globe className="w-10 h-10 mb-3 opacity-20" />
+                                            <p className="text-sm">No failed network requests</p>
                                         </div>
                                     )}
                                 </div>
@@ -1464,14 +1596,24 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const bugs = useQuery(api.bugs.getBugs, projectId ? { projectId, devToken: devToken || undefined } : "skip");
     const stats = useQuery(api.bugs.getBugStats, projectId ? { projectId, devToken: devToken || undefined } : "skip");
     const updateStatus = useMutation(api.bugs.updateStatus);
+    const addStatus = useMutation(api.statuses.addStatus);
+    const moveStatus = useMutation(api.statuses.moveStatus);
 
     const [selectedBugId, setSelectedBugId] = useState<Id<"bugs"> | null>(null);
     const [showCreateBugModal, setShowCreateBugModal] = useState(false);
     const [view, setView] = useState<string>("kanban");
     const [searchQuery, setSearchQuery] = useState("");
     const [typeFilter, setTypeFilter] = useState<string>("all");
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [priorityFilter, setPriorityFilter] = useState<string>("all");
+    const [showAddBucketInput, setShowAddBucketInput] = useState(false);
+    const [newBucketLabel, setNewBucketLabel] = useState("");
+    const [addingBucket, setAddingBucket] = useState(false);
+    const [movingBucketStatus, setMovingBucketStatus] = useState<string | null>(null);
+    const kanbanScrollRef = useRef<HTMLDivElement | null>(null);
 
     const customModules = useQuery(api.modules.listModules, { devToken: devToken || undefined });
+    const projectStatuses = useQuery(api.statuses.getProjectStatuses, projectId ? { projectId, devToken: devToken || undefined } : "skip");
 
     useEffect(() => {
         const param = searchParams?.get("bugId");
@@ -1484,15 +1626,24 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const members = useQuery(api.projects.listMembers, projectId ? { projectId, devToken: devToken || undefined } : "skip");
     const myPermissions = useQuery(api.permissions.getMyPermissions, projectId ? { projectId, devToken: devToken || undefined } : "skip");
 
-    const isProjectAdmin = project?.userId === currentUser?.tokenIdentifier ||
+    const isProjectAdmin = Boolean(
+        project?.userId === currentUser?.tokenIdentifier ||
         members?.find((m: any) => m.userId === currentUser?.tokenIdentifier && (m.role === "owner" || m.role === "admin")) ||
-        currentUser?.role === "super_admin";
+        currentUser?.role === "super_admin"
+    );
 
     const canViewApi = myPermissions?.includes("view_api") || false;
     const canViewSettings = myPermissions?.includes("view_settings") || false;
     const canManageUsers = myPermissions?.includes("manage_users") || false;
     const canDeleteBugs = myPermissions?.includes("delete_bugs") || false;
     const canUpdateBugs = myPermissions?.includes("update_bugs") || false;
+    const statusColumnCount = projectStatuses && projectStatuses.length ? projectStatuses.length : DEFAULT_COLUMNS.length;
+
+    useEffect(() => {
+        if (view === "kanban") {
+            kanbanScrollRef.current?.scrollTo({ left: 0, behavior: "smooth" });
+        }
+    }, [statusColumnCount, view]);
 
     if (project === undefined || bugs === undefined) return <LoadingSkeleton />;
     if (project === null) {
@@ -1509,10 +1660,37 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         const matchesSearch = bug.title.toLowerCase().includes(q) || bug.url?.toLowerCase().includes(q);
         const matchesType = typeFilter === "all" ||
             (typeFilter === "general" ? (!bug.type || bug.type === "general") : bug.type === typeFilter);
-        return matchesSearch && matchesType;
+        const matchesStatus = statusFilter === "all" || bug.status === statusFilter;
+        const matchesPriority = priorityFilter === "all" || bug.priority === priorityFilter;
+        return matchesSearch && matchesType && matchesStatus && matchesPriority;
     });
 
     const bugsByStatus = (status: Status) => filteredBugs.filter((b: any) => b.status === status);
+    const kanbanColumns = ((projectStatuses && projectStatuses.length ? projectStatuses : DEFAULT_COLUMNS) as any[]).map((status: any) => {
+        const normalizedStatus = status.value ?? status.status;
+        const fallback = DEFAULT_COLUMNS.find(c => c.status === normalizedStatus);
+        return {
+            status: normalizedStatus,
+            label: status.label ?? fallback?.label ?? normalizedStatus,
+            color: status.color ?? fallback?.color ?? "text-slate-400",
+            icon: fallback?.icon ?? <CircleDot className="w-4 h-4" />,
+        };
+    });
+
+    const buildBugLocationUrl = (bug: any) => {
+        if (bug?.trackerUrl) return bug.trackerUrl;
+        if (!bug?.url || bug.url === "Unknown" || bug.url === "Dashboard") return "";
+        return bug.url;
+    };
+
+    const navigateToBugLocation = (bug: any) => {
+        const targetUrl = buildBugLocationUrl(bug);
+        if (targetUrl) {
+            window.open(targetUrl, "_blank", "noopener,noreferrer");
+            return;
+        }
+        setSelectedBugId(bug._id);
+    };
 
     // Build type filter pills from default types + custom modules
     const defaultTypeFilters = [
@@ -1542,6 +1720,49 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             await updateStatus({ bugId: draggableId as Id<"bugs">, status: newStatus as any, devToken: token });
         } catch (error: any) {
             alert(error.message || "Failed to update status.");
+        }
+    };
+
+    const handleAddBucket = async () => {
+        if (!projectId) return;
+        const label = newBucketLabel.trim();
+        if (!label) return;
+
+        const token = devToken || localStorage.getItem("bugscribe_dev_token") || undefined;
+        const colorPalette = ["text-indigo-400", "text-purple-400", "text-pink-400", "text-cyan-400", "text-red-400"];
+
+        setAddingBucket(true);
+        try {
+            await addStatus({
+                projectId,
+                label,
+                color: colorPalette[kanbanColumns.length % colorPalette.length],
+                devToken: token,
+            });
+            setNewBucketLabel("");
+            setShowAddBucketInput(false);
+        } catch (error: any) {
+            alert(error.message || "Failed to add bucket.");
+        } finally {
+            setAddingBucket(false);
+        }
+    };
+
+    const handleMoveBucket = async (statusValue: string, direction: "left" | "right") => {
+        if (!projectId) return;
+        const token = devToken || localStorage.getItem("bugscribe_dev_token") || undefined;
+        setMovingBucketStatus(statusValue);
+        try {
+            await moveStatus({
+                projectId,
+                statusValue,
+                direction,
+                devToken: token,
+            });
+        } catch (error: any) {
+            alert(error.message || "Failed to reorder bucket.");
+        } finally {
+            setMovingBucketStatus(null);
         }
     };
 
@@ -1694,15 +1915,40 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                     </button>
                                 )}
                             </div>
-                            <div className="relative w-full md:w-auto mt-2 md:mt-0">
-                                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                                <input
-                                    type="text"
-                                    className="input pl-9 h-9 text-xs w-full md:w-[220px]"
-                                    placeholder="Search issues…"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
+                            <div className="relative w-full md:w-auto mt-2 md:mt-0 flex items-center gap-2">
+                                <div className="relative flex-1 md:flex-none">
+                                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                                    <input
+                                        type="text"
+                                        className="input pl-9 h-9 text-xs w-full md:w-[200px]"
+                                        placeholder="Search issues…"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="input h-9 text-xs w-[110px] bg-surface-card"
+                                >
+                                    <option value="all">All Status</option>
+                                    {kanbanColumns.map((statusCol) => (
+                                        <option key={statusCol.status} value={statusCol.status}>
+                                            {statusCol.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={priorityFilter}
+                                    onChange={(e) => setPriorityFilter(e.target.value)}
+                                    className="input h-9 text-xs w-[110px] bg-surface-card"
+                                >
+                                    <option value="all">All Priority</option>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
                             </div>
                         </div>
 
@@ -1751,21 +1997,105 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 </div>
 
                 {/* Views */}
-                {view === "kanban" && (
-                    <DragDropContext onDragEnd={handleDragEnd}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1 items-start">
-                            {DEFAULT_COLUMNS.map((col: { status: string; label: string; icon: React.ReactNode; color: string }) => (
-                                <KanbanColumn
-                                    key={col.status}
-                                    {...col}
-                                    bugs={bugsByStatus(col.status)}
-                                    onSelect={setSelectedBugId}
-                                />
-                            ))}
+                {bugs?.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        <div className="w-20 h-20 rounded-2xl bg-surface-card border border-surface-border flex items-center justify-center mb-6 shadow-2xl">
+                            <Bug className="w-10 h-10 text-brand-400 opacity-20" />
                         </div>
-                    </DragDropContext>
+                        <h3 className="text-xl font-bold text-white mb-2">No bugs reported yet</h3>
+                        <p className="text-slate-500 max-w-sm mb-8 leading-relaxed">
+                            Start capturing issues by connecting your website with the BugScribe extension or embedding the widget script.
+                        </p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setView("integrations")} className="btn-primary">
+                                <Zap className="w-4 h-4" /> Get Connection Key
+                            </button>
+                            <button onClick={() => setShowCreateBugModal(true)} className="btn-ghost">
+                                <Plus className="w-4 h-4" /> Manual Report
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {view === "kanban" && (
+                            <DragDropContext onDragEnd={handleDragEnd}>
+                                <div ref={kanbanScrollRef} className="overflow-x-auto pb-2">
+                                    <div className="flex gap-4 items-start min-w-max">
+                                    {kanbanColumns.map((col: { status: string; label: string; icon: React.ReactNode; color: string }) => (
+                                        <div key={col.status} className="w-[320px] shrink-0">
+                                            <KanbanColumn
+                                                {...col}
+                                                bugs={bugsByStatus(col.status)}
+                                                onSelect={setSelectedBugId}
+                                                onNavigateToLocation={navigateToBugLocation}
+                                                canReorder={isProjectAdmin}
+                                                isFirst={kanbanColumns[0]?.status === col.status}
+                                                isLast={kanbanColumns[kanbanColumns.length - 1]?.status === col.status}
+                                                onMoveLeft={() => handleMoveBucket(col.status, "left")}
+                                                onMoveRight={() => handleMoveBucket(col.status, "right")}
+                                                isReordering={movingBucketStatus === col.status}
+                                            />
+                                        </div>
+                                    ))}
+                                    {isProjectAdmin && (
+                                        <div className="w-[320px] shrink-0 rounded-xl border border-dashed border-surface-border bg-surface-card min-h-[400px] p-4 flex flex-col">
+                                            <button
+                                                onClick={() => setShowAddBucketInput(true)}
+                                                className="text-sm font-semibold text-white flex items-center gap-2 hover:text-brand-400 transition-colors"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                                Add a new bucket
+                                            </button>
+                                            {showAddBucketInput && (
+                                                <div className="mt-4 space-y-2">
+                                                    <input
+                                                        type="text"
+                                                        className="input w-full text-xs h-9"
+                                                        placeholder="Bucket name"
+                                                        value={newBucketLabel}
+                                                        onChange={(e) => setNewBucketLabel(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") {
+                                                                e.preventDefault();
+                                                                handleAddBucket();
+                                                            }
+                                                            if (e.key === "Escape") {
+                                                                setShowAddBucketInput(false);
+                                                                setNewBucketLabel("");
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                    />
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={handleAddBucket}
+                                                            disabled={addingBucket || !newBucketLabel.trim()}
+                                                            className="btn-primary text-xs h-8 px-3"
+                                                        >
+                                                            {addingBucket ? "Adding..." : "Add bucket"}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setShowAddBucketInput(false);
+                                                                setNewBucketLabel("");
+                                                            }}
+                                                            className="btn-ghost text-xs h-8 px-3"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    </div>
+                                </div>
+                            </DragDropContext>
+                        )}
+                        {view === "list" && <ListView bugs={filteredBugs} onSelect={setSelectedBugId} onNavigateToLocation={navigateToBugLocation} projectStatuses={projectStatuses || []} />}
+                    </>
                 )}
-                {view === "list" && <ListView bugs={filteredBugs} onSelect={setSelectedBugId} />}
+
                 {view === "team" && (
                     <TeamManagement
                         members={members || []}
@@ -1998,12 +2328,55 @@ function ModuleView({ moduleId, projectId, devToken, module }: {
 
 function LoadingSkeleton() {
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-background">
             <Navbar />
-            <div className="max-w-[1600px] mx-auto w-full px-4 py-12 flex flex-col items-center">
-                <div className="skeleton w-32 h-6 mb-4" />
-                <div className="grid grid-cols-3 gap-6 w-full max-w-4xl">
-                    <div className="skeleton h-40" /><div className="skeleton h-40" /><div className="skeleton h-40" />
+            <div className="max-w-[1600px] mx-auto w-full px-4 py-6 flex flex-col gap-6">
+                {/* Breadcrumb Skeleton */}
+                <div className="flex items-center gap-3">
+                    <Skeleton className="w-20 h-8" />
+                    <span className="text-slate-800">/</span>
+                    <Skeleton className="w-32 h-8" />
+                </div>
+
+                {/* Stats Skeleton */}
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                        <div key={i} className="card p-3 flex flex-col items-center gap-2">
+                            <Skeleton className="w-8 h-8 rounded-md" />
+                            <Skeleton className="w-12 h-3" />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Kanban Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1">
+                    {[1, 2, 3, 4].map(col => (
+                        <div key={col} className="flex flex-col rounded-xl border border-surface-border bg-surface-card h-[600px]">
+                            <div className="p-4 border-b border-surface-border flex items-center justify-between">
+                                <Skeleton className="w-24 h-5" />
+                                <Skeleton className="w-6 h-4 rounded-full" />
+                            </div>
+                            <div className="p-3 flex flex-col gap-3">
+                                {[1, 2, 3].map(card => (
+                                    <div key={card} className="card p-4 space-y-3">
+                                        <Skeleton className="w-full h-32 rounded-lg" />
+                                        <div className="space-y-2">
+                                            <Skeleton className="w-full h-4" />
+                                            <Skeleton className="w-2/3 h-4" />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Skeleton className="w-12 h-5 rounded-full" />
+                                            <Skeleton className="w-12 h-5 rounded-full" />
+                                        </div>
+                                        <div className="pt-3 border-t border-surface-border flex justify-between">
+                                            <Skeleton className="w-20 h-3" />
+                                            <Skeleton className="w-12 h-3" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
@@ -2014,8 +2387,5 @@ function LoadingSkeleton() {
 
 export default function DashboardPage({ params }: { params: Promise<{ projectId: string }> }) {
     const resolvedParams = use(params);
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-    if (!mounted) return <LoadingSkeleton />;
     return <DashboardContent rawProjectId={resolvedParams.projectId} />;
 }

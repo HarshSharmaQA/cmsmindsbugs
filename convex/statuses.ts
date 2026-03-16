@@ -90,6 +90,66 @@ export const addStatus = mutation({
     },
 });
 
+export const moveStatus = mutation({
+    args: {
+        projectId: v.id("projects"),
+        statusValue: v.string(),
+        direction: v.union(v.literal("left"), v.literal("right")),
+        devToken: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await getEffectiveIdentity(ctx, args.devToken);
+        if (!identity) throw new Error("Unauthenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
+            .unique();
+
+        const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS || "harshsharmaqa@gmail.com").split(",").map(e => e.trim());
+        const isSuperAdmin = user?.role === "super_admin" || superAdminEmails.includes(identity.email ?? "");
+
+        const membership = await ctx.db
+            .query("projectMembers")
+            .withIndex("by_project_user", (q) => q.eq("projectId", args.projectId).eq("userId", identity.subject))
+            .unique();
+
+        const canReorder = isSuperAdmin || (membership && (membership.role === "admin" || membership.role === "owner"));
+        if (!canReorder) throw new Error("Unauthorized to reorder statuses");
+
+        const existingStatuses = await ctx.db
+            .query("projectStatuses")
+            .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+            .collect();
+
+        if (existingStatuses.length === 0) {
+            for (const s of DEFAULT_STATUSES) {
+                await ctx.db.insert("projectStatuses", {
+                    projectId: args.projectId,
+                    ...s,
+                });
+            }
+        }
+
+        const statuses = (await ctx.db
+            .query("projectStatuses")
+            .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+            .collect()).sort((a, b) => a.order - b.order);
+
+        const currentIndex = statuses.findIndex((s) => s.value === args.statusValue);
+        if (currentIndex === -1) throw new Error("Status not found");
+
+        const targetIndex = args.direction === "left" ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= statuses.length) return;
+
+        const current = statuses[currentIndex];
+        const target = statuses[targetIndex];
+
+        await ctx.db.patch(current._id, { order: target.order });
+        await ctx.db.patch(target._id, { order: current.order });
+    },
+});
+
 /** Remove a status from a project (Super Admin only as requested) */
 export const removeStatus = mutation({
     args: {

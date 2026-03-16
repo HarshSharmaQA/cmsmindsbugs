@@ -78,8 +78,22 @@ export async function POST(req: Request) {
         const browser = formData.get("browser") as string || "Chrome (Extension)";
         const os = formData.get("os") as string || "Unknown";
         const url = formData.get("url") as string || "Unknown";
+        const pageUrl = formData.get("page_url") as string || url;
         const screenWidth = parseInt(formData.get("screenWidth") as string) || undefined;
         const screenHeight = parseInt(formData.get("screenHeight") as string) || undefined;
+        const xCoordinateRaw = formData.get("x_coordinate") as string;
+        const yCoordinateRaw = formData.get("y_coordinate") as string;
+        const scrollPositionRaw = formData.get("scroll_position") as string;
+        const scrollXRaw = formData.get("scrollX") as string;
+        const scrollYRaw = formData.get("scrollY") as string;
+        const elementSelector = (formData.get("element_selector") as string) || undefined;
+        const createdAtRaw = formData.get("created_at") as string;
+        const xCoordinate = Number.isFinite(Number(xCoordinateRaw)) ? Number(xCoordinateRaw) : undefined;
+        const yCoordinate = Number.isFinite(Number(yCoordinateRaw)) ? Number(yCoordinateRaw) : undefined;
+        const scrollPosition = Number.isFinite(Number(scrollPositionRaw)) ? Number(scrollPositionRaw) : undefined;
+        const scrollX = Number.isFinite(Number(scrollXRaw)) ? Number(scrollXRaw) : undefined;
+        const scrollY = Number.isFinite(Number(scrollYRaw)) ? Number(scrollYRaw) : undefined;
+        const createdAt = Number.isFinite(Number(createdAtRaw)) ? Number(createdAtRaw) : Date.now();
 
         const screenshot = formData.get("screenshot") as File | null;
 
@@ -96,9 +110,30 @@ export async function POST(req: Request) {
 
         const envDataStr = formData.get("environmentData") as string;
         let environmentData;
+        let consoleErrors: any[] = [];
+        let networkLogs: any[] = [];
+        let screenResolution: string | undefined;
+        let userAgent: string | undefined;
+        let pageLoadTime: number | string | undefined;
+        let deviceType: string | undefined;
+
         if (envDataStr) {
             try {
                 const rawEnv = JSON.parse(envDataStr);
+                
+                // Extract additional tech data
+                screenResolution = rawEnv.screenResolution;
+                userAgent = rawEnv.userAgent;
+                pageLoadTime = rawEnv.pageLoadTime;
+                deviceType = rawEnv.deviceType;
+
+                if (rawEnv.consoleErrors) {
+                    try { consoleErrors = JSON.parse(rawEnv.consoleErrors); } catch(e) {}
+                }
+                if (rawEnv.networkLogs) {
+                    try { networkLogs = JSON.parse(rawEnv.networkLogs); } catch(e) {}
+                }
+
                 // Truncate large values to stay under Convex 1 MiB doc limit
                 const truncateEntries = (str: string, maxEntries = 20, maxLen = 200) => {
                     try {
@@ -168,13 +203,26 @@ export async function POST(req: Request) {
             browser,
             os,
             url,
+            page_url: pageUrl,
             screenWidth,
             screenHeight,
+            x_coordinate: xCoordinate,
+            y_coordinate: yCoordinate,
+            scroll_position: scrollPosition,
+            scrollX,
+            scrollY,
+            element_selector: elementSelector,
             screenshotStorageId,
             mediaType,
             steps,
             environmentData,
-            consoleErrors: [],
+            consoleErrors,
+            networkLogs,
+            screenResolution,
+            userAgent,
+            pageLoadTime,
+            deviceType,
+            created_at: createdAt,
         });
 
         return NextResponse.json({ success: true, bugId }, {

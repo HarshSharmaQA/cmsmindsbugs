@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let annotationColor = "#ef4444";
     let strokeHistory = []; 
     let baseImageData = null;
+    let bugLocationContext = null;
 
     // Sanitize user-supplied strings before inserting into DOM
     function escapeHtml(str) {
@@ -63,6 +64,17 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             pageUrl = tab.url || "Unknown";
+            if (tab && tab.id) {
+                try {
+                    bugLocationContext = await new Promise((resolve) => {
+                        chrome.tabs.sendMessage(tab.id, { action: "GET_BUG_CONTEXT" }, (res) => {
+                            resolve(res || null);
+                        });
+                    });
+                } catch (e) {
+                    bugLocationContext = null;
+                }
+            }
 
             chrome.storage.local.get(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"], (data) => {
                 if (data.bugscribe_pending_media) {
@@ -167,18 +179,53 @@ document.addEventListener("DOMContentLoaded", () => {
                     ctx.beginPath();
                     ctx.moveTo(startX, startY);
                 } else if (currentDrawTool === "text") {
-                    const text = prompt("Enter text to add:");
-                    if (text) {
-                        ctx.fillStyle = annotationColor;
-                        const fontSize = Math.max(20, canvas.width * 0.03);
-                        ctx.font = `bold ${fontSize}px sans-serif`;
-                        // Simple outline for visibility
-                        ctx.strokeStyle = "white";
-                        ctx.lineWidth = 2;
-                        ctx.strokeText(text, startX, startY);
-                        ctx.fillText(text, startX, startY);
-                        isDrawing = false;
-                    }
+                    isDrawing = false;
+                    
+                    const input = document.createElement("input");
+                    input.type = "text";
+                    const rect = canvas.getBoundingClientRect();
+                    input.style.cssText = `
+                        position: absolute;
+                        left: ${e.clientX}px;
+                        top: ${e.clientY - 15}px;
+                        z-index: 1000;
+                        background: #1e293b;
+                        color: white;
+                        border: 2px solid ${annotationColor};
+                        border-radius: 4px;
+                        padding: 2px 6px;
+                        font-family: sans-serif;
+                        font-weight: bold;
+                        font-size: 14px;
+                        outline: none;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+                        width: 120px;
+                    `;
+                    
+                    document.body.appendChild(input);
+                    setTimeout(() => input.focus(), 10);
+
+                    const commitText = () => {
+                        const text = input.value.trim();
+                        if (text) {
+                            ctx.fillStyle = annotationColor;
+                            const fontSize = Math.max(20, canvas.width * 0.03);
+                            ctx.font = `bold ${fontSize}px sans-serif`;
+                            ctx.strokeStyle = "rgba(0,0,0,0.4)";
+                            ctx.lineWidth = 3;
+                            ctx.strokeText(text, startX, startY);
+                            ctx.fillText(text, startX, startY);
+                            strokeHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                        }
+                        if (input.parentNode) input.parentNode.removeChild(input);
+                    };
+
+                    input.addEventListener("keydown", (evt) => {
+                        if (evt.key === "Enter") commitText();
+                        if (evt.key === "Escape") input.parentNode.removeChild(input);
+                    });
+                    
+                    input.addEventListener("blur", commitText);
                 }
             };
 
@@ -195,8 +242,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (currentDrawTool === "pen") {
                     ctx.lineTo(pos.x, pos.y);
                     ctx.stroke();
+                } else if (currentDrawTool === "blur") {
+                    ctx.putImageData(snapshot, 0, 0);
+                    const w = pos.x - startX;
+                    const h = pos.y - startY;
+
+                    ctx.save();
+                    ctx.filter = 'blur(10px)';
+                    ctx.drawImage(canvas, startX, startY, w, h, startX, startY, w, h);
+                    ctx.restore();
+
+                    ctx.fillStyle = 'rgba(150, 150, 150, 0.2)';
+                    ctx.fillRect(startX, startY, w, h);
                 } else {
-                    // Shapes need to restore snapshot for live preview
                     ctx.putImageData(snapshot, 0, 0);
                     const w = pos.x - startX;
                     const h = pos.y - startY;
@@ -384,6 +442,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 formData.append("priority", bugPriority.value);
                 formData.append("type", bugType.value);
                 formData.append("url", pageUrl);
+                formData.append("page_url", bugLocationContext?.page_url || pageUrl);
+                if (bugLocationContext?.x_coordinate !== undefined) formData.append("x_coordinate", String(bugLocationContext.x_coordinate));
+                if (bugLocationContext?.y_coordinate !== undefined) formData.append("y_coordinate", String(bugLocationContext.y_coordinate));
+                if (bugLocationContext?.scroll_position !== undefined) formData.append("scroll_position", String(bugLocationContext.scroll_position));
+                if (bugLocationContext?.scrollX !== undefined) formData.append("scrollX", String(bugLocationContext.scrollX));
+                if (bugLocationContext?.scrollY !== undefined) formData.append("scrollY", String(bugLocationContext.scrollY));
+                if (bugLocationContext?.element_selector) formData.append("element_selector", bugLocationContext.element_selector);
+                formData.append("created_at", String(bugLocationContext?.created_at || Date.now()));
 
                 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
                 if (tab && tab.id) {
