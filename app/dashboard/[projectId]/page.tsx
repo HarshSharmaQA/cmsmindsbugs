@@ -55,14 +55,25 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
 function Skeleton({ className }: { className?: string }) {
-    return <div className={`animate-pulse bg-surface-border rounded ${className}`} />;
+    return (
+        <div className={`relative overflow-hidden bg-surface-border/50 rounded ${className}`}>
+            <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+        </div>
+    );
 }
 
 function PriorityBadge({ priority }: { priority: Priority }) {
     const cfg = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG.medium;
+    const icons = {
+        low: <ChevronDown className="w-3 h-3" />,
+        medium: <CircleDot className="w-3 h-3" />,
+        high: <AlertTriangle className="w-3 h-3" />,
+        critical: <AlertCircle className="w-3 h-3" />,
+    };
+
     return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${cfg.className}`}>
-            <span className={`w-1 h-1 rounded-full mr-1.5 ${priority === 'critical' ? 'bg-red-400 animate-pulse' : 'bg-current'}`} />
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all hover:scale-105 active:scale-95 shadow-sm ${cfg.className}`}>
+            {icons[priority]}
             {cfg.label}
         </span>
     );
@@ -72,21 +83,21 @@ function StatusBadge({ status, projectStatuses }: { status: Status; projectStatu
     const s = projectStatuses?.find(ps => ps.value === status) || DEFAULT_COLUMNS.find(c => c.status === status) || { label: status, color: "text-slate-400" };
 
     const colorMap: Record<string, string> = {
-        "text-blue-400": "bg-blue-500/10 text-blue-400 border-blue-500/20",
-        "text-amber-400": "bg-amber-500/10 text-amber-400 border-amber-500/20",
-        "text-green-400": "bg-green-500/10 text-green-400 border-green-500/20",
+        "text-blue-400": "bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.1)]",
+        "text-amber-400": "bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]",
+        "text-green-400": "bg-green-500/10 text-green-400 border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.1)]",
         "text-slate-500": "bg-slate-500/10 text-slate-400 border-slate-500/20",
-        "text-red-400": "bg-red-500/10 text-red-400 border-red-500/20",
-        "text-indigo-400": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-        "text-purple-400": "bg-purple-500/10 text-purple-400 border-purple-500/20",
-        "text-pink-400": "bg-pink-500/10 text-pink-400 border-pink-500/20",
-        "text-cyan-400": "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+        "text-red-400": "bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]",
+        "text-indigo-400": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.1)]",
+        "text-purple-400": "bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]",
+        "text-pink-400": "bg-pink-500/10 text-pink-400 border-pink-500/20 shadow-[0_0_10px_rgba(236,72,153,0.1)]",
+        "text-cyan-400": "bg-cyan-500/10 text-cyan-400 border-cyan-500/20 shadow-[0_0_10px_rgba(6,182,212,0.1)]",
     };
 
     const badgeClass = colorMap[s.color] || "bg-slate-500/10 text-slate-400 border-slate-500/20";
 
     return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badgeClass}`}>
+        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all hover:brightness-110 ${badgeClass}`}>
             {s.label || status}
         </span>
     );
@@ -204,31 +215,11 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                                             </div>
                                         )}
                                         <div className="p-4 relative flex-1 flex flex-col gap-4">
-                                            {/* Action Buttons (Visible on Hover) */}
-                                            <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0 z-10">
-                                                {bug.url && bug.url !== "Unknown" && (
-                                                    <button
-                                                        onClick={(e) => { 
-                                                            e.stopPropagation(); 
-                                                            onNavigateToLocation(bug);
-                                                        }}
-                                                        className="p-2 bg-[#09090E]/90 border border-surface-border rounded-xl text-brand-400 hover:text-brand-300 hover:border-brand-500/50 backdrop-blur-md transition-all shadow-xl"
-                                                        title="Locate bug on page"
-                                                    >
-                                                        <Target className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                                <div
-                                                    {...provided.dragHandleProps}
-                                                    className="p-2 bg-[#09090E]/90 border border-surface-border rounded-xl text-slate-500 hover:text-white cursor-grab active:cursor-grabbing backdrop-blur-md transition-all shadow-xl"
-                                                    title="Drag to move"
-                                                >
-                                                    <GripVertical className="w-4 h-4" />
-                                                </div>
-                                            </div>
-
                                             <div className="flex flex-col gap-3">
                                                 <div className="flex items-start gap-3">
+                                                    <div className="mt-0.5 px-2 h-7 rounded-xl bg-surface-card border border-surface-border text-[10px] font-black text-slate-300 flex items-center justify-center shadow-md min-w-[28px]">
+                                                        {bug.issueNumber ? `Bug ${bug.issueNumber}` : (index + 1)}
+                                                    </div>
                                                     <div className="mt-1 p-2 rounded-xl bg-surface-card border border-surface-border shrink-0 shadow-inner">
                                                         <Bug className="w-3.5 h-3.5 text-brand-400/70" />
                                                     </div>
@@ -238,17 +229,45 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                                                 </div>
                                                 
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <PriorityBadge priority={bug.priority} />
+                                                    <span title={`Priority: ${bug.priority}`}><PriorityBadge priority={bug.priority} /></span>
                                                     {bug.type && bug.type !== "general" && (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-brand-500/10 text-brand-400 border border-brand-500/20 capitalize tracking-wide">
+                                                        <span title={`Type: ${bug.type.replace(/-/g, ' ')}`} className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-brand-500/10 text-brand-400 border border-brand-500/20 capitalize tracking-wide">
                                                             {bug.type.replace(/-/g, ' ')}
                                                         </span>
                                                     )}
                                                     {bug.screenshotUrl && bug.mediaType === "video" && (
-                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                                                        <span title="Contains video evidence" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
                                                             <Video className="w-3 h-3" /> Video
                                                         </span>
                                                     )}
+                                                </div>
+
+                                                {bug.description && (
+                                                    <p className="text-xs text-slate-400 leading-snug line-clamp-1">
+                                                        {bug.description}
+                                                    </p>
+                                                )}
+
+                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                                    {bug.url && bug.url !== "Unknown" && (
+                                                        <button
+                                                            onClick={(e) => { 
+                                                                e.stopPropagation(); 
+                                                                onNavigateToLocation(bug);
+                                                            }}
+                                                            className="p-2 rounded-xl bg-surface-card border border-surface-border text-brand-400 hover:text-brand-300 hover:border-brand-500/50 transition-all shadow-lg"
+                                                            title="Locate bug on page"
+                                                        >
+                                                            <Target className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    <div
+                                                        {...provided.dragHandleProps}
+                                                        className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-white cursor-grab active:cursor-grabbing transition-all shadow-lg"
+                                                        title="Drag to move"
+                                                    >
+                                                        <GripVertical className="w-4 h-4" />
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -310,6 +329,7 @@ function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { b
                 <table className="w-full text-sm border-collapse">
                     <thead>
                         <tr className="border-b border-surface-border/50 text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold bg-[#09090E]/50">
+                            <th className="px-4 py-4 text-left font-bold w-[60px]">#</th>
                             <th className="px-6 py-4 text-left font-bold">Issue Details</th>
                             <th className="px-6 py-4 text-left font-bold hidden md:table-cell">Status</th>
                             <th className="px-6 py-4 text-left font-bold hidden sm:table-cell">Priority</th>
@@ -319,12 +339,17 @@ function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { b
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-surface-border/30">
-                        {bugs.map((bug) => (
+                        {bugs.map((bug, index) => (
                             <tr
                                 key={bug._id}
                                 onClick={() => onSelect(bug._id)}
                                 className="hover:bg-surface-elevated/40 cursor-pointer transition-all duration-200 group"
                             >
+                                <td className="px-4 py-4">
+                                    <div className="px-2 h-8 rounded-xl bg-surface-card border border-surface-border text-[10px] font-black text-slate-300 flex items-center justify-center min-w-[32px] shadow-sm">
+                                        {bug.issueNumber ? `Bug ${bug.issueNumber}` : (index + 1)}
+                                    </div>
+                                </td>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-4">
                                         <div className="relative shrink-0">
@@ -792,6 +817,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
     const [posting, setPosting] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [activeTab, setActiveTab] = useState<"details" | "screenshot" | "env" | "console" | "network" | "activity">("details");
+    const [showLightbox, setShowLightbox] = useState(false);
 
     // Editable field states
     const [tagInput, setTagInput] = useState<string[]>([]);
@@ -897,6 +923,54 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
     };
 
     return (<>
+        {/* Lightbox Modal */}
+        {showLightbox && bug?.screenshotUrl && (
+            <div 
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300"
+                onClick={() => setShowLightbox(false)}
+            >
+                <div className="absolute top-6 right-6 flex items-center gap-3">
+                    <a 
+                        href={bug.screenshotUrl} 
+                        download={`bugscribe-${bug._id}`}
+                        onClick={e => e.stopPropagation()}
+                        className="p-3 rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all flex items-center gap-2 text-sm font-bold"
+                    >
+                        <Download className="w-5 h-5" /> Save
+                    </a>
+                    <button 
+                        onClick={() => setShowLightbox(false)}
+                        className="p-3 rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-red-500/20 hover:border-red-500/50 transition-all"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+
+                <div className="relative max-w-[90vw] max-h-[85vh] group/lightbox" onClick={e => e.stopPropagation()}>
+                    {bug.mediaType === "video" ? (
+                        <video 
+                            src={bug.screenshotUrl} 
+                            controls 
+                            autoPlay 
+                            className="w-full h-full object-contain rounded-2xl shadow-2xl border border-white/10" 
+                        />
+                    ) : (
+                        <img 
+                            src={bug.screenshotUrl} 
+                            alt="Full Preview" 
+                            className="w-full h-full object-contain rounded-2xl shadow-2xl border border-white/10 select-none" 
+                        />
+                    )}
+                    
+                    <div className="absolute -bottom-12 left-0 right-0 flex items-center justify-center gap-6 opacity-0 group-hover/lightbox:opacity-100 transition-opacity">
+                        <div className="px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                            {bug.title}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <div className="fixed inset-0 z-50 flex">
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -913,60 +987,94 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                 ) : (
                     <>
                         {/* Header */}
-                        <div className="px-6 py-6 border-b border-surface-border/50 bg-[#09090E]/50 backdrop-blur-xl shrink-0">
-                            <div className="flex items-start justify-between gap-4 mb-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-2 rounded-xl bg-brand-500/10 border border-brand-500/20 shadow-inner">
-                                        <Bug className="w-4 h-4 text-brand-400" />
+                        <div className="px-6 py-5 border-b border-surface-border/50 bg-[#09090E]/50 backdrop-blur-xl shrink-0">
+                            <div className="flex items-start justify-between gap-6 mb-3">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="p-2 rounded-xl bg-brand-500/10 border border-brand-500/20 shadow-inner group-hover:scale-110 transition-transform">
+                                        <Bug className="w-3.5 h-3.5 text-brand-400" />
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Issue Details</span>
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">
+                                            {bug.issueNumber ? `Bug ${bug.issueNumber}` : `Issue: ${bug._id.toString().substring(0, 8)}`}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 text-[8px] font-bold text-slate-600 uppercase tracking-widest">
+                                            <Clock className="w-2.5 h-2.5" />
+                                            {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
                                     {shareUrl && (
                                         <button 
                                             onClick={() => {
                                                 navigator.clipboard.writeText(shareUrl);
-                                                // Could add a toast here
+                                                alert("Link copied to clipboard!");
                                             }}
-                                            className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-white transition-all shadow-sm"
+                                            className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-brand-400 hover:border-brand-500/30 transition-all shadow-sm"
                                             title="Copy share link"
                                         >
-                                            <Copy className="w-4 h-4" />
+                                            <Copy className="w-3.5 h-3.5" />
                                         </button>
                                     )}
-                                    <button onClick={onClose} className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-red-400 transition-all shadow-sm">
-                                        <X className="w-4 h-4" />
+                                    <button onClick={onClose} className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-red-400 hover:border-red-500/30 transition-all shadow-sm">
+                                        <X className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
                             </div>
-                            <h2 className="text-xl font-bold text-white leading-tight tracking-tight mb-4">{bug.title}</h2>
-                            <div className="flex items-center gap-3 flex-wrap">
+                            <h2 className="text-lg font-black text-white leading-[1.2] tracking-tight mb-3">{bug.title}</h2>
+                            <div className="flex items-center gap-2.5 flex-wrap">
                                 <StatusBadge status={bug.status as Status} projectStatuses={statusOptions || []} />
                                 <PriorityBadge priority={bug.priority as Priority} />
-                                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-surface-card/50 px-2 py-1 rounded-lg border border-surface-border/50 ml-auto">
-                                    <Clock className="w-3 h-3" />
-                                    {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
-                                </div>
+                                {bug.type && bug.type !== "general" && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-bold bg-white/5 text-slate-400 border border-white/10 uppercase tracking-widest">
+                                        {bug.type.replace(/-/g, ' ')}
+                                    </span>
+                                )}
                             </div>
                         </div>
 
                         {/* Large Image Preview (Cover) */}
-                        {bug.screenshotUrl && bug.mediaType !== "video" && (
-                            <div className="w-full border-b border-surface-border bg-black/40 shrink-0 relative flex items-center justify-center overflow-hidden group/img" style={{ maxHeight: '280px' }}>
-                                <img
-                                    src={bug.screenshotUrl}
-                                    alt="Preview"
-                                    className="w-full h-full object-contain backdrop-blur-md transition-transform duration-700 group-hover/img:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#09090E] via-transparent to-transparent opacity-60" />
-                                <a 
-                                    href={bug.screenshotUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="absolute bottom-4 right-4 p-2.5 rounded-xl bg-[#09090E]/80 border border-surface-border text-white hover:text-brand-400 backdrop-blur-md transition-all opacity-0 group-hover/img:opacity-100 shadow-2xl"
-                                >
-                                    <ExternalLink className="w-4 h-4" />
-                                </a>
+                        {bug.screenshotUrl && (
+                            <div 
+                                className="w-full border-b border-surface-border bg-black/40 shrink-0 relative flex items-center justify-center overflow-hidden group/img cursor-zoom-in" 
+                                style={{ maxHeight: '320px' }}
+                                onClick={() => setShowLightbox(true)}
+                            >
+                                {bug.mediaType === "video" ? (
+                                    <div className="relative w-full h-full flex items-center justify-center bg-black">
+                                        <video
+                                            src={bug.screenshotUrl}
+                                            className="w-full h-full object-contain backdrop-blur-md opacity-70 group-hover/img:opacity-90 transition-opacity"
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="p-5 rounded-full bg-brand-500/20 border border-brand-500/50 backdrop-blur-md text-brand-400 group-hover/img:scale-110 transition-transform">
+                                                <Video className="w-8 h-8" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <img
+                                        src={bug.screenshotUrl}
+                                        alt="Preview"
+                                        className="w-full h-full object-contain backdrop-blur-md transition-transform duration-1000 group-hover/img:scale-110"
+                                    />
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#09090E] via-transparent to-transparent opacity-80" />
+                                
+                                <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between opacity-0 group-hover/img:opacity-100 transition-all transform translate-y-2 group-hover/img:translate-y-0">
+                                    <span className="px-3 py-1.5 rounded-xl bg-[#09090E]/80 border border-surface-border text-[10px] font-black text-white uppercase tracking-[0.2em] backdrop-blur-md">
+                                        Click to enlarge
+                                    </span>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowLightbox(true);
+                                        }}
+                                        className="p-3 rounded-2xl bg-brand-500 text-white shadow-2xl shadow-brand-500/40 hover:scale-110 active:scale-95 transition-all"
+                                    >
+                                        <Eye className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
                         )}
 
@@ -1013,7 +1121,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`relative py-4 text-[11px] font-bold uppercase tracking-widest transition-all ${activeTab === tab
+                                    className={`relative py-3.5 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab
                                         ? "text-brand-400"
                                         : "text-slate-500 hover:text-slate-300"
                                         }`}
@@ -1028,119 +1136,143 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
 
                         {/* Tab Content */}
                         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8 custom-scrollbar">
-                            {activeTab === "details" && (
-                                <>
-                                    {/* Categorization & Assignment */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-surface-card/30 rounded-2xl p-6 border border-surface-border/50 backdrop-blur-sm">
-                                        <div className="col-span-full flex items-center gap-2 mb-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Project Management</span>
+0                            {activeTab === "details" && (
+                                <div className="space-y-6">
+                                    {/* Project Management & Assignment */}
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1 h-1 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(0,212,255,0.8)]" />
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Management & Assignment</span>
                                         </div>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Issue Type</label>
-                                                {isSuperAdmin && canUpdate && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowQuickAddType(true)}
-                                                        className="text-[10px] text-brand-400 hover:text-brand-300 transition-colors font-bold"
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-white/[0.02] border border-white/5 rounded-xl p-3.5 shadow-inner">
+                                            <div className="space-y-1 group/field">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[8px] text-slate-500 uppercase tracking-widest font-black group-focus-within/field:text-brand-400 transition-colors">Issue Type</label>
+                                                    {isSuperAdmin && canUpdate && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowQuickAddType(true)}
+                                                            className="text-[8px] text-brand-400 hover:text-brand-300 transition-colors font-black"
+                                                        >
+                                                            + NEW
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="relative">
+                                                    <select
+                                                        value={bugType}
+                                                        onChange={(e) => handleTypeChange(e.target.value)}
+                                                        className="input w-full text-[10px] font-bold bg-white/5 border-white/5 focus:border-brand-500/50 appearance-none h-8.5 px-3"
+                                                        disabled={!canUpdate || savingType}
                                                     >
-                                                        + NEW
-                                                    </button>
-                                                )}
+                                                        <optgroup label="Core Types" className="bg-[#09090E]">
+                                                            {BUG_TYPES.map(t => (
+                                                                <option key={t.value} value={t.value}>{t.label}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                        {customModules && customModules.length > 0 && (
+                                                            <optgroup label="Custom Modules" className="bg-[#09090E]">
+                                                                {customModules.map((mod: any) => (
+                                                                    <option key={mod.slug} value={mod.slug}>{mod.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        )}
+                                                    </select>
+                                                    <ChevronDown className="w-3 h-3 text-slate-600 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                                </div>
                                             </div>
-                                            <select
-                                                value={bugType}
-                                                onChange={(e) => handleTypeChange(e.target.value)}
-                                                className="input w-full text-xs font-semibold bg-surface-card border-surface-border/50 focus:border-brand-500/50"
-                                                disabled={!canUpdate || savingType}
-                                            >
-                                                <optgroup label="Core Types">
-                                                    {BUG_TYPES.map(t => (
-                                                        <option key={t.value} value={t.value}>{t.label}</option>
-                                                    ))}
-                                                </optgroup>
-                                                {customModules && customModules.length > 0 && (
-                                                    <optgroup label="Custom Modules">
-                                                        {customModules.map((mod: any) => (
-                                                            <option key={mod.slug} value={mod.slug}>{mod.name}</option>
+
+                                            <div className="space-y-1 group/field">
+                                                <label className="text-[8px] text-slate-500 uppercase tracking-widest font-black block group-focus-within/field:text-brand-400 transition-colors">Assignee</label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={selectedAssignee ?? ""}
+                                                        onChange={(e) => handleAssigneeChange(e.target.value)}
+                                                        className="input w-full text-[10px] font-bold bg-white/5 border-white/5 focus:border-brand-500/50 appearance-none h-8.5 px-3"
+                                                        disabled={!canUpdate || savingAssignee}
+                                                    >
+                                                        <option value="" className="bg-[#09090E]">Unassigned</option>
+                                                        {projectMembers.map((m: any) => (
+                                                            <option key={m.userId} value={m.userId} className="bg-[#09090E]">
+                                                                {m.name || m.email || m.userId}
+                                                            </option>
                                                         ))}
-                                                    </optgroup>
-                                                )}
-                                            </select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block">Category</label>
-                                            <input
-                                                value={bugCategory}
-                                                onChange={(e) => setBugCategory(e.target.value)}
-                                                onBlur={() => handleCategoryChange(bugCategory)}
-                                                placeholder="e.g. Authentication"
-                                                className="input w-full text-xs font-semibold bg-surface-card border-surface-border/50 focus:border-brand-500/50"
-                                                disabled={!canUpdate || savingCategory}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block">Due Date</label>
-                                            <input
-                                                type="date"
-                                                value={dueDate}
-                                                onChange={(e) => handleDueDateChange(e.target.value)}
-                                                className="input w-full text-xs font-semibold bg-surface-card border-surface-border/50 focus:border-brand-500/50"
-                                                disabled={!canUpdate || savingDue}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block">Assignee</label>
-                                            <select
-                                                value={selectedAssignee ?? ""}
-                                                onChange={(e) => handleAssigneeChange(e.target.value)}
-                                                className="input w-full text-xs font-semibold bg-surface-card border-surface-border/50 focus:border-brand-500/50"
-                                                disabled={!canUpdate || savingAssignee}
-                                            >
-                                                <option value="">Unassigned</option>
-                                                {projectMembers.map((m: any) => (
-                                                    <option key={m.userId} value={m.userId}>
-                                                        {m.name || m.email || m.userId}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
+                                                    </select>
+                                                    <User className="w-3 h-3 text-slate-600 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                                </div>
+                                            </div>
 
-                                    {/* Tags */}
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Labels & Tags</label>
-                                            {savingTags && <span className="text-[10px] font-bold text-brand-400 animate-pulse">SAVING...</span>}
-                                        </div>
-                                        <TagsInput tags={tagInput} onChange={handleSaveTags} disabled={!canUpdate} />
-                                    </div>
+                                            <div className="space-y-1 group/field">
+                                                <label className="text-[8px] text-slate-500 uppercase tracking-widest font-black block group-focus-within/field:text-brand-400 transition-colors">Category</label>
+                                                <div className="relative">
+                                                    <input
+                                                        value={bugCategory}
+                                                        onChange={(e) => setBugCategory(e.target.value)}
+                                                        onBlur={() => handleCategoryChange(bugCategory)}
+                                                        placeholder="e.g. Authentication"
+                                                        className="input w-full text-[10px] font-bold bg-white/5 border-white/5 focus:border-brand-500/50 h-8.5 px-3"
+                                                        disabled={!canUpdate || savingCategory}
+                                                    />
+                                                    <Tag className="w-3 h-3 text-slate-600 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                                </div>
+                                            </div>
 
-                                    {bug.description && (
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold flex items-center gap-2">
-                                                <Edit2 className="w-3.5 h-3.5" /> Description
-                                            </label>
-                                            <div className="bg-surface-card/20 rounded-2xl p-5 border border-surface-border/50 text-sm text-slate-300 leading-relaxed shadow-inner">
-                                                {bug.description}
+                                            <div className="space-y-1 group/field">
+                                                <label className="text-[8px] text-slate-500 uppercase tracking-widest font-black block group-focus-within/field:text-brand-400 transition-colors">Due Date</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="date"
+                                                        value={dueDate}
+                                                        onChange={(e) => handleDueDateChange(e.target.value)}
+                                                        className="input w-full text-[10px] font-bold bg-white/5 border-white/5 focus:border-brand-500/50 h-8.5 px-3"
+                                                        disabled={!canUpdate || savingDue}
+                                                    />
+                                                    <Calendar className="w-3 h-3 text-slate-600 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                                </div>
                                             </div>
                                         </div>
-                                    )}
+                                    </div>
 
-                                    {/* Steps */}
+                                    {/* Description */}
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1 h-1 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Description</span>
+                                        </div>
+                                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 text-[11px] text-slate-300 leading-relaxed shadow-inner relative group min-h-[60px]">
+                                            <Edit2 className="w-3 h-3 text-slate-700 absolute top-3.5 right-3.5 group-hover:text-brand-400 transition-colors" />
+                                            {bug.description || <span className="text-slate-600 italic">No description provided.</span>}
+                                        </div>
+                                    </div>
+
+                                    {/* Labels & Tags */}
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1 h-1 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Labels & Tags</span>
+                                            </div>
+                                            {savingTags && <span className="text-[8px] font-black text-brand-400 animate-pulse">SAVING...</span>}
+                                        </div>
+                                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-2.5 shadow-inner">
+                                            <TagsInput tags={tagInput} onChange={handleSaveTags} disabled={!canUpdate} />
+                                        </div>
+                                    </div>
+
+                                    {/* Steps to Reproduce */}
                                     {bug.steps && bug.steps.length > 0 && (
-                                        <div className="space-y-4">
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold flex items-center gap-2">
-                                                <LayoutList className="w-3.5 h-3.5" /> Steps to Reproduce
-                                            </label>
-                                            <div className="space-y-3">
+                                        <div className="space-y-2.5">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1 h-1 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(0,212,255,0.8)]" />
+                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Steps to Reproduce</span>
+                                            </div>
+                                            <div className="space-y-2 pl-2">
                                                 {bug.steps.map((step: string, i: number) => (
-                                                    <div key={i} className="flex gap-4 group/step">
-                                                        <div className="flex-shrink-0 w-6 h-6 rounded-lg bg-surface-card border border-surface-border flex items-center justify-center text-[11px] font-bold text-slate-500 group-hover/step:border-brand-500 group-hover/step:text-brand-400 transition-all shadow-sm">
+                                                    <div key={i} className="flex gap-3 group/step relative before:absolute before:-left-2 before:top-6 before:bottom-0 before:w-px before:bg-slate-800 last:before:hidden">
+                                                        <div className="flex-shrink-0 w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-black text-slate-500 group-hover/step:border-brand-500 group-hover/step:text-brand-400 transition-all shadow-inner group-hover/step:scale-110">
                                                             {i + 1}
                                                         </div>
-                                                        <div className="flex-1 bg-surface-card/30 rounded-xl px-4 py-2.5 border border-transparent group-hover/step:border-surface-border/50 transition-all text-sm text-slate-300">
+                                                        <div className="flex-1 bg-white/[0.02] rounded-lg px-3 py-1.5 border border-transparent group-hover/step:border-white/5 transition-all text-[11px] text-slate-300 leading-relaxed shadow-sm">
                                                             {step}
                                                         </div>
                                                     </div>
@@ -1149,34 +1281,37 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                         </div>
                                     )}
 
-                                    {/* Context Metadata */}
-                                    <div className="space-y-4">
-                                        <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Context & Environment</label>
-                                        <div className="grid grid-cols-2 gap-4">
+                                    {/* Context Metadata Cards */}
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Environment Context</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2.5">
                                             {[
-                                                { label: "Reporter", value: bug.reporterName || "Widget", icon: <User className="w-3.5 h-3.5" /> },
-                                                { label: "Browser", value: bug.browser?.split(" ").slice(0, 2).join(" "), icon: <Monitor className="w-3.5 h-3.5" /> },
-                                                { label: "Operating System", value: bug.os, icon: <Zap className="w-3.5 h-3.5" /> },
-                                                { label: "Resolution", value: bug.screenResolution || (bug.screenWidth ? `${bug.screenWidth}×${bug.screenHeight}` : null), icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                                                { label: "Reporter", value: bug.reporterName || "Widget", icon: <User className="w-3 h-3" />, color: "text-blue-400" },
+                                                { label: "Browser", value: bug.browser?.split(" ").slice(0, 2).join(" "), icon: <Monitor className="w-3 h-3" />, color: "text-purple-400" },
+                                                { label: "OS", value: bug.os, icon: <Zap className="w-3 h-3" />, color: "text-amber-400" },
+                                                { label: "Resolution", value: bug.screenResolution || (bug.screenWidth ? `${bug.screenWidth}×${bug.screenHeight}` : null), icon: <Monitor className="w-3 h-3" />, color: "text-emerald-400" },
                                             ].filter(r => r.value).map((row) => (
-                                                <div key={row.label} className="bg-surface-card/30 rounded-xl p-3 border border-surface-border/50 flex flex-col gap-1.5">
+                                                <div key={row.label} className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5 flex flex-col gap-1 group hover:bg-white/[0.04] transition-all">
                                                     <div className="flex items-center gap-1.5 text-slate-500">
-                                                        {row.icon}
-                                                        <span className="text-[10px] font-bold uppercase tracking-widest">{row.label}</span>
+                                                        <span className={row.color}>{row.icon}</span>
+                                                        <span className="text-[8px] font-black uppercase tracking-widest">{row.label}</span>
                                                     </div>
-                                                    <span className="text-xs font-bold text-white truncate" title={row.value ?? undefined}>{row.value}</span>
+                                                    <span className="text-[10px] font-black text-white truncate" title={row.value ?? undefined}>{row.value}</span>
                                                 </div>
                                             ))}
                                         </div>
                                         {(bug.url && bug.url !== "Unknown") && (
-                                            <div className="bg-surface-card/30 rounded-xl p-4 border border-surface-border/50 flex items-center gap-4 group/url">
-                                                <div className="p-2 rounded-lg bg-surface-elevated border border-surface-border text-slate-500 group-hover/url:text-brand-400 transition-colors">
-                                                    <Globe className="w-4 h-4" />
+                                            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 flex items-center gap-3 group/url hover:bg-white/[0.04] transition-all shadow-inner">
+                                                <div className="p-2 rounded-lg bg-brand-500/10 border border-brand-500/20 text-brand-400 group-hover/url:scale-110 transition-transform">
+                                                    <Globe className="w-3.5 h-3.5" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Source URL</p>
+                                                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Source URL</p>
                                                     <a href={bug.trackerUrl || bug.url} target="_blank" rel="noopener noreferrer"
-                                                        className="text-xs font-bold text-brand-400 hover:underline truncate block" title={bug.url}>
+                                                        className="text-[10px] font-bold text-brand-400 hover:text-brand-300 hover:underline truncate block transition-colors" title={bug.url}>
                                                         {bug.url}
                                                     </a>
                                                 </div>
@@ -1185,50 +1320,52 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                         )}
                                     </div>
 
-                                    {/* Comments Section */}
-                                    <div className="space-y-4 pt-4">
-                                        <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold flex items-center gap-2">
-                                            <MessageSquare className="w-3.5 h-3.5" /> Discussion ({bug.comments?.length ?? 0})
-                                        </label>
+                                    {/* Discussion Feed */}
+                                    <div className="space-y-4 pt-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1 h-1 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(0,212,255,0.8)]" />
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Discussion ({bug.comments?.length ?? 0})</span>
+                                        </div>
                                         <div className="space-y-4">
                                             {bug.comments?.map((c: any) => (
-                                                <div key={c._id} className="flex gap-4">
-                                                    <div className="w-8 h-8 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0 shadow-inner">
-                                                        <User className="w-4 h-4 text-brand-400" />
+                                                <div key={c._id} className="flex gap-2.5 group/comment">
+                                                    <div className="w-7 h-7 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0 shadow-inner group-hover/comment:scale-105 transition-transform">
+                                                        <User className="w-3.5 h-3.5 text-brand-400" />
                                                     </div>
-                                                    <div className="flex-1 space-y-1.5">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-bold text-white">{c.author}</span>
-                                                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
+                                                    <div className="flex-1 space-y-1">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-black text-white">{c.author}</span>
+                                                            <div className="w-0.5 h-0.5 rounded-full bg-slate-800" />
+                                                            <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">
                                                                 {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
                                                             </span>
                                                         </div>
-                                                        <div className="bg-surface-card/40 rounded-2xl rounded-tl-none p-4 border border-surface-border/50 text-sm text-slate-300 shadow-sm">
+                                                        <div className="bg-white/[0.03] border border-white/5 rounded-lg rounded-tl-none p-3 text-[11px] text-slate-300 shadow-sm leading-relaxed">
                                                             {c.body}
                                                         </div>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-                                        <form onSubmit={handleComment} className="flex gap-3 pt-2">
-                                            <div className="flex-1 relative group">
+                                        <form onSubmit={handleComment} className="pt-1">
+                                            <div className="relative group">
                                                 <input
                                                     value={comment}
                                                     onChange={(e) => setComment(e.target.value)}
-                                                    placeholder="Add your comment..."
-                                                    className="input w-full text-sm h-11 pl-4 pr-12 bg-surface-card/50 border-surface-border/50 focus:border-brand-500/50 transition-all rounded-xl shadow-inner"
+                                                    placeholder="Reply to this thread..."
+                                                    className="input w-full text-[10px] font-bold h-9.5 pl-4 pr-12 bg-white/5 border-white/5 focus:border-brand-500/50 transition-all rounded-lg shadow-inner placeholder:text-slate-700"
                                                 />
                                                 <button 
                                                     type="submit" 
                                                     disabled={posting || !comment.trim()} 
-                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-brand-400 hover:bg-brand-500/10 disabled:opacity-30 transition-all"
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-brand-400 hover:bg-brand-500/10 disabled:opacity-30 transition-all shadow-xl"
                                                 >
-                                                    <Send className="w-4 h-4" />
+                                                    <Send className="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
                                         </form>
                                     </div>
-                                </>
+                                </div>
                             )}
 
                             {activeTab === "screenshot" && (
@@ -1271,122 +1408,204 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                             )}
 
                             {activeTab === "env" && (
-                                <div className="space-y-4">
+                                <div className="space-y-8">
                                     {bug.environmentData ? (
                                         <>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">System Metadata</span>
+                                            </div>
+                                            
                                             {bug.userAgent && (
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">User Agent</p>
-                                                    <p className="text-xs text-slate-400 bg-surface-elevated rounded p-2 border border-surface-border font-mono break-all leading-relaxed">
+                                                <div className="space-y-3">
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">User Agent</p>
+                                                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 font-mono text-[11px] text-slate-400 break-all leading-relaxed shadow-inner">
                                                         {bug.userAgent}
-                                                    </p>
+                                                    </div>
                                                 </div>
                                             )}
-                                            {bug.environmentData.windowSize && (
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Window Size</p>
-                                                    <p className="text-xs text-slate-300 font-mono">
-                                                        {typeof bug.environmentData.windowSize === 'string' ? bug.environmentData.windowSize : `${bug.environmentData.windowSize.width}×${bug.environmentData.windowSize.height}`}
-                                                    </p>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {bug.environmentData.windowSize && (
+                                                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col gap-1.5 shadow-inner">
+                                                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Window Size</span>
+                                                        <span className="text-xs font-bold text-white font-mono">
+                                                            {typeof bug.environmentData.windowSize === 'string' ? bug.environmentData.windowSize : `${bug.environmentData.windowSize.width}×${bug.environmentData.windowSize.height}`}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col gap-1.5 shadow-inner">
+                                                    <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Screen Resolution</span>
+                                                    <span className="text-xs font-bold text-white font-mono">{bug.screenResolution || "N/A"}</span>
                                                 </div>
-                                            )}
+                                            </div>
+
                                             {bug.environmentData.cookies && (
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Cookies</p>
-                                                    <pre className="text-xs text-slate-400 bg-surface-elevated rounded p-3 border border-surface-border overflow-x-auto max-h-32 font-mono leading-relaxed">
-                                                        {typeof bug.environmentData.cookies === "string"
-                                                            ? bug.environmentData.cookies.substring(0, 500)
-                                                            : JSON.stringify(bug.environmentData.cookies, null, 2)}
-                                                    </pre>
+                                                <div className="space-y-3">
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Session Cookies</p>
+                                                    <div className="relative group">
+                                                        <pre className="bg-black/40 border border-white/5 rounded-2xl p-5 text-[11px] text-brand-400 overflow-x-auto max-h-40 font-mono leading-relaxed shadow-inner custom-scrollbar">
+                                                            {typeof bug.environmentData.cookies === "string"
+                                                                ? bug.environmentData.cookies.substring(0, 1000)
+                                                                : JSON.stringify(bug.environmentData.cookies, null, 2)}
+                                                        </pre>
+                                                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <CopyButton text={typeof bug.environmentData.cookies === "string" ? bug.environmentData.cookies : JSON.stringify(bug.environmentData.cookies)} />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
+
                                             {bug.environmentData.localStorage && (
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">localStorage</p>
-                                                    <pre className="text-xs text-slate-400 bg-surface-elevated rounded p-3 border border-surface-border overflow-x-auto max-h-48 font-mono leading-relaxed">
-                                                        {bug.environmentData.localStorage.substring(0, 1000)}
-                                                    </pre>
+                                                <div className="space-y-3">
+                                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">LocalStorage Snapshot</p>
+                                                    <div className="relative group">
+                                                        <pre className="bg-black/40 border border-white/5 rounded-2xl p-5 text-[11px] text-emerald-400 overflow-x-auto max-h-60 font-mono leading-relaxed shadow-inner custom-scrollbar">
+                                                            {bug.environmentData.localStorage.substring(0, 2000)}
+                                                        </pre>
+                                                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <CopyButton text={bug.environmentData.localStorage} />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
                                         </>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center py-12 text-slate-600">
-                                            <Monitor className="w-10 h-10 mb-3" />
-                                            <p className="text-sm">No environment data captured</p>
+                                        <div className="flex flex-col items-center justify-center py-20 text-slate-700 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl">
+                                            <Monitor className="w-12 h-12 mb-4 opacity-20" />
+                                            <p className="text-sm font-bold uppercase tracking-widest">No Environment Data</p>
                                         </div>
                                     )}
                                 </div>
                             )}
 
                             {activeTab === "console" && (
-                                <div className="space-y-3">
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Console Errors</p>
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Runtime Console Logs</span>
+                                        </div>
+                                        {bug.consoleErrors && bug.consoleErrors.length > 0 && (
+                                            <span className="text-[10px] font-black bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full border border-red-500/20">
+                                                {bug.consoleErrors.length} ERRORS
+                                            </span>
+                                        )}
+                                    </div>
+                                    
                                     {bug.consoleErrors && bug.consoleErrors.length > 0 ? (
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                             {bug.consoleErrors.map((e: any, i: number) => (
-                                                <div key={i} className="bg-red-950/20 border border-red-900/40 rounded-lg p-3 font-mono text-xs">
-                                                    <div className="text-red-300 font-bold mb-1">{typeof e === 'string' ? e : e.message}</div>
-                                                    {e.file && <div className="text-slate-500 text-[10px]">{e.file}:{e.line}:{e.column}</div>}
-                                                    {e.stack && <pre className="mt-2 text-[10px] text-slate-500 overflow-x-auto max-h-32 whitespace-pre-wrap">{e.stack}</pre>}
+                                                <div key={i} className="bg-red-500/[0.02] border border-red-500/10 rounded-2xl p-5 font-mono group hover:bg-red-500/[0.04] transition-all">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="p-1.5 rounded-lg bg-red-500/10 text-red-500 shrink-0">
+                                                            <XCircle className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0 space-y-3">
+                                                            <div className="text-red-400 font-bold text-xs leading-relaxed break-all">
+                                                                {typeof e === 'string' ? e : e.message}
+                                                            </div>
+                                                            {e.file && (
+                                                                <div className="flex items-center gap-2 text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                                                                    <Globe className="w-3 h-3" />
+                                                                    {e.file}:{e.line}:{e.column}
+                                                                </div>
+                                                            )}
+                                                            {e.stack && (
+                                                                <pre className="mt-3 text-[10px] text-slate-600 overflow-x-auto max-h-40 whitespace-pre-wrap leading-relaxed bg-black/20 p-4 rounded-xl border border-white/5 custom-scrollbar">
+                                                                    {e.stack}
+                                                                </pre>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center py-12 text-slate-600">
-                                            <LayoutList className="w-10 h-10 mb-3 opacity-20" />
-                                            <p className="text-sm">No console errors captured</p>
+                                        <div className="flex flex-col items-center justify-center py-20 text-slate-700 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl">
+                                            <LayoutList className="w-12 h-12 mb-4 opacity-20" />
+                                            <p className="text-sm font-bold uppercase tracking-widest">Console Clean</p>
                                         </div>
                                     )}
                                 </div>
                             )}
 
                             {activeTab === "network" && (
-                                <div className="space-y-3">
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Failed Network Requests</p>
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Network Request Monitor</span>
+                                        </div>
+                                        {bug.networkLogs && bug.networkLogs.length > 0 && (
+                                            <span className="text-[10px] font-black bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full border border-amber-500/20">
+                                                {bug.networkLogs.length} FAILED
+                                            </span>
+                                        )}
+                                    </div>
+
                                     {bug.networkLogs && bug.networkLogs.length > 0 ? (
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                             {bug.networkLogs.map((log: any, i: number) => (
-                                                <div key={i} className="bg-surface-elevated border border-surface-border rounded-lg p-3 font-mono text-xs">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${log.status >= 500 ? 'bg-red-900 text-red-200' : 'bg-amber-900 text-amber-200'}`}>
-                                                            {log.status || 'ERR'}
+                                                <div key={i} className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 font-mono group hover:bg-white/[0.04] transition-all shadow-sm">
+                                                    <div className="flex items-center gap-4 mb-4">
+                                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${log.status >= 500 ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'bg-amber-500/20 text-amber-400 border border-amber-500/20'}`}>
+                                                            {log.status || 'FAIL'}
                                                         </span>
-                                                        <span className="text-slate-400 uppercase">{log.method}</span>
-                                                        <span className="text-slate-500 ml-auto">{log.responseTime}ms</span>
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{log.method}</span>
+                                                        <div className="ml-auto flex items-center gap-1.5 text-slate-600 text-[10px] font-black">
+                                                            <Clock className="w-3 h-3" /> {log.responseTime}ms
+                                                        </div>
                                                     </div>
-                                                    <div className="text-slate-300 break-all">{log.url}</div>
-                                                    {log.error && <div className="text-red-400 mt-1 text-[10px]">{log.error}</div>}
+                                                    <div className="text-xs font-bold text-white break-all leading-relaxed mb-3">{log.url}</div>
+                                                    {log.error && (
+                                                        <div className="text-red-400/80 text-[10px] font-medium bg-red-500/5 p-3 rounded-xl border border-red-500/10 italic">
+                                                            {log.error}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center py-12 text-slate-600">
-                                            <Globe className="w-10 h-10 mb-3 opacity-20" />
-                                            <p className="text-sm">No failed network requests</p>
+                                        <div className="flex flex-col items-center justify-center py-20 text-slate-700 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl">
+                                            <Globe className="w-12 h-12 mb-4 opacity-20" />
+                                            <p className="text-sm font-bold uppercase tracking-widest">No Failed Requests</p>
                                         </div>
                                     )}
                                 </div>
                             )}
 
                             {activeTab === "activity" && (
-                                <div className="space-y-2">
+                                <div className="space-y-8">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(0,212,255,0.8)]" />
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Activity Timeline</span>
+                                        </div>
+                                    </div>
+
                                     {!activities || activities.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center py-12 text-slate-600">
-                                            <Activity className="w-10 h-10 mb-3" />
-                                            <p className="text-sm">No activity yet</p>
+                                        <div className="flex flex-col items-center justify-center py-20 text-slate-700 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl">
+                                            <Activity className="w-12 h-12 mb-4 opacity-20" />
+                                            <p className="text-sm font-bold uppercase tracking-widest">No Activity Yet</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-0">
+                                        <div className="relative pl-8 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-gradient-to-b before:from-brand-500/50 before:via-slate-800 before:to-transparent">
                                             {activities.map((act: any, idx: number) => (
-                                                <div key={act._id} className="flex items-start gap-3 py-3 border-b border-surface-border/50 last:border-0">
-                                                    <div className="w-6 h-6 rounded-full bg-surface-elevated border border-surface-border flex items-center justify-center shrink-0 mt-0.5">
-                                                        {ACTIVITY_ICONS[act.type] ?? <Activity className="w-3 h-3 text-slate-500" />}
+                                                <div key={act._id} className="relative group/activity">
+                                                    {/* Timeline Node */}
+                                                    <div className="absolute -left-8 top-1.5 w-6 h-6 rounded-full bg-[#09090E] border-2 border-slate-800 flex items-center justify-center z-10 group-hover/activity:border-brand-500 group-hover/activity:scale-110 transition-all shadow-[0_0_10px_rgba(0,0,0,0.5)]">
+                                                        <div className="p-1 rounded-full text-slate-500 group-hover/activity:text-brand-400 transition-colors">
+                                                            {ACTIVITY_ICONS[act.type] ?? <Activity className="w-3 h-3" />}
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                                            <span className="text-xs font-medium text-white">{act.actorName}</span>
-                                                            <span className="text-xs text-slate-500">
-                                                                {act.type === "created" && "created this bug"}
+
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-xs font-black text-white">{act.actorName}</span>
+                                                            <div className="w-1 h-1 rounded-full bg-slate-800" />
+                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                                                {act.type === "created" && "created this issue"}
                                                                 {act.type === "asset_added" && "attached an asset"}
                                                                 {act.type === "status_changed" && `updated status`}
                                                                 {act.type === "priority_changed" && `changed priority`}
@@ -1397,10 +1616,15 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                                                 {act.type === "category_changed" && "changed category"}
                                                             </span>
                                                         </div>
+
                                                         {act.detail && (
-                                                            <p className="text-[11px] text-slate-400 mt-0.5 bg-surface-elevated rounded px-2 py-0.5 inline-block font-mono">{act.detail}</p>
+                                                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/5 text-[10px] font-bold text-brand-400 font-mono shadow-inner">
+                                                                <Hash className="w-3 h-3 text-slate-600" />
+                                                                {act.detail}
+                                                            </div>
                                                         )}
-                                                        <p className="text-[10px] text-slate-600 mt-1">
+
+                                                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
                                                             {formatDistanceToNow(new Date(act.createdAt), { addSuffix: true })}
                                                         </p>
                                                     </div>
@@ -1914,56 +2138,60 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     return (
         <div className="min-h-screen flex flex-col bg-[#09090E]">
             <Navbar />
-            <div className="flex-1 flex flex-col max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-10 py-10">
-                {/* Breadcrumb & Title */}
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
-                            <Link href="/" className="hover:text-brand-400 transition-all flex items-center gap-1.5 group">
-                                <ArrowLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" /> Projects
-                            </Link>
-                            <span className="text-slate-800">/</span>
-                            <span className="text-slate-400 truncate max-w-[200px]">{project.name}</span>
+            <div className="flex-1 flex flex-col max-w-[1700px] mx-auto w-full px-6 sm:px-8 lg:px-10 py-10 gap-8">
+                <div className="rounded-[28px] border border-surface-border/70 bg-surface-card/25 backdrop-blur-2xl p-6 lg:p-8 shadow-[0_18px_70px_-36px_rgba(0,0,0,0.9)]">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">
+                                <Link href="/" className="hover:text-brand-400 transition-all flex items-center gap-2 group">
+                                    <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" /> Projects
+                                </Link>
+                                <span className="text-slate-800">/</span>
+                                <span className="text-slate-400 truncate max-w-[240px]">{project.name}</span>
+                            </div>
+                            <div className="flex items-center gap-4 flex-wrap">
+                                <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                                    {project.name}
+                                </h1>
+                                {project.domain && (
+                                    <a 
+                                        href={project.domain.startsWith('http') ? project.domain : `https://${project.domain}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="p-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-brand-400 transition-all hover:border-brand-500/30 group shadow-xl"
+                                        title="Visit website"
+                                    >
+                                        <ExternalLink className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
+                                    </a>
+                                )}
+                            </div>
+                            <p className="text-slate-500 text-sm leading-relaxed max-w-2xl">
+                                Real-time quality signals and operational insights for your product delivery.
+                            </p>
                         </div>
-                        <h1 className="text-4xl font-black text-white tracking-tight flex items-center gap-4">
-                            {project.name}
-                            {project.domain && (
-                                <a 
-                                    href={project.domain.startsWith('http') ? project.domain : `https://${project.domain}`} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="p-2 rounded-xl bg-surface-elevated border border-surface-border text-slate-500 hover:text-brand-400 transition-all hover:border-brand-500/30 group shadow-lg"
-                                    title="Visit website"
-                                >
-                                    <ExternalLink className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                </a>
-                            )}
-                        </h1>
-                    </div>
 
-                    {/* Stats */}
-                    {stats && (
-                        <div className="flex items-center gap-3 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
-                            {[
-                                { label: "Total", value: stats.total, color: "from-slate-500/20 to-slate-500/5", textColor: "text-white", icon: <Hash className="w-3.5 h-3.5" /> },
-                                { label: "Open", value: stats.open, color: "from-blue-500/20 to-blue-500/5", textColor: "text-blue-400", icon: <CircleDot className="w-3.5 h-3.5" /> },
-                                { label: "Critical", value: stats.critical, color: "from-red-500/20 to-red-500/5", textColor: "text-red-400", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-                                { label: "Resolved", value: stats.resolved, color: "from-green-500/20 to-green-500/5", textColor: "text-green-400", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-                            ].map((s) => (
-                                <div key={s.label} className={`flex flex-col min-w-[110px] p-4 rounded-2xl border border-surface-border bg-gradient-to-br ${s.color} backdrop-blur-md transition-all hover:border-surface-border/80 hover:translate-y-[-2px] shadow-xl`}>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className={s.textColor}>{s.icon}</span>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">{s.label}</span>
+                        {stats && (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full xl:w-auto">
+                                {[
+                                    { label: "Total", value: stats.total, color: "from-slate-500/20 to-transparent", textColor: "text-white", icon: <Hash className="w-4 h-4" /> },
+                                    { label: "Open", value: stats.open, color: "from-blue-500/20 to-transparent", textColor: "text-blue-400", icon: <CircleDot className="w-4 h-4" /> },
+                                    { label: "Critical", value: stats.critical, color: "from-red-500/20 to-transparent", textColor: "text-red-400", icon: <AlertTriangle className="w-4 h-4" /> },
+                                    { label: "Resolved", value: stats.resolved, color: "from-green-500/20 to-transparent", textColor: "text-green-400", icon: <CheckCircle2 className="w-4 h-4" /> },
+                                ].map((s) => (
+                                    <div key={s.label} className={`flex flex-col gap-3 rounded-2xl border border-surface-border/70 bg-gradient-to-br ${s.color} p-4 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1`}>
+                                        <div className="flex items-center gap-3">
+                                            <span className={`p-2 rounded-xl bg-black/25 ${s.textColor}`}>{s.icon}</span>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{s.label}</span>
+                                        </div>
+                                        <p className={`text-2xl font-black ${s.textColor} leading-none`}>{s.value}</p>
                                     </div>
-                                    <p className={`text-2xl font-black ${s.textColor} leading-none tracking-tight`}>{s.value}</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Sticky Header Section */}
-                <div className="sticky top-0 z-40 bg-[#09090E]/95 backdrop-blur-3xl border-b border-surface-border/50 -mx-4 px-4 pt-4 lg:-mx-10 lg:px-10 mb-10 shadow-2xl shadow-black/40">
+                <div className="sticky top-5 z-40 bg-[#0A0A10]/80 backdrop-blur-3xl border border-white/5 rounded-[28px] px-5 lg:px-7 pt-4 pb-5 shadow-[0_28px_56px_-16px_rgba(0,0,0,0.6)]">
                     {/* Toolbar */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
                         <div className="flex gap-1.5 p-1.5 bg-surface-card/50 border border-surface-border rounded-2xl w-full md:w-auto shadow-inner">

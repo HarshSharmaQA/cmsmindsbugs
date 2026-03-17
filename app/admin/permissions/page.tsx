@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { ArrowLeft, Save, AlertCircle, Users, Fingerprint, Settings, Eye, PencilLine, Trash2, ShieldCheck, Layout, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, Users, Fingerprint, Settings, Eye, PencilLine, Trash2, ShieldCheck, Layout, Check, Loader2, PlusCircle, UserCheck, Download, Layers, ClipboardList, MessageSquare, Activity, Plug, Shield } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -16,6 +16,7 @@ const PERMISSION_GROUPS = [
         icon: Users,
         permissions: [
             { id: "manage_users", label: "Manage Users", desc: "Invite, remove, and manage user roles", icon: Users },
+            { id: "manage_roles", label: "Manage Roles", desc: "Edit role definitions and access tiers", icon: Shield },
         ]
     },
     {
@@ -24,6 +25,8 @@ const PERMISSION_GROUPS = [
         permissions: [
             { id: "view_api", label: "View API Key", desc: "Access sensitive API credentials", icon: Fingerprint },
             { id: "view_settings", label: "Project Settings", desc: "Modify global project configuration", icon: Settings },
+            { id: "manage_integrations", label: "Manage Integrations", desc: "Configure integrations and webhooks", icon: Plug },
+            { id: "view_audit", label: "View Audit Log", desc: "Access security and activity history", icon: Activity },
         ]
     },
     {
@@ -31,8 +34,21 @@ const PERMISSION_GROUPS = [
         icon: Layout,
         permissions: [
             { id: "view_bugs", label: "View Bugs", desc: "Read-only access to bug reports", icon: Eye },
+            { id: "create_bugs", label: "Create Bugs", desc: "Create new bug reports and incidents", icon: PlusCircle },
             { id: "update_bugs", label: "Update Bugs", desc: "Edit and move bugs in Kanban", icon: PencilLine },
+            { id: "assign_bugs", label: "Assign Bugs", desc: "Assign issues to team members", icon: UserCheck },
+            { id: "add_comments", label: "Comment on Bugs", desc: "Add discussion and updates to issues", icon: MessageSquare },
             { id: "delete_bugs", label: "Delete Bugs", desc: "Permanently remove bug entries", icon: Trash2 },
+            { id: "export_bugs", label: "Export Bugs", desc: "Export bug data to CSV or external tools", icon: Download },
+            { id: "manage_buckets", label: "Manage Buckets", desc: "Create, reorder, and delete Kanban buckets", icon: Layers },
+        ]
+    },
+    {
+        name: "Insights",
+        icon: ClipboardList,
+        permissions: [
+            { id: "view_reports", label: "View Reports", desc: "Access analytics dashboards and reports", icon: ClipboardList },
+            { id: "manage_modules", label: "Manage Modules", desc: "Create and edit custom dashboard modules", icon: Layout },
         ]
     }
 ];

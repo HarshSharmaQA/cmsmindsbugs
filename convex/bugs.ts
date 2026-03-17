@@ -19,10 +19,18 @@ function buildTrackerUrl(bug: any) {
 }
 
 const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
-    owner: ["view_api", "view_settings", "manage_users", "delete_bugs", "update_bugs", "view_bugs"],
-    admin: ["view_settings", "manage_users", "delete_bugs", "update_bugs", "view_bugs"],
-    editor: ["update_bugs", "view_bugs"],
-    viewer: ["view_bugs"],
+    owner: [
+        "view_api", "view_settings", "manage_users", "manage_roles", "manage_integrations", "view_audit",
+        "view_reports", "manage_modules", "manage_buckets", "export_bugs",
+        "create_bugs", "update_bugs", "delete_bugs", "assign_bugs", "add_comments", "view_bugs"
+    ],
+    admin: [
+        "view_settings", "manage_users", "manage_integrations", "view_audit",
+        "view_reports", "manage_modules", "manage_buckets", "export_bugs",
+        "create_bugs", "update_bugs", "delete_bugs", "assign_bugs", "add_comments", "view_bugs"
+    ],
+    editor: ["create_bugs", "update_bugs", "assign_bugs", "add_comments", "view_bugs"],
+    viewer: ["view_bugs", "view_reports"],
 };
 
 async function getProjectPermissionContext(ctx: any, projectId: any, identity: any) {
@@ -61,6 +69,18 @@ async function getProjectPermissionContext(ctx: any, projectId: any, identity: a
 
     const permissions = new Set(roleData?.permissions || DEFAULT_ROLE_PERMISSIONS[role] || []);
     return { project, isSuperAdmin: false, permissions };
+}
+
+/** 
+ * Increment the sequential issue number for a project and return it 
+ */
+async function getNextIssueNumber(ctx: any, projectId: any) {
+    const project = await ctx.db.get(projectId);
+    if (!project) return 1;
+
+    const nextNumber = (project.lastIssueNumber ?? 0) + 1;
+    await ctx.db.patch(projectId, { lastIssueNumber: nextNumber });
+    return nextNumber;
 }
 
 // ── Queries ───────────────────────────────────────────────────────────────────
@@ -236,6 +256,7 @@ export const createBug = mutation({
         }
         const now = Date.now();
         const createdAt = args.created_at ?? now;
+        const issueNumber = await getNextIssueNumber(ctx, args.projectId);
         // Smart Assignment Logic
         let assignedId: string | undefined = undefined;
         if (args.page_url) {
@@ -257,6 +278,7 @@ export const createBug = mutation({
 
         const bugId = await ctx.db.insert("bugs", {
             projectId: args.projectId,
+            issueNumber,
             title: args.title,
             description: args.description,
             browser: args.browser,
@@ -356,8 +378,10 @@ export const dashboardManualCreateBug = mutation({
         if (!project) throw new Error("Project not found");
 
         const now = Date.now();
+        const issueNumber = await getNextIssueNumber(ctx, args.projectId);
         const bugId = await ctx.db.insert("bugs", {
             projectId: args.projectId,
+            issueNumber,
             title: args.title,
             description: args.description || "Manual bug report created from dashboard.",
             browser: "Manual",

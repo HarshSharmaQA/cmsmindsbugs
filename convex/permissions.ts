@@ -4,10 +4,18 @@ import { getEffectiveIdentity } from "./users";
 
 // Default permissions if not found
 const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
-    owner: ["view_api", "view_settings", "manage_users", "delete_bugs", "update_bugs", "view_bugs"],
-    admin: ["view_settings", "manage_users", "delete_bugs", "update_bugs", "view_bugs"],
-    editor: ["update_bugs", "view_bugs"],
-    viewer: ["view_bugs"],
+    owner: [
+        "view_api", "view_settings", "manage_users", "manage_roles", "manage_integrations", "view_audit",
+        "view_reports", "manage_modules", "manage_buckets", "export_bugs",
+        "create_bugs", "update_bugs", "delete_bugs", "assign_bugs", "add_comments", "view_bugs"
+    ],
+    admin: [
+        "view_settings", "manage_users", "manage_integrations", "view_audit",
+        "view_reports", "manage_modules", "manage_buckets", "export_bugs",
+        "create_bugs", "update_bugs", "delete_bugs", "assign_bugs", "add_comments", "view_bugs"
+    ],
+    editor: ["create_bugs", "update_bugs", "assign_bugs", "add_comments", "view_bugs"],
+    viewer: ["view_bugs", "view_reports"],
 };
 
 export const getGlobal = query({

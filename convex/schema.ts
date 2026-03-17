@@ -50,6 +50,7 @@ export default defineSchema({
         domain: v.optional(v.string()),
         apiKey: v.string(),
         description: v.optional(v.string()),
+        lastIssueNumber: v.optional(v.number()), // For sequential "Bug 1", "Bug 2" IDs
         createdAt: v.number(),
     })
         .index("by_user_id", ["userId"])
@@ -58,6 +59,7 @@ export default defineSchema({
     // ── Bugs ───────────────────────────────────────────────────────────────────
     bugs: defineTable({
         projectId: v.id("projects"),
+        issueNumber: v.optional(v.number()), // Sequential ID per project (e.g. 1, 2, 3...)
 
         // Core fields
         title: v.string(),
