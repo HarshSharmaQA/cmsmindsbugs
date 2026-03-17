@@ -2071,6 +2071,272 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         }
     };
 
+    const handleExportHTML = () => {
+        if (!bugs || bugs.length === 0) {
+            alert("No issues to export.");
+            return;
+        }
+
+        const memberMap: Record<string, string> = {};
+        members?.forEach((m: any) => {
+            memberMap[m.userId] = m.name || m.email || m.userId;
+        });
+
+        const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugScribe Report - ${project?.name}</title>
+    <style>
+        :root {
+            --bg: #09090e;
+            --card: #111118;
+            --border: rgba(255,255,255,0.1);
+            --text: #ffffff;
+            --text-muted: #94a3b8;
+            --brand: #6366f1;
+            --critical: #ef4444;
+            --high: #f59e0b;
+            --medium: #3b82f6;
+            --low: #10b981;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 40px;
+            line-height: 1.5;
+        }
+        .header {
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: -0.025em;
+        }
+        .header p {
+            color: var(--text-muted);
+            margin: 8px 0 0 0;
+            font-size: 14px;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 16px;
+        }
+        .stat-card .label {
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+        }
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 900;
+        }
+        .bug-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 32px;
+            page-break-inside: avoid;
+        }
+        .bug-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+        .bug-id {
+            font-size: 10px;
+            font-weight: 900;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 4px;
+        }
+        .bug-title {
+            font-size: 20px;
+            font-weight: 800;
+            margin: 0;
+        }
+        .badges {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .badge {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 4px 12px;
+            border-radius: 100px;
+            text-transform: uppercase;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .priority-critical { background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
+        .priority-high { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.2); }
+        .priority-medium { background: rgba(59, 130, 246, 0.1); color: #60a5fa; border-color: rgba(59, 130, 246, 0.2); }
+        .priority-low { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-top: 24px;
+        }
+        .info-group .label {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .info-group .value {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .description {
+            grid-column: span 2;
+            background: rgba(255,255,255,0.02);
+            padding: 20px;
+            border-radius: 16px;
+            font-size: 14px;
+            color: #cbd5e1;
+        }
+        .screenshot {
+            grid-column: span 2;
+            margin-top: 12px;
+        }
+        .screenshot img {
+            max-width: 100%;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+        .footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 80px;
+        }
+        @media print {
+            body { padding: 0; background: white; color: black; }
+            .bug-card { border: 1px solid #eee; background: white; }
+            .stat-card { border: 1px solid #eee; background: white; }
+            :root { --text: black; --text-muted: #666; --bg: white; --card: white; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>${project?.name} - Bug Report</h1>
+        <p>Generated on ${new Date().toLocaleString()} • ${bugs.length} Issues Found</p>
+    </div>
+
+    <div class="summary">
+        <div class="stat-card">
+            <div class="label">Total Issues</div>
+            <div class="value">${bugs.length}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Critical</div>
+            <div class="value" style="color: #ef4444">${bugs.filter((b: any) => b.priority === 'critical').length}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">High</div>
+            <div class="value" style="color: #f59e0b">${bugs.filter((b: any) => b.priority === 'high').length}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">In Progress</div>
+            <div class="value" style="color: #3b82f6">${bugs.filter((b: any) => b.status === 'in_progress').length}</div>
+        </div>
+    </div>
+
+    ${bugs.map((bug: any) => `
+        <div class="bug-card">
+            <div class="bug-header">
+                <div>
+                    <div class="bug-id">${bug.issueNumber ? `Bug ${bug.issueNumber}` : bug._id}</div>
+                    <h2 class="bug-title">${bug.title}</h2>
+                    <div class="badges">
+                        <span class="badge priority-${bug.priority}">${bug.priority}</span>
+                        <span class="badge" style="background: rgba(99,102,241,0.1); color: #818cf8;">${bug.status.replace(/_/g, ' ')}</span>
+                        <span class="badge" style="background: rgba(255,255,255,0.05); color: #94a3b8;">${bug.type || 'general'}</span>
+                    </div>
+                </div>
+                <div style="text-align: right; color: var(--text-muted); font-size: 11px; font-weight: 700;">
+                    ${new Date(bug.createdAt).toLocaleDateString()}
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="info-group">
+                    <div class="label">Assignee</div>
+                    <div class="value">${bug.assigneeId ? (memberMap[bug.assigneeId] || bug.assigneeId) : 'Unassigned'}</div>
+                </div>
+                <div class="info-group">
+                    <div class="label">Reporter</div>
+                    <div class="value">${bug.reporterName || 'Widget User'} (${bug.reporterEmail || 'N/A'})</div>
+                </div>
+                <div class="info-group">
+                    <div class="label">Browser / OS</div>
+                    <div class="value">${bug.browser} / ${bug.os || 'N/A'}</div>
+                </div>
+                <div class="info-group">
+                    <div class="label">URL</div>
+                    <div class="value" style="word-break: break-all; color: var(--brand); font-size: 11px;">${bug.url}</div>
+                </div>
+                
+                ${bug.description ? `
+                    <div class="description">
+                        <div class="label" style="margin-bottom: 8px;">Description</div>
+                        ${bug.description}
+                    </div>
+                ` : ''}
+
+                ${bug.screenshotUrl ? `
+                    <div class="screenshot">
+                        <div class="label" style="margin-bottom: 8px;">Screenshot / Evidence</div>
+                        <img src="${bug.screenshotUrl}" alt="Bug Screenshot">
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `).join('')}
+
+    <div class="footer">
+        Powered by BugScribe • Visual Feedback & Bug Tracking
+    </div>
+</body>
+</html>`;
+
+        const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `bugscribe-report-${project?.name.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split('T')[0]}.html`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const handleExport = () => {
         if (!bugs || bugs.length === 0) {
             alert("No issues to export.");
@@ -2237,13 +2503,22 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                 <Plus className="w-5 h-5" /> New Issue
                             </button>
                             {isProjectAdmin && (
-                                <button
-                                    onClick={handleExport}
-                                    className="p-3 rounded-2xl border border-surface-border bg-surface-card text-slate-400 hover:text-white hover:border-slate-500 transition-all shadow-lg hover:bg-surface-elevated"
-                                    title="Export all issues to CSV"
-                                >
-                                    <Download className="w-5 h-5" />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleExportHTML}
+                                        className="p-3 rounded-2xl border border-surface-border bg-surface-card text-brand-400 hover:text-brand-300 hover:border-brand-500/30 transition-all shadow-lg hover:bg-surface-elevated flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
+                                        title="Export all issues to HTML"
+                                    >
+                                        <Globe className="w-4 h-4" /> HTML
+                                    </button>
+                                    <button
+                                        onClick={handleExport}
+                                        className="p-3 rounded-2xl border border-surface-border bg-surface-card text-slate-400 hover:text-white hover:border-slate-500 transition-all shadow-lg hover:bg-surface-elevated flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
+                                        title="Export all issues to CSV"
+                                    >
+                                        <Download className="w-4 h-4" /> CSV
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </div>
