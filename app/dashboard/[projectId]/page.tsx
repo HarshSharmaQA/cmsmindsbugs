@@ -194,102 +194,124 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                     <div className="flex-1 flex flex-col gap-4 p-4 overflow-y-auto min-h-0 custom-scrollbar">
                         {bugs.map((bug, index) => (
                             <Draggable key={bug._id} draggableId={bug._id} index={index}>
-                                {(provided, snapshot) => (
-                                    <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        onClick={() => onSelect(bug._id)}
-                                        className={`group relative rounded-2xl border flex flex-col overflow-hidden cursor-pointer transition-all duration-300 ${snapshot.isDragging
-                                            ? "border-brand-500 shadow-2xl shadow-brand-500/40 rotate-[1deg] bg-surface-elevated scale-[1.02] z-50"
-                                            : "border-surface-border bg-surface-elevated/40 hover:border-brand-500/50 hover:bg-surface-elevated/80 hover:shadow-xl hover:shadow-black/40 hover:-translate-y-1"
-                                            }`}
-                                    >
-                                        {bug.screenshotUrl && bug.mediaType !== "video" && (
-                                            <div className="w-full h-40 border-b border-surface-border bg-slate-950/50 relative overflow-hidden shrink-0">
-                                                <img
-                                                    src={bug.screenshotUrl}
-                                                    alt={bug.title}
-                                                    className="w-full h-full object-cover object-top opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
-                                                />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-[#09090E]/80 to-transparent opacity-60" />
-                                            </div>
-                                        )}
-                                        <div className="p-4 relative flex-1 flex flex-col gap-4">
-                                            <div className="flex flex-col gap-3">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="mt-0.5 px-2 h-7 rounded-xl bg-surface-card border border-surface-border text-[10px] font-black text-slate-300 flex items-center justify-center shadow-md min-w-[28px]">
-                                                        {bug.issueNumber ? `Bug ${bug.issueNumber}` : (index + 1)}
+                                {(provided, snapshot) => {
+                                    const priorityAccent: Record<string, string> = {
+                                        critical: "before:bg-red-500",
+                                        high:     "before:bg-amber-500",
+                                        medium:   "before:bg-blue-500",
+                                        low:      "before:bg-slate-600",
+                                    };
+                                    const accentClass = priorityAccent[bug.priority] ?? "before:bg-slate-600";
+
+                                    return (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            onClick={() => onSelect(bug._id)}
+                                            className={`group relative rounded-2xl border flex flex-col overflow-hidden cursor-pointer transition-all duration-300
+                                                before:absolute before:left-0 before:top-3 before:bottom-3 before:w-[3px] before:rounded-full ${accentClass}
+                                                ${snapshot.isDragging
+                                                    ? "border-brand-500 shadow-2xl shadow-brand-500/40 rotate-[1deg] bg-surface-elevated scale-[1.02] z-50"
+                                                    : "border-surface-border/60 bg-surface-elevated/30 hover:border-brand-500/40 hover:bg-surface-elevated/70 hover:shadow-2xl hover:shadow-black/50 hover:-translate-y-1"
+                                                }`}
+                                        >
+                                            {/* Screenshot preview */}
+                                            {bug.screenshotUrl && bug.mediaType !== "video" && (
+                                                <div className="w-full h-36 relative overflow-hidden shrink-0 border-b border-surface-border/40">
+                                                    <img
+                                                        src={bug.screenshotUrl}
+                                                        alt={bug.title}
+                                                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
+                                                    />
+                                                    {/* Slim fade only at bottom for chip readability */}
+                                                    <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#09090E]/80 to-transparent" />
+                                                    {/* Issue number chip */}
+                                                    <div className="absolute bottom-2 left-3 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-sm text-[10px] font-black text-slate-300 border border-white/10">
+                                                        {bug.issueNumber ? `#${bug.issueNumber}` : `#${index + 1}`}
                                                     </div>
-                                                    <div className="mt-1 p-2 rounded-xl bg-surface-card border border-surface-border shrink-0 shadow-inner">
-                                                        <Bug className="w-3.5 h-3.5 text-brand-400/70" />
-                                                    </div>
-                                                    <h4 className="text-[14px] font-bold text-white leading-tight line-clamp-2 group-hover:text-brand-300 transition-colors tracking-tight">
-                                                        {bug.title}
-                                                    </h4>
                                                 </div>
-                                                
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span title={`Priority: ${bug.priority}`}><PriorityBadge priority={bug.priority} /></span>
+                                            )}
+
+                                            <div className="pl-5 pr-4 pt-3.5 pb-3 flex-1 flex flex-col gap-3">
+                                                {/* Top row: issue # + action handle */}
+                                                <div className="flex items-center justify-between">
+                                                    {!bug.screenshotUrl && (
+                                                        <span className="text-[10px] font-black text-slate-600 tracking-widest uppercase">
+                                                            #{bug.issueNumber ?? (index + 1)}
+                                                        </span>
+                                                    )}
+                                                    {bug.screenshotUrl && <span />}
+
+                                                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                        {bug.url && bug.url !== "Unknown" && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); onNavigateToLocation(bug); }}
+                                                                className="w-7 h-7 rounded-lg bg-surface-card border border-surface-border text-brand-400 hover:text-brand-300 hover:border-brand-500/50 flex items-center justify-center transition-all"
+                                                                title="Locate on page"
+                                                            >
+                                                                <Target className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        )}
+                                                        <div
+                                                            {...provided.dragHandleProps}
+                                                            className="w-7 h-7 rounded-lg bg-surface-card border border-surface-border text-slate-500 hover:text-white cursor-grab active:cursor-grabbing flex items-center justify-center transition-all"
+                                                            title="Drag"
+                                                        >
+                                                            <GripVertical className="w-3.5 h-3.5" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Title */}
+                                                <h4 className="text-[13px] font-bold text-white leading-snug line-clamp-2 group-hover:text-brand-200 transition-colors tracking-tight -mt-1">
+                                                    {bug.title}
+                                                </h4>
+
+                                                {/* Description */}
+                                                {bug.description && (
+                                                    <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 -mt-1">
+                                                        {bug.description}
+                                                    </p>
+                                                )}
+
+                                                {/* Badges */}
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <PriorityBadge priority={bug.priority} />
                                                     {bug.type && bug.type !== "general" && (
-                                                        <span title={`Type: ${bug.type.replace(/-/g, ' ')}`} className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-brand-500/10 text-brand-400 border border-brand-500/20 capitalize tracking-wide">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-brand-500/10 text-brand-400 border border-brand-500/20 capitalize">
                                                             {bug.type.replace(/-/g, ' ')}
                                                         </span>
                                                     )}
                                                     {bug.screenshotUrl && bug.mediaType === "video" && (
-                                                        <span title="Contains video evidence" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
                                                             <Video className="w-3 h-3" /> Video
                                                         </span>
                                                     )}
                                                 </div>
 
-                                                {bug.description && (
-                                                    <p className="text-xs text-slate-400 leading-snug line-clamp-1">
-                                                        {bug.description}
-                                                    </p>
-                                                )}
-
-                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                                    {bug.url && bug.url !== "Unknown" && (
-                                                        <button
-                                                            onClick={(e) => { 
-                                                                e.stopPropagation(); 
-                                                                onNavigateToLocation(bug);
-                                                            }}
-                                                            className="p-2 rounded-xl bg-surface-card border border-surface-border text-brand-400 hover:text-brand-300 hover:border-brand-500/50 transition-all shadow-lg"
-                                                            title="Locate bug on page"
-                                                        >
-                                                            <Target className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                    <div
-                                                        {...provided.dragHandleProps}
-                                                        className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-white cursor-grab active:cursor-grabbing transition-all shadow-lg"
-                                                        title="Drag to move"
-                                                    >
-                                                        <GripVertical className="w-4 h-4" />
+                                                {/* Footer */}
+                                                <div className="pt-2.5 mt-auto border-t border-surface-border/20 flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
+                                                        <Clock className="w-3 h-3 shrink-0" />
+                                                        <span className="truncate">{formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}</span>
                                                     </div>
+                                                    {bug.url && bug.url !== "Unknown" && (() => {
+                                                        try {
+                                                            return (
+                                                                <div className="flex items-center gap-1 max-w-[110px] px-1.5 py-0.5 rounded-md bg-surface-card/60 border border-surface-border/40">
+                                                                    <Globe className="w-2.5 h-2.5 text-slate-600 shrink-0" />
+                                                                    <span className="truncate text-[9px] text-slate-600 tracking-wide">
+                                                                        {new URL(bug.url).hostname.replace('www.', '')}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        } catch { return null; }
+                                                    })()}
                                                 </div>
-                                            </div>
-
-                                            <div className="mt-auto pt-4 border-t border-surface-border/30 flex items-center justify-between text-[11px] text-slate-500 font-bold">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-surface-card border border-surface-border flex items-center justify-center">
-                                                        <User className="w-3 h-3 text-slate-600" />
-                                                    </div>
-                                                    <span className="text-slate-600">{formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}</span>
-                                                </div>
-                                                {bug.url && bug.url !== "Unknown" && (
-                                                    <div className="flex items-center gap-1.5 max-w-[120px] bg-surface-card/50 px-2 py-1 rounded-lg border border-surface-border/50">
-                                                        <Globe className="w-3 h-3 text-slate-600" />
-                                                        <span className="truncate text-[10px] tracking-wide" title={bug.url}>
-                                                            {new URL(bug.url).hostname.replace('www.', '')}
-                                                        </span>
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                }}
                             </Draggable>
                         ))}
                         {provided.placeholder}
@@ -2521,21 +2543,55 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                         </div>
 
                         {stats && (
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full xl:w-auto">
-                                {[
-                                    { label: "Total", value: stats.total, color: "from-slate-500/20 to-transparent", textColor: "text-white", icon: <Hash className="w-4 h-4" /> },
-                                    { label: "Open", value: stats.open, color: "from-blue-500/20 to-transparent", textColor: "text-blue-400", icon: <CircleDot className="w-4 h-4" /> },
-                                    { label: "Critical", value: stats.critical, color: "from-red-500/20 to-transparent", textColor: "text-red-400", icon: <AlertTriangle className="w-4 h-4" /> },
-                                    { label: "Resolved", value: stats.resolved, color: "from-green-500/20 to-transparent", textColor: "text-green-400", icon: <CheckCircle2 className="w-4 h-4" /> },
-                                ].map((s) => (
-                                    <div key={s.label} className={`flex flex-col gap-3 rounded-2xl border border-surface-border/70 bg-gradient-to-br ${s.color} p-4 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1`}>
-                                        <div className="flex items-center gap-3">
-                                            <span className={`p-2 rounded-xl bg-black/25 ${s.textColor}`}>{s.icon}</span>
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{s.label}</span>
-                                        </div>
-                                        <p className={`text-2xl font-black ${s.textColor} leading-none`}>{s.value}</p>
+                            <div className="flex flex-wrap gap-2 w-full xl:w-auto">
+                                {/* Total */}
+                                <div className="flex items-center gap-2 rounded-xl border border-surface-border/70 bg-gradient-to-br from-slate-500/20 to-transparent px-3 py-2 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 min-w-[80px]">
+                                    <span className="p-1 rounded-lg bg-black/25 text-white shrink-0"><Hash className="w-3 h-3" /></span>
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-500 leading-none">Total</span>
+                                        <p className="text-base font-black text-white leading-tight">{stats.total}</p>
                                     </div>
-                                ))}
+                                </div>
+
+                                {/* Critical */}
+                                <div className="flex items-center gap-2 rounded-xl border border-surface-border/70 bg-gradient-to-br from-red-500/20 to-transparent px-3 py-2 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 min-w-[80px]">
+                                    <span className="p-1 rounded-lg bg-black/25 text-red-400 shrink-0"><AlertTriangle className="w-3 h-3" /></span>
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-500 leading-none">Critical</span>
+                                        <p className="text-base font-black text-red-400 leading-tight">{stats.critical}</p>
+                                    </div>
+                                </div>
+
+                                {/* One card per project status */}
+                                {(projectStatuses && projectStatuses.length ? projectStatuses : DEFAULT_COLUMNS).map((ps: any) => {
+                                    const statusValue = ps.value ?? ps.status;
+                                    const statusLabel = ps.label;
+                                    const statusColor = ps.color ?? "text-slate-400";
+
+                                    const colorMap: Record<string, { gradient: string; text: string; icon: React.ReactNode }> = {
+                                        "text-blue-400":   { gradient: "from-blue-500/20 to-transparent",   text: "text-blue-400",   icon: <CircleDot className="w-3 h-3" /> },
+                                        "text-amber-400":  { gradient: "from-amber-500/20 to-transparent",  text: "text-amber-400",  icon: <Clock className="w-3 h-3" /> },
+                                        "text-green-400":  { gradient: "from-green-500/20 to-transparent",  text: "text-green-400",  icon: <CheckCircle2 className="w-3 h-3" /> },
+                                        "text-slate-500":  { gradient: "from-slate-500/20 to-transparent",  text: "text-slate-400",  icon: <XCircle className="w-3 h-3" /> },
+                                        "text-indigo-400": { gradient: "from-indigo-500/20 to-transparent", text: "text-indigo-400", icon: <CircleDot className="w-3 h-3" /> },
+                                        "text-purple-400": { gradient: "from-purple-500/20 to-transparent", text: "text-purple-400", icon: <CircleDot className="w-3 h-3" /> },
+                                        "text-pink-400":   { gradient: "from-pink-500/20 to-transparent",   text: "text-pink-400",   icon: <CircleDot className="w-3 h-3" /> },
+                                        "text-cyan-400":   { gradient: "from-cyan-500/20 to-transparent",   text: "text-cyan-400",   icon: <CircleDot className="w-3 h-3" /> },
+                                        "text-red-400":    { gradient: "from-red-500/20 to-transparent",    text: "text-red-400",    icon: <AlertCircle className="w-3 h-3" /> },
+                                    };
+                                    const cfg = colorMap[statusColor] ?? { gradient: "from-slate-500/20 to-transparent", text: "text-slate-400", icon: <CircleDot className="w-3 h-3" /> };
+                                    const count = (bugs ?? []).filter((b: any) => b.status === statusValue).length;
+
+                                    return (
+                                        <div key={statusValue} className={`flex items-center gap-2 rounded-xl border border-surface-border/70 bg-gradient-to-br ${cfg.gradient} px-3 py-2 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 min-w-[80px]`}>
+                                            <span className={`p-1 rounded-lg bg-black/25 ${cfg.text} shrink-0`}>{cfg.icon}</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-500 leading-none truncate">{statusLabel}</span>
+                                                <p className={`text-base font-black ${cfg.text} leading-tight`}>{count}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
