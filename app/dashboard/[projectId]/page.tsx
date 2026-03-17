@@ -2082,18 +2082,27 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             memberMap[m.userId] = m.name || m.email || m.userId;
         });
 
+        const stats = {
+            total: bugs.length,
+            critical: bugs.filter((b: any) => b.priority === 'critical').length,
+            high: bugs.filter((b: any) => b.priority === 'high').length,
+            open: bugs.filter((b: any) => b.status === 'open').length,
+            resolved: bugs.filter((b: any) => b.status === 'resolved').length,
+        };
+
         const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BugScribe Report - ${project?.name}</title>
+    <title>BugScribe Premium Report - ${project?.name}</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         :root {
             --bg: #09090e;
             --card: #111118;
-            --border: rgba(255,255,255,0.1);
+            --border: rgba(255,255,255,0.08);
             --text: #ffffff;
             --text-muted: #94a3b8;
             --brand: #6366f1;
@@ -2101,227 +2110,302 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             --high: #f59e0b;
             --medium: #3b82f6;
             --low: #10b981;
+            --shadow: 0 20px 50px -12px rgba(0,0,0,0.5);
         }
+        * { box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
-            padding: 40px;
-            line-height: 1.5;
+            padding: 60px 20px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
         }
+        .container { max-width: 1000px; margin: 0 auto; }
         .header {
-            margin-bottom: 40px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 20px;
+            margin-bottom: 60px;
+            text-align: center;
         }
         .header h1 {
             margin: 0;
-            font-size: 32px;
-            font-weight: 900;
-            letter-spacing: -0.025em;
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         .header p {
             color: var(--text-muted);
-            margin: 8px 0 0 0;
-            font-size: 14px;
+            margin: 12px 0 0 0;
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
         }
-        .summary {
+        .summary-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 20px;
-            margin-bottom: 40px;
+            margin-bottom: 80px;
         }
         .stat-card {
             background: var(--card);
             border: 1px solid var(--border);
-            padding: 20px;
-            border-radius: 16px;
+            padding: 24px;
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--brand), transparent);
+            opacity: 0.3;
         }
         .stat-card .label {
             color: var(--text-muted);
-            font-size: 10px;
-            font-weight: 800;
+            font-size: 11px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 4px;
+            letter-spacing: 0.12em;
+            margin-bottom: 8px;
         }
         .stat-card .value {
-            font-size: 24px;
-            font-weight: 900;
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
         }
         .bug-card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 32px;
-            margin-bottom: 32px;
-            page-break-inside: avoid;
+            border-radius: 32px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
         }
         .bug-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 24px;
+            margin-bottom: 32px;
         }
-        .bug-id {
+        .bug-id-tag {
             font-size: 10px;
-            font-weight: 900;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            margin-bottom: 4px;
+            font-weight: 800;
+            color: var(--brand);
+            background: rgba(99,102,241,0.1);
+            padding: 4px 12px;
+            border-radius: 100px;
+            margin-bottom: 12px;
+            display: inline-block;
         }
         .bug-title {
-            font-size: 20px;
-            font-weight: 800;
+            font-size: 24px;
+            font-weight: 700;
             margin: 0;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
         }
         .badges {
             display: flex;
-            gap: 8px;
-            margin-top: 12px;
+            gap: 10px;
+            margin-top: 16px;
         }
         .badge {
             font-size: 10px;
-            font-weight: 800;
-            padding: 4px 12px;
-            border-radius: 100px;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 12px;
             text-transform: uppercase;
-            border: 1px solid rgba(255,255,255,0.1);
+            letter-spacing: 0.05em;
+            border: 1px solid rgba(255,255,255,0.05);
         }
-        .priority-critical { background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
-        .priority-high { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.2); }
-        .priority-medium { background: rgba(59, 130, 246, 0.1); color: #60a5fa; border-color: rgba(59, 130, 246, 0.2); }
-        .priority-low { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
+        .priority-critical { background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
+        .priority-high { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border-color: rgba(245, 158, 11, 0.2); }
+        .priority-medium { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.2); }
+        .priority-low { background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
         
-        .grid {
+        .metadata-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
-            margin-top: 24px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
         }
-        .info-group .label {
+        .meta-item .label {
             font-size: 10px;
             font-weight: 800;
             color: var(--text-muted);
             text-transform: uppercase;
-            margin-bottom: 4px;
+            letter-spacing: 0.1em;
+            margin-bottom: 6px;
         }
-        .info-group .value {
+        .meta-item .value {
             font-size: 13px;
             font-weight: 600;
+            color: #e2e8f0;
         }
-        .description {
-            grid-column: span 2;
+        .desc-box {
+            grid-column: span 3;
             background: rgba(255,255,255,0.02);
-            padding: 20px;
-            border-radius: 16px;
+            padding: 24px;
+            border-radius: 20px;
             font-size: 14px;
             color: #cbd5e1;
-        }
-        .screenshot {
-            grid-column: span 2;
-            margin-top: 12px;
-        }
-        .screenshot img {
-            max-width: 100%;
-            border-radius: 16px;
             border: 1px solid var(--border);
+        }
+        .screenshot-box {
+            grid-column: span 3;
+            margin-top: 10px;
+        }
+        .screenshot-box img {
+            width: 100%;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 30px 60px -12px rgba(0,0,0,0.5);
+        }
+        .logs-box {
+            grid-column: span 3;
+            background: #000;
+            padding: 24px;
+            border-radius: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #ef4444;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(239,68,68,0.2);
         }
         .footer {
             text-align: center;
             color: var(--text-muted);
             font-size: 12px;
-            margin-top: 80px;
+            margin-top: 100px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
         }
         @media print {
             body { padding: 0; background: white; color: black; }
-            .bug-card { border: 1px solid #eee; background: white; }
-            .stat-card { border: 1px solid #eee; background: white; }
-            :root { --text: black; --text-muted: #666; --bg: white; --card: white; }
+            .bug-card, .stat-card { box-shadow: none; border: 1px solid #eee; background: white; }
+            :root { --text: black; --text-muted: #666; --bg: white; --card: white; --brand: #000; }
+            .header h1 { -webkit-text-fill-color: black; background: none; }
+        }
+        @media (max-width: 768px) {
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .metadata-grid { grid-template-columns: 1fr; }
+            .desc-box, .screenshot-box, .logs-box { grid-column: span 1; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>${project?.name} - Bug Report</h1>
-        <p>Generated on ${new Date().toLocaleString()} • ${bugs.length} Issues Found</p>
-    </div>
+    <div class="container">
+        <div class="header">
+            <h1>${project?.name}</h1>
+            <p>Intelligence Report • ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+        </div>
 
-    <div class="summary">
-        <div class="stat-card">
-            <div class="label">Total Issues</div>
-            <div class="value">${bugs.length}</div>
-        </div>
-        <div class="stat-card">
-            <div class="label">Critical</div>
-            <div class="value" style="color: #ef4444">${bugs.filter((b: any) => b.priority === 'critical').length}</div>
-        </div>
-        <div class="stat-card">
-            <div class="label">High</div>
-            <div class="value" style="color: #f59e0b">${bugs.filter((b: any) => b.priority === 'high').length}</div>
-        </div>
-        <div class="stat-card">
-            <div class="label">In Progress</div>
-            <div class="value" style="color: #3b82f6">${bugs.filter((b: any) => b.status === 'in_progress').length}</div>
-        </div>
-    </div>
-
-    ${bugs.map((bug: any) => `
-        <div class="bug-card">
-            <div class="bug-header">
-                <div>
-                    <div class="bug-id">${bug.issueNumber ? `Bug ${bug.issueNumber}` : bug._id}</div>
-                    <h2 class="bug-title">${bug.title}</h2>
-                    <div class="badges">
-                        <span class="badge priority-${bug.priority}">${bug.priority}</span>
-                        <span class="badge" style="background: rgba(99,102,241,0.1); color: #818cf8;">${bug.status.replace(/_/g, ' ')}</span>
-                        <span class="badge" style="background: rgba(255,255,255,0.05); color: #94a3b8;">${bug.type || 'general'}</span>
-                    </div>
-                </div>
-                <div style="text-align: right; color: var(--text-muted); font-size: 11px; font-weight: 700;">
-                    ${new Date(bug.createdAt).toLocaleDateString()}
-                </div>
+        <div class="summary-grid">
+            <div class="stat-card">
+                <div class="label">Total Scope</div>
+                <div class="value">${stats.total}</div>
             </div>
-
-            <div class="grid">
-                <div class="info-group">
-                    <div class="label">Assignee</div>
-                    <div class="value">${bug.assigneeId ? (memberMap[bug.assigneeId] || bug.assigneeId) : 'Unassigned'}</div>
-                </div>
-                <div class="info-group">
-                    <div class="label">Reporter</div>
-                    <div class="value">${bug.reporterName || 'Widget User'} (${bug.reporterEmail || 'N/A'})</div>
-                </div>
-                <div class="info-group">
-                    <div class="label">Browser / OS</div>
-                    <div class="value">${bug.browser} / ${bug.os || 'N/A'}</div>
-                </div>
-                <div class="info-group">
-                    <div class="label">URL</div>
-                    <div class="value" style="word-break: break-all; color: var(--brand); font-size: 11px;">${bug.url}</div>
-                </div>
-                
-                ${bug.description ? `
-                    <div class="description">
-                        <div class="label" style="margin-bottom: 8px;">Description</div>
-                        ${bug.description}
-                    </div>
-                ` : ''}
-
-                ${bug.screenshotUrl ? `
-                    <div class="screenshot">
-                        <div class="label" style="margin-bottom: 8px;">Screenshot / Evidence</div>
-                        <img src="${bug.screenshotUrl}" alt="Bug Screenshot">
-                    </div>
-                ` : ''}
+            <div class="stat-card">
+                <div class="label">Critical</div>
+                <div class="value" style="color: var(--critical)">${stats.critical}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">In Progress</div>
+                <div class="value" style="color: var(--medium)">${bugs.filter((b: any) => b.status === 'in_progress').length}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Success Rate</div>
+                <div class="value" style="color: var(--low)">${Math.round((stats.resolved / stats.total) * 100) || 0}%</div>
             </div>
         </div>
-    `).join('')}
 
-    <div class="footer">
-        Powered by BugScribe • Visual Feedback & Bug Tracking
+        <div class="section-title">Issue Manifest</div>
+
+        ${bugs.map((bug: any) => `
+            <div class="bug-card">
+                <div class="bug-header">
+                    <div style="flex: 1; min-w-0;">
+                        <div class="bug-id-tag">${bug.issueNumber ? `BUG-${bug.issueNumber}` : `ID: ${bug._id.toString().substring(0, 8)}`}</div>
+                        <h2 class="bug-title">${bug.title}</h2>
+                        <div class="badges">
+                            <span class="badge priority-${bug.priority}">${bug.priority}</span>
+                            <span class="badge" style="background: rgba(255,255,255,0.05); color: #fff;">${bug.status.replace(/_/g, ' ')}</span>
+                            <span class="badge" style="background: var(--brand); color: #fff; border: none;">${bug.type || 'General'}</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right; padding-left: 20px;">
+                        <div style="color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Detected</div>
+                        <div style="font-size: 14px; font-weight: 800;">${new Date(bug.createdAt).toLocaleDateString()}</div>
+                    </div>
+                </div>
+
+                <div class="metadata-grid">
+                    <div class="meta-item">
+                        <div class="label">Assigned Specialist</div>
+                        <div class="value">${bug.assigneeId ? (memberMap[bug.assigneeId] || bug.assigneeId) : 'None'}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="label">Origin / Source</div>
+                        <div class="value">${bug.reporterName || 'Automated'}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="label">Environment</div>
+                        <div class="value">${bug.os || 'Unknown OS'} • ${bug.browser?.split(' ')[0] || 'Unknown Browser'}</div>
+                    </div>
+                    
+                    ${bug.description ? `
+                        <div class="desc-box">
+                            <div class="label" style="font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">Context & Observations</div>
+                            ${bug.description}
+                        </div>
+                    ` : ''}
+
+                    ${bug.screenshotUrl ? `
+                        <div class="screenshot-box">
+                            <div class="label" style="font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">Visual Evidence</div>
+                            <img src="${bug.screenshotUrl}" alt="Visual Evidence">
+                        </div>
+                    ` : ''}
+
+                    ${bug.consoleErrors && bug.consoleErrors.length > 0 ? `
+                        <div class="logs-box">
+                            <div class="label" style="font-size: 10px; font-weight: 800; color: #ef4444; text-transform: uppercase; margin-bottom: 12px;">Runtime Exceptions</div>
+                            ${bug.consoleErrors.map((err: any) => `> ${typeof err === 'string' ? err : err.message}`).join('<br/>')}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('')}
+
+        <div class="footer">
+            GENERATED BY BUGSCRIBE • THE MODERN QUALITY STACK
+        </div>
     </div>
 </body>
 </html>`;
@@ -2330,7 +2414,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
-        link.setAttribute("download", `bugscribe-report-${project?.name.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().split('T')[0]}.html`);
+        link.setAttribute("download", `bugscribe-premium-report-${project?.name.replace(/\s+/g, "-").toLowerCase()}.html`);
         link.style.visibility = "hidden";
         document.body.appendChild(link);
         link.click();
