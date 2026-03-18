@@ -691,7 +691,7 @@ function SettingsView({ project, devToken, isAdmin }: { project: any; devToken: 
 function IntegrationsView({ project, devToken }: { project: any; devToken: string | null }) {
     const connectionKey = btoa(`${project._id}|${project.apiKey}`);
 
-    const widgetScript = `<script src="https://bugscripe.vercel.app/widget/bugscribe-widget.js"
+    const widgetScript = `<script src="https://bug-higt.vercel.app/widget/bugscribe-widget.js"
   data-project-id="${project._id}"
   data-api-key="${project.apiKey}"
   async>
@@ -739,7 +739,7 @@ function IntegrationsView({ project, devToken }: { project: any; devToken: strin
                 <div className="space-y-2 text-xs">
                     <div className="flex gap-3">
                         <span className="text-slate-500 w-24 shrink-0">API Endpoint</span>
-                        <code className="text-slate-300">POST https://bugscripe.vercel.app/api/reports</code>
+                        <code className="text-slate-300">POST https://bug-higt.vercel.app/api/reports</code>
                     </div>
                     <div className="flex gap-3">
                         <span className="text-slate-500 w-24 shrink-0">Project ID</span>

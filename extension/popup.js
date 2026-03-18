@@ -488,7 +488,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     formData.append("screenshot", currentMediaBlob, filename);
                 }
 
-                const response = await fetch("https://bugscripe.vercel.app/api/reports", {
+                const response = await fetch("https://bug-higt.vercel.app/api/reports", {
                     method: "POST",
                     body: formData
                 });

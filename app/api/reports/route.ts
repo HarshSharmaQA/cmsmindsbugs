@@ -24,7 +24,7 @@ function checkRateLimit(ip: string): boolean {
 // Allowed CORS origins for the bug report endpoint
 const ALLOWED_ORIGINS = [
     "chrome-extension://",     // Chrome extension (any extension ID)
-    "https://bugscripe.vercel.app",
+    "https://bug-higt.vercel.app",
     process.env.NEXT_PUBLIC_CONVEX_SITE_URL ?? "",
 ].filter(Boolean);
 
