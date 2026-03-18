@@ -6,7 +6,7 @@ function injectWidget() {
             return;
         }
 
-        const convexUrl = refs.bugscribeConvexUrl || "https://limitless-chinchilla-790.convex.cloud";
+        const convexUrl = refs.bugscribeConvexUrl || "https://careful-dove-148.convex.cloud";
         const projectName = refs.bugscribeProjectName || "Untitled Project";
 
         // Do not inject if already running

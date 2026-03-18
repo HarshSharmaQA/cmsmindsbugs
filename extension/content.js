@@ -42,7 +42,7 @@ window.fetch = async (...args) => {
     const startTime = Date.now();
     const url = args[0] instanceof Request ? args[0].url : args[0];
     const method = (args[1] && args[1].method) || (args[0] instanceof Request ? args[0].method : 'GET');
-    
+
     try {
         const response = await originalFetch(...args);
         if (!response.ok) {
@@ -74,15 +74,15 @@ window.fetch = async (...args) => {
 const originalXHR = window.XMLHttpRequest.prototype.open;
 const originalXHRSend = window.XMLHttpRequest.prototype.send;
 
-window.XMLHttpRequest.prototype.open = function(method, url) {
+window.XMLHttpRequest.prototype.open = function (method, url) {
     this._method = method;
     this._url = url;
     this._startTime = Date.now();
     return originalXHR.apply(this, arguments);
 };
 
-window.XMLHttpRequest.prototype.send = function() {
-    this.addEventListener('load', function() {
+window.XMLHttpRequest.prototype.send = function () {
+    this.addEventListener('load', function () {
         if (this.status >= 400 || this.status === 0) {
             networkLogs.push({
                 url: this._url,
@@ -94,7 +94,7 @@ window.XMLHttpRequest.prototype.send = function() {
             if (networkLogs.length > MAX_LOGS) networkLogs.shift();
         }
     });
-    this.addEventListener('error', function() {
+    this.addEventListener('error', function () {
         networkLogs.push({
             url: this._url,
             method: this._method,
@@ -179,11 +179,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         startRecording();
         sendResponse({ status: "started" });
     } else if (request.action === "GET_ENV_DATA") {
+        const truncateEntries = (entries) => {
+            try {
+                return JSON.stringify(entries.slice(0, 30).map(([k, v]) => [k, typeof v === 'string' && v.length > 200 ? v.substring(0, 200) + '...' : v]));
+            } catch { return "[]"; }
+        };
         const pageLoadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
         sendResponse({
-            localStorage: JSON.stringify(Object.entries(localStorage)),
-            sessionStorage: JSON.stringify(Object.entries(sessionStorage)),
-            cookies: document.cookie,
+            localStorage: truncateEntries(Object.entries(localStorage)),
+            sessionStorage: truncateEntries(Object.entries(sessionStorage)),
+            cookies: document.cookie.substring(0, 1000),
             windowSize: `${window.innerWidth}x${window.innerHeight}`,
             screenResolution: `${window.screen.width}x${window.screen.height}`,
             userAgent: navigator.userAgent,
@@ -225,7 +230,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function startRecording() {
     try {
         stream = await navigator.mediaDevices.getDisplayMedia({
-            video: { displaySurface: "browser" },
+            video: {
+                displaySurface: "browser",
+                frameRate: { max: 15 },
+                width: { max: 1920 },
+                height: { max: 1080 }
+            },
             audio: false
         });
 
@@ -266,7 +276,11 @@ async function startRecording() {
 
         // Setup recorder
         recordedChunks = [];
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        let options = { mimeType: 'video/webm' };
+        if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+            options = { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 250000 };
+        }
+        mediaRecorder = new MediaRecorder(stream, options);
         mediaRecorder.ondataavailable = (e) => {
             if (e.data.size > 0) recordedChunks.push(e.data);
         };
@@ -331,8 +345,9 @@ function closeWidget() {
             const fabBtn = shadow.getElementById('fabBtn');
             if (iframeWrapper) iframeWrapper.classList.remove('show');
             if (fabBtn) {
-                fabBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg> Report Bug';
-                fabBtn.style.background = '#4f46e5';
+                fabBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>';
+                fabBtn.style.background = '#ffffff';
+                fabBtn.style.color = '#0f172a';
             }
         }
     }
@@ -399,12 +414,12 @@ function startAnnotation() {
     const activeBtnStyle = 'background:#4f46e5;color:white;border-color:#4338ca;';
 
     const tools = [
-        { id: 'pen',    emoji: '✏️', label: 'Pen'    },
-        { id: 'arrow',  emoji: '↗',  label: 'Arrow'  },
-        { id: 'box',    emoji: '⬜', label: 'Box'    },
+        { id: 'pen', emoji: '✏️', label: 'Pen' },
+        { id: 'arrow', emoji: '↗', label: 'Arrow' },
+        { id: 'box', emoji: '⬜', label: 'Box' },
         { id: 'circle', emoji: '⭕', label: 'Circle' },
-        { id: 'blur',   emoji: '🌫️', label: 'Blur'   },
-        { id: 'text',   emoji: 'T',  label: 'Text'   }
+        { id: 'blur', emoji: '🌫️', label: 'Blur' },
+        { id: 'text', emoji: 'T', label: 'Text' }
     ];
 
     tools.forEach(t => {
@@ -464,8 +479,9 @@ function startAnnotation() {
                             if (iframe) iframe.src = chrome.runtime.getURL('popup.html?v=' + Date.now());
                             if (iframeWrapper) iframeWrapper.classList.add('show');
                             if (fabBtn) {
-                                fabBtn.innerHTML = '✕ Close';
-                                fabBtn.style.background = '#334155';
+                                fabBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+                                fabBtn.style.background = '#f8fafc';
+                                fabBtn.style.color = '#0f172a';
                             }
                         }
                     }
@@ -520,7 +536,7 @@ function startAnnotation() {
             ctx.moveTo(startX, startY);
         } else if (currentTool === 'text') {
             isDrawing = false;
-            
+
             const input = document.createElement('input');
             input.type = 'text';
             input.style.cssText = `
@@ -540,7 +556,7 @@ function startAnnotation() {
                 box-shadow: 0 4px 12px rgba(0,0,0,0.5);
                 min-width: 100px;
             `;
-            
+
             document.body.appendChild(input);
             setTimeout(() => input.focus(), 10);
 
@@ -562,14 +578,14 @@ function startAnnotation() {
                 if (e.key === 'Enter') commitText();
                 if (e.key === 'Escape') input.remove();
             });
-            
+
             input.addEventListener('blur', commitText);
         }
     });
 
     canvas.addEventListener('mousemove', (e) => {
         if (!isDrawing) return;
-        
+
         ctx.strokeStyle = annotationColor;
         ctx.fillStyle = annotationColor;
         ctx.lineWidth = 4;
@@ -583,12 +599,12 @@ function startAnnotation() {
             ctx.putImageData(snapshot, 0, 0);
             const w = e.clientX - startX;
             const h = e.clientY - startY;
-            
+
             ctx.save();
             ctx.filter = 'blur(10px)';
             ctx.drawImage(canvas, startX * window.devicePixelRatio, startY * window.devicePixelRatio, w * window.devicePixelRatio, h * window.devicePixelRatio, startX, startY, w, h);
             ctx.restore();
-            
+
             ctx.fillStyle = 'rgba(150, 150, 150, 0.2)';
             ctx.fillRect(startX, startY, w, h);
         } else {
@@ -602,7 +618,7 @@ function startAnnotation() {
                 ctx.strokeRect(startX, startY, w, h);
             } else if (currentTool === 'circle') {
                 ctx.beginPath();
-                ctx.ellipse(startX + w/2, startY + h/2, Math.abs(w/2), Math.abs(h/2), 0, 0, 2 * Math.PI);
+                ctx.ellipse(startX + w / 2, startY + h / 2, Math.abs(w / 2), Math.abs(h / 2), 0, 0, 2 * Math.PI);
                 ctx.stroke();
             }
         }
@@ -696,7 +712,7 @@ function showLocationHighlight() {
                     showElementBox(el.getBoundingClientRect());
                     return;
                 }
-            } catch {}
+            } catch { }
         }
         showPulseMarker(payload.x, payload.y);
     }, 450);
@@ -766,32 +782,31 @@ function injectIframeWidget() {
                 background: transparent;
             }
             .fab-btn {
-                background: #4f46e5;
-                color: white;
-                border: none;
-                border-radius: 999px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: 600;
-                cursor: pointer;
-                box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+                background: #ffffff;
+                color: #0f172a;
+                border: 1px solid #e2e8f0;
+                border-radius: 50%;
+                width: 48px;
+                height: 48px;
+                padding: 0;
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                justify-content: center;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                 transition: 0.2s;
             }
             .fab-btn:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 6px 16px rgba(79, 70, 229, 0.5);
+                box-shadow: 0 6px 16px rgba(0,0,0,0.2);
             }
         </style>
         <div class="fab-container">
             <div class="iframe-wrapper" id="iframeWrapper">
                 <iframe src="${chrome.runtime.getURL('popup.html')}" allow="display-capture *"></iframe>
             </div>
-            <button class="fab-btn" id="fabBtn">
-               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
-               Report Bug
+            <button class="fab-btn" id="fabBtn" title="Report Bug">
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
             </button>
         </div>
     `;

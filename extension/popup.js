@@ -352,7 +352,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    document.getElementById("recordBtn").addEventListener("click", async () => {
+    document.getElementById("recordBtn").addEventListener("click", async (e) => {
+        if (e.target.disabled) return;
+        e.target.disabled = true;
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         chrome.tabs.sendMessage(tab.id, { action: "START_RECORDING" }, (res) => {
             if (chrome.runtime.lastError) {
@@ -365,7 +367,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    document.getElementById("annotatePageBtn").addEventListener("click", async () => {
+    document.getElementById("annotatePageBtn").addEventListener("click", async (e) => {
+        if (e.target.disabled) return;
+        e.target.disabled = true;
         const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
         if (tab && tab.id) {
             chrome.tabs.sendMessage(tab.id, { action: "START_ANNOTATE" }, (res) => {
@@ -428,6 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        if (submitBtn.disabled) return;
         submitBtn.disabled = true;
         submitBtn.textContent = "Sending...";
         errorMessage.style.display = "none";
@@ -474,12 +479,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (currentMediaType === "image") {
                     const canvas = document.getElementById("screenshotCanvas");
                     if (canvas && canvas.style.display !== "none") {
-                        currentMediaBlob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+                        currentMediaBlob = await new Promise(resolve => canvas.toBlob(resolve, "image/webp", 0.6));
                     }
                 }
 
                 if (currentMediaBlob) {
-                    const filename = currentMediaType === "video" ? "recording.webm" : "screenshot.png";
+                    const filename = currentMediaType === "video" ? "recording.webm" : "screenshot.webp";
                     formData.append("screenshot", currentMediaBlob, filename);
                 }
 

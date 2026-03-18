@@ -155,21 +155,20 @@
       z-index: 2147483647;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      background: #4f5dff;
-      color: #fff;
-      font-family: Inter, system-ui, -apple-system, sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      border: none;
-      border-radius: 50px;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+      border-radius: 50%;
       cursor: pointer;
-      box-shadow: 0 4px 20px rgba(79,93,255,0.4);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       transition: all 0.2s ease;
       user-select: none;
     }
-    #bugscribe-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,93,255,0.5); background: #4f5dff; color: #fff; }
+    #bugscribe-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
+    #bugscribe-btn svg { color: #0f172a; }
 
     #bugscribe-modal-overlay {
       all: initial;
@@ -391,7 +390,8 @@
     // ── Floating Button ────────────────────────────────────────────────────────
     const btn = document.createElement("button");
     btn.id = "bugscribe-btn";
-    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Report Bug`;
+    btn.title = "Report Bug";
+    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`;
     document.body.appendChild(btn);
     btn.onclick = openWidget;
 
@@ -890,11 +890,15 @@
         observer.observe(document.body, { childList: true });
     }
 
-    async function handleSubmit() {
+    async function handleSubmit(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        
+        const subBtn = document.getElementById("bs-submit");
+        if (subBtn && subBtn.disabled) return; // Prevent multiple requests
+
         const title = document.getElementById("bs-title").value.trim();
         if (!title) return document.getElementById("bs-title").focus();
 
-        const subBtn = document.getElementById("bs-submit");
         subBtn.disabled = true; subBtn.textContent = "Submitting...";
 
         try {
@@ -902,7 +906,7 @@
             let screenshotStorageId;
             if (canvas) {
                 console.log("[BugScribe] Preparing screenshot upload...");
-                const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.7));
+                const blob = await new Promise(r => canvas.toBlob(r, "image/webp", 0.6));
 
                 const urlRes = await convexReq("bugs:generateUploadUrl", {});
                 console.log("[BugScribe] Upload URL acquired.");

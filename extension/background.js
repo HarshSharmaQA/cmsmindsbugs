@@ -21,8 +21,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 // Wait for the iframe to disappear from the render
                 await new Promise(r => setTimeout(r, 200));
 
-                // Capture the visible tab
-                const dataUrl = await chrome.tabs.captureVisibleTab(null, { format: "png" });
+                const dataUrl = await chrome.tabs.captureVisibleTab(null, { format: "jpeg", quality: 60 });
 
                 // Show the widget again
                 try {

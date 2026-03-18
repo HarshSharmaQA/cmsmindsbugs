@@ -65,10 +65,10 @@ export default function TestCaseGeneratorPage() {
         setIsGenerating(true);
         setError(null);
         
-        let dynamicCases: TestCase[] = [];
-        let dynamicEdges: string[] = [];
-        let dynamicSecurity: string[] = [];
-        let dynamicUsability: string[] = [];
+        const dynamicCases: TestCase[] = [];
+        const dynamicEdges: string[] = [];
+        const dynamicSecurity: string[] = [];
+        const dynamicUsability: string[] = [];
 
         // If it's a URL, analyze it first
         if (inputType === "url") {

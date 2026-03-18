@@ -354,6 +354,8 @@ export const createBug = mutation({
                 toEmail: toEmail,
             });
         }
+        // Trigger AI Auto-Categorization
+        await ctx.scheduler.runAfter(0, internal.ai.classifyBug, { bugId });
 
         return bugId;
     },
