@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { encode as toonEncode, decode as toonDecode, generateStructure } from "../lib/toon";
 
 export const classifyBug = internalAction({
   args: { bugId: v.id("bugs") },
@@ -16,23 +17,33 @@ export const classifyBug = internalAction({
     }
 
     try {
-      const prompt = `
-You are an expert software triage engineer. Analyze the following bug report and determine its "priority" and "type".
+      // Use TOON for more token-efficient bug report representation
+      const bugData = {
+        title: bug.title,
+        description: bug.description || "N/A",
+        consoleErrors: bug.consoleErrors || [],
+        url: bug.url,
+        browserOS: `${bug.browser} on ${bug.os}`
+      };
 
-Bug Title: ${bug.title}
-Bug Description: ${bug.description || "N/A"}
-Console Errors: ${JSON.stringify(bug.consoleErrors || [])}
-URL: ${bug.url}
-Browser/OS: ${bug.browser} on ${bug.os}
+      const toonBugReport = toonEncode(bugData);
+
+      // Generate the expected output structure using TOON's generator
+      const outputStructure = generateStructure({
+        priority: "one of [low, medium, high, critical]",
+        type: "one of [UI/UX, Network, Logic, Crash, general]"
+      });
+
+      const prompt = `
+You are an expert software triage engineer. Analyze the following bug report in TOON (Token-Oriented Object Notation) format and determine its "priority" and "type".
+
+${toonBugReport}
 
 Valid Priorities: ["low", "medium", "high", "critical"]
 Valid Types: ["UI/UX", "Network", "Logic", "Crash", "general"]
 
-Respond strictly in JSON format matching this structure:
-{
-  "priority": "...",
-  "type": "..."
-}
+Respond strictly in TOON format matching this structure:
+${outputStructure}
 `;
 
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -44,7 +55,6 @@ Respond strictly in JSON format matching this structure:
         body: JSON.stringify({
           model: "gpt-4o-mini",
           messages: [{ role: "user", content: prompt }],
-          response_format: { type: "json_object" },
           temperature: 0.2, // Low temp for more deterministic classification
         }),
       });
@@ -57,12 +67,13 @@ Respond strictly in JSON format matching this structure:
       const content = data.choices?.[0]?.message?.content;
       if (!content) throw new Error("No content received from AI");
 
-      const parsed = JSON.parse(content);
+      // Decode the TOON response
+      const parsed = toonDecode(content) as any;
 
       // Validate parsed outputs against acceptable schema
       const validPriorities = ["low", "medium", "high", "critical"];
-      const priority = validPriorities.includes(parsed.priority) ? parsed.priority : undefined;
-      const type = parsed.type;
+      const priority = validPriorities.includes(parsed?.priority) ? parsed.priority : undefined;
+      const type = parsed?.type;
 
       // Update the bug with the AI's classification
       if (priority || type) {

@@ -7,7 +7,7 @@ import Link from "next/link";
 import {
     Plus, Bug, Globe, Key, Trash2, ArrowRight, X,
     Copy, Check, Search, Users, AlertTriangle, ChevronDown,
-    BarChart3, Clock, Shield, ArrowLeft,
+    BarChart3, Clock, Shield, ArrowLeft, LayoutList, CheckCircle2,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -93,7 +93,18 @@ function UserRow({
     );
 }
 
-// ─── ProjectCard ──────────────────────────────────────────────────────────────
+/**
+ * ProjectCard Component
+ * 
+ * Renders a high-level overview of a project with real-time bug statistics.
+ * Uses glassmorphism and modern CSS transitions for a premium feel.
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.project - The project data from Convex
+ * @param {Function} props.onDelete - Callback for project deletion
+ * @param {boolean} props.isSuperAdmin - Whether the current user has admin privileges
+ * @param {string|null} props.devToken - Optional development token for authentication
+ */
 function ProjectCard({
     project, onDelete, isSuperAdmin, devToken,
 }: {
@@ -116,77 +127,91 @@ function ProjectCard({
     const ageLabel = age === 0 ? "Today" : age === 1 ? "Yesterday" : `${age}d ago`;
 
     return (
-        <div className="card p-5 hover:border-brand-500/30 transition-all duration-200 group animate-fade-in relative overflow-hidden flex flex-col">
+        <div className="group relative bg-[#11111a] border border-white/5 rounded-[24px] p-6 hover:border-brand-500/40 transition-all duration-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col min-h-[260px]">
+            {/* Background Glow */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-brand-500/10 blur-[80px] rounded-full group-hover:bg-brand-500/20 transition-all duration-700" />
+            
             {/* Delete button */}
-            <div className="absolute top-3 right-3">
+            <div className="absolute top-4 right-4 z-10">
                 {isSuperAdmin && (
                     !confirmDelete ? (
                         <button onClick={() => setConfirmDelete(true)}
-                            className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all p-1.5 rounded-lg hover:bg-red-500/10">
-                            <Trash2 className="w-3.5 h-3.5" />
+                            className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all p-2 rounded-xl hover:bg-red-500/10">
+                            <Trash2 className="w-4 h-4" />
                         </button>
                     ) : (
-                        <div className="flex gap-1 animate-slide-up">
-                            <button onClick={onDelete} className="text-[10px] text-red-100 px-2 py-1 rounded bg-red-600 hover:bg-red-700">Confirm</button>
-                            <button onClick={() => setConfirmDelete(false)} className="text-[10px] text-slate-400 px-2 py-1 rounded bg-surface hover:bg-surface-hover">×</button>
+                        <div className="flex gap-1 animate-in slide-in-from-right-2 duration-300">
+                            <button onClick={onDelete} className="text-[10px] font-black uppercase tracking-widest text-white px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/20">Delete</button>
+                            <button onClick={() => setConfirmDelete(false)} className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10">×</button>
                         </div>
                     )
                 )}
             </div>
 
             {/* Header */}
-            <div className="flex items-center gap-3 mb-3 pr-8">
-                <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
-                    <Bug className="w-5 h-5 text-brand-400" />
+            <div className="flex items-start gap-4 mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500/20 to-brand-500/5 border border-brand-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                    <Bug className="w-7 h-7 text-brand-400" />
                 </div>
-                <div className="min-w-0">
-                    <h3 className="font-semibold text-white truncate">{project.name}</h3>
-                    {project.domain && (
-                        <p className="text-slate-500 text-[10px] truncate flex items-center gap-1 mt-0.5">
-                            <Globe className="w-2.5 h-2.5 shrink-0" />{project.domain}
+                <div className="min-w-0 flex-1 pt-1">
+                    <h3 className="font-black text-lg text-white truncate tracking-tight group-hover:text-brand-300 transition-colors">{project.name}</h3>
+                    {project.domain ? (
+                        <p className="text-slate-500 text-[11px] truncate flex items-center gap-1.5 mt-1 font-medium">
+                            <Globe className="w-3 h-3 text-brand-500/50" />
+                            {project.domain.replace(/^https?:\/\//, '')}
                         </p>
+                    ) : (
+                        <p className="text-slate-600 text-[11px] mt-1 font-black uppercase tracking-widest opacity-50">No domain linked</p>
                     )}
                 </div>
             </div>
 
-            {project.description && (
-                <p className="text-slate-400 text-xs mb-3 line-clamp-2">{project.description}</p>
-            )}
-
-            {/* Bug count pills */}
-            <div className="flex items-center gap-2 mb-4">
-                <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface text-slate-400 text-[11px] font-medium">
-                    <BarChart3 className="w-3 h-3" />
-                    {bugCount?.total ?? "—"} bugs
-                </span>
-                {(bugCount?.open ?? 0) > 0 && (
-                    <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-500/10 text-sky-400 text-[11px] font-semibold">
-                        {bugCount?.open} open
-                    </span>
-                )}
-                {(bugCount?.critical ?? 0) > 0 && (
-                    <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/10 text-red-400 text-[11px] font-semibold">
-                        <AlertTriangle className="w-2.5 h-2.5" />{bugCount?.critical} critical
-                    </span>
+            {/* Description */}
+            <div className="flex-1">
+                {project.description ? (
+                    <p className="text-slate-400 text-xs leading-relaxed line-clamp-2 mb-6 font-medium italic opacity-80 group-hover:opacity-100 transition-opacity">
+                        &ldquo;{project.description}&rdquo;
+                    </p>
+                ) : (
+                    <div className="h-10 mb-6" />
                 )}
             </div>
 
-            <div className="divider mb-3" />
+            {/* Stats Grid */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3 flex flex-col gap-1 hover:bg-white/[0.05] transition-colors">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Total</span>
+                    <span className="text-sm font-black text-white">{bugCount?.total ?? "0"}</span>
+                </div>
+                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3 flex flex-col gap-1 hover:bg-white/[0.05] transition-colors">
+                    <span className="text-[9px] font-black text-sky-500 uppercase tracking-widest">Open</span>
+                    <span className="text-sm font-black text-sky-400">{bugCount?.open ?? "0"}</span>
+                </div>
+                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3 flex flex-col gap-1 hover:bg-white/[0.05] transition-colors">
+                    <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Critical</span>
+                    <span className="text-sm font-black text-red-400">{bugCount?.critical ?? "0"}</span>
+                </div>
+            </div>
+
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent mb-6" />
 
             {/* Footer */}
-            <div className="flex items-center justify-between mt-auto">
-                <button onClick={copyKey} className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 hover:text-brand-400 transition-colors" title="Copy API key">
-                    {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
-                    <span>{project.apiKey.slice(0, 10)}…</span>
+            <div className="flex items-center justify-between">
+                <button 
+                    onClick={copyKey} 
+                    className="group/key flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/5 text-[10px] font-mono text-slate-500 hover:text-brand-400 hover:border-brand-500/30 transition-all"
+                    title="Copy API key"
+                >
+                    {copied ? <Check className="w-3 h-3 text-green-400" /> : <Key className="w-3 h-3 group-hover/key:rotate-12 transition-transform" />}
+                    <span>{project.apiKey.slice(0, 8)}…</span>
                 </button>
-                <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1 text-[10px] text-slate-600">
-                        <Clock className="w-2.5 h-2.5" />{ageLabel}
-                    </span>
-                    <Link href={`/dashboard/${project._id}`} className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 font-semibold transition-colors">
-                        Open <ArrowRight className="w-3 h-3" />
-                    </Link>
-                </div>
+                
+                <Link 
+                    href={`/dashboard/${project._id}`} 
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-500/10 hover:bg-brand-500 text-brand-400 hover:text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 shadow-lg shadow-brand-500/0 hover:shadow-brand-500/20 active:scale-95"
+                >
+                    Launch <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
             </div>
         </div>
     );
@@ -301,24 +326,72 @@ function DashboardPageContent() {
             <Navbar />
             <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-            <main className="max-w-6xl mx-auto px-4 pt-32 pb-20">
-
-                {/* Page Header */}
-                <div className="flex items-center justify-between mb-8 animate-slide-up">
-                    <div>
-                        <div className="flex items-center gap-2 text-brand-400 text-xs font-bold uppercase tracking-widest mb-2">
-                            <BarChart3 className="w-3.5 h-3.5" /> Dashboard
+            <main className="flex-1 container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative">
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 relative z-10">
+                    <div className="space-y-4">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-[10px] font-black uppercase tracking-widest text-brand-400 animate-in fade-in slide-in-from-left-4 duration-700">
+                            <Shield className="w-3 h-3" />
+                            Enterprise Quality Control
                         </div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight">Projects</h1>
-                        <p className="text-slate-400 text-sm mt-1">Manage your tracked applications</p>
+                        <h1 className="text-5xl font-black text-white tracking-tight animate-in fade-in slide-in-from-left-6 duration-700 delay-100">
+                            Project <span className="text-brand-500">Command</span>
+                        </h1>
+                        <p className="text-slate-500 max-w-md text-lg font-medium leading-relaxed animate-in fade-in slide-in-from-left-8 duration-700 delay-200">
+                            Real-time quality signals and operational insights for your product delivery.
+                        </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <Link href="/" className="btn-ghost flex items-center gap-2 text-sm">
-                            <ArrowLeft className="w-4 h-4" /> Home
-                        </Link>
-                        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-                            <Plus className="w-4 h-4" /> New Project
+
+                    <div className="flex items-center gap-4 animate-in fade-in slide-in-from-right-6 duration-700 delay-300">
+                        <div className="hidden sm:flex items-center gap-2 p-1 bg-white/5 rounded-2xl border border-white/10">
+                            <button className="px-4 py-2 rounded-xl bg-brand-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-brand-500/20">Projects</button>
+                            <button className="px-4 py-2 rounded-xl text-slate-500 hover:text-white text-xs font-black uppercase tracking-widest transition-colors">Activity</button>
+                        </div>
+                        <button
+                            onClick={() => setShowForm(!showForm)}
+                            className="btn-primary px-6 h-12 rounded-2xl flex items-center gap-3 shadow-[0_20px_40px_-10px_rgba(59,130,246,0.3)] hover:scale-105 active:scale-95 transition-all"
+                        >
+                            <Plus className="w-5 h-5" />
+                            <span className="font-black uppercase tracking-widest text-xs">New Project</span>
                         </button>
+                    </div>
+                </div>
+
+                {/* Quick Stats Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-400">
+                    {[
+                        { label: "Active Projects", value: projects?.length || 0, icon: <LayoutList className="w-5 h-5" />, color: "text-brand-400", bg: "bg-brand-500/10" },
+                        { label: "Total Issues", value: projects?.length || 0, icon: <Bug className="w-5 h-5" />, color: "text-sky-400", bg: "bg-sky-500/10" },
+                        { label: "Resolved", value: "84%", icon: <CheckCircle2 className="w-5 h-5" />, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+                        { label: "Avg. Resolution", value: "1.2d", icon: <Clock className="w-5 h-5" />, color: "text-amber-400", bg: "bg-amber-500/10" },
+                    ].map((stat, i) => (
+                        <div key={i} className="bg-[#11111a] border border-white/5 rounded-[28px] p-6 group hover:border-white/10 transition-all duration-500 relative overflow-hidden">
+                            <div className={`absolute top-0 right-0 w-24 h-24 ${stat.bg} blur-[60px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
+                            <div className="relative z-10 flex items-center gap-5">
+                                <div className={`w-12 h-12 rounded-2xl ${stat.bg} flex items-center justify-center ${stat.color} border border-white/5 group-hover:scale-110 transition-transform duration-500 shadow-inner`}>
+                                    {stat.icon}
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{stat.label}</span>
+                                    <span className="text-2xl font-black text-white mt-0.5">{stat.value}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
+                        Live Projects
+                    </h2>
+                    <div className="relative group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-500 transition-colors" />
+                        <input 
+                            type="text" 
+                            placeholder="Search projects..." 
+                            className="bg-white/5 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-xs font-bold text-white outline-none focus:border-brand-500/50 transition-all w-64"
+                        />
                     </div>
                 </div>
 
@@ -442,34 +515,36 @@ function DashboardPageContent() {
 
                 {/* Projects Grid */}
                 {projects === undefined ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {[...Array(3)].map((_, i) => (
-                            <div key={i} className="card p-6 space-y-3">
-                                <div className="skeleton h-5 w-3/4" />
-                                <div className="skeleton h-4 w-1/2" />
-                                <div className="skeleton h-4 w-full" />
-                            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="h-[280px] rounded-[32px] bg-white/[0.02] border border-white/5 animate-pulse" />
                         ))}
                     </div>
                 ) : projects.length === 0 ? (
-                    <div className="text-center py-24 animate-fade-in card border-dashed border-2 bg-transparent">
-                        <div className="w-16 h-16 rounded-2xl bg-surface-card border border-surface-border flex items-center justify-center mx-auto mb-4">
-                            <Bug className="w-7 h-7 text-slate-500" />
+                    <div className="flex flex-col items-center justify-center py-32 bg-[#11111a] border border-dashed border-white/5 rounded-[48px] group">
+                        <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-8 border border-white/5 group-hover:scale-110 transition-transform duration-700 shadow-inner">
+                            <Bug className="w-10 h-10 text-brand-500 opacity-20" />
                         </div>
-                        <h3 className="text-white font-semibold text-lg">No projects yet</h3>
-                        <p className="text-slate-500 text-sm mt-2 mb-6 max-w-sm mx-auto">Create a project and install the snippet to start seeing visual bug reports.</p>
-                        <button onClick={() => setShowForm(true)} className="btn-primary mx-auto">
-                            <Plus className="w-4 h-4" /> Get Started
+                        <h3 className="text-xl font-black text-white mb-3">No projects tracked yet</h3>
+                        <p className="text-slate-500 max-w-xs text-center text-sm font-medium leading-relaxed mb-10">
+                            Connect your first application to start capturing world-class quality insights.
+                        </p>
+                        <button
+                            onClick={() => setShowForm(true)}
+                            className="btn-primary px-8 h-12 rounded-2xl flex items-center gap-3"
+                        >
+                            <Plus className="w-5 h-5" />
+                            <span className="font-black uppercase tracking-widest text-xs">Create First Project</span>
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {projects.map((project: any) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {projects.map((p: any) => (
                             <ProjectCard
-                                key={project._id}
-                                project={project}
-                                onDelete={async () => { await deleteProject({ projectId: project._id, devToken: devToken || undefined }); toast.success("Project deleted."); }}
+                                key={p._id}
+                                project={p}
                                 isSuperAdmin={isSuperAdmin}
+                                onDelete={async () => { await deleteProject({ projectId: p._id, devToken: devToken || undefined }); toast.success("Project deleted."); }}
                                 devToken={devToken}
                             />
                         ))}

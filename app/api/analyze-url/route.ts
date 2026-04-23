@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { convert } from 'html-to-text';
 import { chromium } from 'playwright-core';
+import { encode as toonEncode } from '@/lib/toon';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30; // 30 seconds for analysis + screenshot
 
-async function getDetailedAnalysis(url: string) {
+async function getDetailedAnalysis(url: string, format: 'json' | 'toon' = 'json') {
     let browser = null;
     try {
         browser = await chromium.launch({ headless: true });
@@ -52,7 +53,16 @@ async function getDetailedAnalysis(url: string) {
         const buffer = await page.screenshot({ type: 'jpeg', quality: 80 });
         const screenshot = `data:image/jpeg;base64,${buffer.toString('base64')}`;
 
-        return { ...pageDetails, screenshot };
+        const result = { ...pageDetails, screenshot };
+        
+        if (format === 'toon') {
+            return {
+                data: toonEncode(pageDetails),
+                screenshot
+            };
+        }
+
+        return result;
     } catch (err) {
         console.error('Detailed analysis failed:', err);
         return null;
@@ -63,7 +73,7 @@ async function getDetailedAnalysis(url: string) {
 
 export async function POST(req: Request) {
     try {
-        const { url } = await req.json();
+        const { url, format = 'json' } = await req.json();
 
         if (!url) {
             return NextResponse.json({ error: 'URL is required' }, { status: 400 });
@@ -81,7 +91,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Only http and https protocols are supported' }, { status: 400 });
         }
 
-        const analysis = await getDetailedAnalysis(url);
+        const analysis = await getDetailedAnalysis(url, format);
         
         if (!analysis) {
             return NextResponse.json({ error: 'Failed to analyze the page content' }, { status: 500 });

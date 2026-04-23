@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugScribe Settings</title>
+    <link rel="stylesheet" href="settings-styles.css">
+</head>
+<body>
+    <div class="settings-container">
+        <!-- Header -->
+        <div class="settings-header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m8 2 1.88 1.88" />
+                        <path d="M14.12 3.88 16 2" />
+                        <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+                        <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" />
+                        <path d="M12 20v-9" />
+                    </svg>
+                </div>
+                <div>
+                    <h1>BugScribe Settings</h1>
+                    <p>Configure your bug reporting preferences</p>
+                </div>
+            </div>
+            <button id="closeSettings" class="btn-ghost">✕ Close</button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="connection">🔗 Connection</button>
+            <button class="tab" data-tab="capture">📷 Capture</button>
+            <button class="tab" data-tab="privacy">🔒 Privacy</button>
+            <button class="tab" data-tab="advanced">⚙️ Advanced</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Connection Tab -->
+            <div id="connection-tab" class="tab-panel active">
+                <div class="section">
+                    <h2>API Configuration</h2>
+                    <div class="form-group">
+                        <label for="apiEndpoint">API Endpoint</label>
+                        <input type="url" id="apiEndpoint" placeholder="https://your-api.com/api/reports" />
+                    </div>
+                    <div class="form-group">
+                        <label for="apiTimeout">API Timeout (ms)</label>
+                        <input type="number" id="apiTimeout" min="5000" max="60000" step="1000" />
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Connection Key</h2>
+                    <div class="form-group">
+                        <label for="connectionKey">Your Connection Key</label>
+                        <textarea id="connectionKey" rows="3" placeholder="Paste your connection key here..."></textarea>
+                        <p class="help-text">Get this from your dashboard's Integrations page</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Capture Tab -->
+            <div id="capture-tab" class="tab-panel">
+                <div class="section">
+                    <h2>Screenshot Settings</h2>
+                    <div class="form-group">
+                        <label for="screenshotQuality">Quality (1-100)</label>
+                        <input type="range" id="screenshotQuality" min="1" max="100" />
+                        <span id="qualityValue" class="range-value">60</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="screenshotFormat">Format</label>
+                        <select id="screenshotFormat">
+                            <option value="jpeg">JPEG (Smaller)</option>
+                            <option value="png">PNG (Lossless)</option>
+                            <option value="webp">WebP (Best)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Video Recording</h2>
+                    <div class="form-group">
+                        <label for="videoFrameRate">Frame Rate (FPS)</label>
+                        <input type="number" id="videoFrameRate" min="1" max="60" />
+                    </div>
+                    <div class="form-group">
+                        <label for="maxRecordingDuration">Max Duration (seconds)</label>
+                        <input type="number" id="maxRecordingDuration" min="10" max="600" />
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="captureAudio" />
+                        <label for="captureAudio">Capture Audio</label>
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="autoStopRecording" />
+                        <label for="autoStopRecording">Auto-stop at max duration</label>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Annotation Defaults</h2>
+                    <div class="form-group">
+                        <label for="defaultAnnotationColor">Default Color</label>
+                        <input type="color" id="defaultAnnotationColor" />
+                    </div>
+                    <div class="form-group">
+                        <label for="defaultAnnotationTool">Default Tool</label>
+                        <select id="defaultAnnotationTool">
+                            <option value="pen">Pen</option>
+                            <option value="arrow">Arrow</option>
+                            <option value="box">Box</option>
+                            <option value="circle">Circle</option>
+                            <option value="text">Text</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Tab -->
+            <div id="privacy-tab" class="tab-panel">
+                <div class="section">
+                    <h2>Data Collection</h2>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="captureConsoleErrors" />
+                        <label for="captureConsoleErrors">Capture Console Errors</label>
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="captureNetworkErrors" />
+                        <label for="captureNetworkErrors">Capture Network Errors</label>
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="trackUserActions" />
+                        <label for="trackUserActions">Track User Actions</label>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Sensitive Data</h2>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="blurSensitiveData" />
+                        <label for="blurSensitiveData">Auto-blur sensitive fields</label>
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="excludePasswords" />
+                        <label for="excludePasswords">Exclude password fields</label>
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="excludeCookies" />
+                        <label for="excludeCookies">Exclude cookies from reports</label>
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="truncateLocalStorage" />
+                        <label for="truncateLocalStorage">Truncate localStorage data</label>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Log Limits</h2>
+                    <div class="form-group">
+                        <label for="maxLogEntries">Max Log Entries</label>
+                        <input type="number" id="maxLogEntries" min="10" max="200" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Tab -->
+            <div id="advanced-tab" class="tab-panel">
+                <div class="section">
+                    <h2>UI Preferences</h2>
+                    <div class="form-group">
+                        <label for="theme">Theme</label>
+                        <select id="theme">
+                            <option value="auto">Auto (System)</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="position">Widget Position</label>
+                        <select id="position">
+                            <option value="bottom-right">Bottom Right</option>
+                            <option value="bottom-left">Bottom Left</option>
+                            <option value="top-right">Top Right</option>
+                            <option value="top-left">Top Left</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fabSize">Widget Size</label>
+                        <select id="fabSize">
+                            <option value="small">Small</option>
+                            <option value="medium">Medium</option>
+                            <option value="large">Large</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Notifications</h2>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="showSuccessNotification" />
+                        <label for="showSuccessNotification">Show success notifications</label>
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="showErrorNotification" />
+                        <label for="showErrorNotification">Show error notifications</label>
+                    </div>
+                    <div class="form-group">
+                        <label for="notificationDuration">Duration (ms)</label>
+                        <input type="number" id="notificationDuration" min="1000" max="10000" step="500" />
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Developer Options</h2>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="enableDebugMode" />
+                        <label for="enableDebugMode">Enable Debug Mode</label>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Configuration Management</h2>
+                    <div class="button-group">
+                        <button id="exportConfig" class="btn-secondary">📥 Export Config</button>
+                        <button id="importConfig" class="btn-secondary">📤 Import Config</button>
+                        <button id="resetConfig" class="btn-danger">🔄 Reset to Defaults</button>
+                    </div>
+                    <input type="file" id="importFileInput" accept=".json" style="display: none;" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="settings-footer">
+            <button id="saveSettings" class="btn-primary">💾 Save Settings</button>
+            <div id="saveStatus" class="save-status"></div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>

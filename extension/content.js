@@ -177,54 +177,72 @@ document.addEventListener("mousemove", (e) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "START_RECORDING") {
         startRecording();
-        sendResponse({ status: "started" });
+        sendResponse(toon.encode({ status: "started" }));
+        return true; // Keep channel open
     } else if (request.action === "GET_ENV_DATA") {
-        const truncateEntries = (entries) => {
-            try {
-                return JSON.stringify(entries.slice(0, 30).map(([k, v]) => [k, typeof v === 'string' && v.length > 200 ? v.substring(0, 200) + '...' : v]));
-            } catch { return "[]"; }
-        };
-        const pageLoadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
-        sendResponse({
-            localStorage: truncateEntries(Object.entries(localStorage)),
-            sessionStorage: truncateEntries(Object.entries(sessionStorage)),
-            cookies: document.cookie.substring(0, 1000),
-            windowSize: `${window.innerWidth}x${window.innerHeight}`,
-            screenResolution: `${window.screen.width}x${window.screen.height}`,
-            userAgent: navigator.userAgent,
-            pageLoadTime: pageLoadTime > 0 ? pageLoadTime : "Still loading",
-            consoleErrors: JSON.stringify(consoleErrors),
-            networkLogs: JSON.stringify(networkLogs),
-            deviceType: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? "Mobile" : "Desktop"
-        });
+        try {
+            const truncateEntries = (entries) => {
+                try {
+                    return JSON.stringify(entries.slice(0, 30).map(([k, v]) => [k, typeof v === 'string' && v.length > 200 ? v.substring(0, 200) + '...' : v]));
+                } catch { return "[]"; }
+            };
+            const pageLoadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
+            sendResponse(toon.encode({
+                localStorage: truncateEntries(Object.entries(localStorage)),
+                sessionStorage: truncateEntries(Object.entries(sessionStorage)),
+                cookies: document.cookie.substring(0, 1000),
+                windowSize: `${window.innerWidth}x${window.innerHeight}`,
+                screenResolution: `${window.screen.width}x${window.screen.height}`,
+                userAgent: navigator.userAgent,
+                pageLoadTime: pageLoadTime > 0 ? pageLoadTime : "Still loading",
+                consoleErrors: toon.encode(consoleErrors),
+                networkLogs: toon.encode(networkLogs),
+                deviceType: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? "Mobile" : "Desktop"
+            }));
+        } catch (e) {
+            console.error("Error collecting environment data:", e);
+            sendResponse(toon.encode({ error: e.message }));
+        }
+        return true; // Keep channel open
     } else if (request.action === "GET_BUG_CONTEXT") {
-        const fallbackX = Math.round(window.innerWidth / 2);
-        const fallbackY = Math.round(window.innerHeight / 2);
-        sendResponse({
-            page_url: window.location.href,
-            x_coordinate: latestBugContext?.x_coordinate ?? fallbackX,
-            y_coordinate: latestBugContext?.y_coordinate ?? fallbackY,
-            scroll_position: latestBugContext?.scroll_position ?? Math.round(window.scrollY),
-            scrollX: latestBugContext?.scrollX ?? Math.round(window.scrollX),
-            scrollY: latestBugContext?.scrollY ?? Math.round(window.scrollY),
-            element_selector: latestBugContext?.element_selector || "",
-            created_at: latestBugContext?.created_at ?? Date.now(),
-        });
+        try {
+            const fallbackX = Math.round(window.innerWidth / 2);
+            const fallbackY = Math.round(window.innerHeight / 2);
+            sendResponse(toon.encode({
+                page_url: window.location.href,
+                x_coordinate: latestBugContext?.x_coordinate ?? fallbackX,
+                y_coordinate: latestBugContext?.y_coordinate ?? fallbackY,
+                scroll_position: latestBugContext?.scroll_position ?? Math.round(window.scrollY),
+                scrollX: latestBugContext?.scrollX ?? Math.round(window.scrollX),
+                scrollY: latestBugContext?.scrollY ?? Math.round(window.scrollY),
+                element_selector: latestBugContext?.element_selector || "",
+                created_at: latestBugContext?.created_at ?? Date.now(),
+            }));
+        } catch (e) {
+            console.error("Error getting bug context:", e);
+            sendResponse(toon.encode({ error: e.message }));
+        }
+        return true; // Keep channel open
     } else if (request.action === "HIDE_IFRAME") {
         const fab = document.getElementById('bugscribe-iframe-widget-container');
         if (fab) fab.style.display = 'none';
-        sendResponse({ status: "hidden" });
+        sendResponse(toon.encode({ status: "hidden" }));
+        return true; // Keep channel open
     } else if (request.action === "SHOW_IFRAME") {
         const fab = document.getElementById('bugscribe-iframe-widget-container');
         if (fab) fab.style.display = '';
-        sendResponse({ status: "shown" });
+        sendResponse(toon.encode({ status: "shown" }));
+        return true; // Keep channel open
     } else if (request.action === "CLOSE_WIDGET") {
         closeWidget();
-        sendResponse({ status: "closed" });
+        sendResponse(toon.encode({ status: "closed" }));
+        return true; // Keep channel open
     } else if (request.action === "START_ANNOTATE") {
         startAnnotation();
-        sendResponse({ status: "started" });
+        sendResponse(toon.encode({ status: "started" }));
+        return true; // Keep channel open
     }
+    return false; // Not handling this message
 });
 
 async function startRecording() {
@@ -380,7 +398,7 @@ function startAnnotation() {
     canvas.width = window.innerWidth * window.devicePixelRatio;
     canvas.height = window.innerHeight * window.devicePixelRatio;
     canvas.style.cssText = 'width:100%;height:100%;';
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
     overlay.appendChild(canvas);
@@ -462,11 +480,12 @@ function startAnnotation() {
         toolbar.remove();
         await new Promise(r => setTimeout(r, 100));
         chrome.runtime.sendMessage({ action: "CAPTURE_SCREENSHOT" }, (response) => {
+            const decodedResponse = toon.decode(response);
             overlay.remove();
             if (widgetContainer) widgetContainer.style.display = '';
-            if (response && response.dataUrl) {
+            if (decodedResponse && decodedResponse.dataUrl) {
                 chrome.storage.local.set({
-                    bugscribe_pending_media: response.dataUrl,
+                    bugscribe_pending_media: decodedResponse.dataUrl,
                     bugscribe_pending_mediatype: "image",
                     bugscribe_pending_steps: ["Annotated screenshot on page"]
                 }, () => {
@@ -753,10 +772,91 @@ function injectIframeWidget() {
                 display: flex;
                 flex-direction: column;
                 align-items: flex-end;
+                position: relative;
             }
+            
+            /* Side Tab Toggle Button */
+            .side-tab {
+                position: fixed;
+                right: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                color: white;
+                border: none;
+                border-radius: 8px 0 0 8px;
+                padding: 12px 8px;
+                cursor: pointer;
+                box-shadow: -3px 0 10px rgba(79, 70, 229, 0.4);
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 2147483646;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 6px;
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+                min-height: 90px;
+            }
+            
+            .side-tab:hover {
+                right: 0;
+                padding-right: 12px;
+                box-shadow: -5px 0 16px rgba(79, 70, 229, 0.6);
+                background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+            }
+            
+            .side-tab.active {
+                background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+                box-shadow: -3px 0 10px rgba(34, 197, 94, 0.4);
+            }
+            
+            .side-tab.active:hover {
+                background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+                box-shadow: -5px 0 16px rgba(34, 197, 94, 0.6);
+            }
+            
+            .side-tab svg {
+                width: 16px;
+                height: 16px;
+                transform: rotate(90deg);
+            }
+            
+            .side-tab-text {
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 0.8px;
+            }
+            
+            /* Chevron indicator */
+            .side-tab::before {
+                content: '';
+                position: absolute;
+                left: 6px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 0;
+                height: 0;
+                border-right: 5px solid white;
+                border-top: 4px solid transparent;
+                border-bottom: 4px solid transparent;
+                opacity: 0.7;
+                transition: all 0.3s;
+            }
+            
+            .side-tab:hover::before {
+                left: 4px;
+                opacity: 1;
+            }
+            
             .iframe-wrapper {
-                width: 350px;
-                height: 580px;
+                width: min(420px, calc(100vw - 48px));
+                max-width: 420px;
+                height: min(640px, calc(100vh - 100px));
                 background: #0f172a;
                 border-radius: 12px;
                 box-shadow: 0 10px 40px rgba(0,0,0,0.5);
@@ -766,64 +866,112 @@ function injectIframeWidget() {
                 margin-bottom: 12px;
                 transform-origin: bottom right;
                 transition: transform 0.2s ease, opacity 0.2s ease;
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
             }
+            
+            @media (max-width: 480px) {
+                .iframe-wrapper {
+                    width: calc(100vw - 32px);
+                    height: calc(100vh - 120px);
+                    bottom: 16px;
+                    right: 16px;
+                    margin-bottom: 0;
+                }
+                
+                .side-tab {
+                    min-height: 75px;
+                    padding: 10px 7px;
+                    font-size: 8px;
+                }
+                
+                .side-tab svg {
+                    width: 14px;
+                    height: 14px;
+                }
+            }
+            
             .iframe-wrapper.show {
                 display: block;
-                animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             }
+            
             @keyframes popIn {
-                from { opacity: 0; transform: scale(0.95) translateY(10px); }
-                to { opacity: 1; transform: scale(1) translateY(0); }
+                from { 
+                    opacity: 0; 
+                    transform: scale(0.95) translateY(10px);
+                }
+                to { 
+                    opacity: 1; 
+                    transform: scale(1) translateY(0);
+                }
             }
+            
             iframe {
                 width: 100%;
                 height: 100%;
                 border: none;
                 background: transparent;
             }
-            .fab-btn {
-                background: #ffffff;
-                color: #0f172a;
-                border: 1px solid #e2e8f0;
-                border-radius: 50%;
-                width: 48px;
-                height: 48px;
-                padding: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                transition: 0.2s;
-            }
-            .fab-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            
+            /* Hide side tab when widget is open */
+            .side-tab.widget-open {
+                right: 0;
+                opacity: 1;
+                pointer-events: all;
             }
         </style>
         <div class="fab-container">
+            <button class="side-tab" id="sideTabBtn" title="Report Bug">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m8 2 1.88 1.88"/>
+                    <path d="M14.12 3.88 16 2"/>
+                    <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
+                    <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/>
+                    <path d="M12 20v-9"/>
+                    <path d="M6.53 9C4.6 8.8 3 7.1 3 5"/>
+                    <path d="M6 13H2"/>
+                    <path d="M3 21c0-2.1 1.7-3.9 3.8-4"/>
+                    <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/>
+                    <path d="M22 13h-4"/>
+                    <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
+                </svg>
+                <span class="side-tab-text">Report Bug</span>
+            </button>
             <div class="iframe-wrapper" id="iframeWrapper">
                 <iframe src="${chrome.runtime.getURL('popup.html')}" allow="display-capture *"></iframe>
             </div>
-            <button class="fab-btn" id="fabBtn" title="Report Bug">
-               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
-            </button>
         </div>
     `;
 
     document.body.appendChild(container);
 
-    const fabBtn = shadow.getElementById('fabBtn');
+    const sideTabBtn = shadow.getElementById('sideTabBtn');
     const iframeWrapper = shadow.getElementById('iframeWrapper');
 
-    fabBtn.addEventListener('click', () => {
+    // Close widget when clicking outside
+    document.addEventListener('click', (e) => {
+        const isClickInsideWidget = container.contains(e.target);
+        const isClickOnTab = e.composedPath().includes(sideTabBtn);
+        
+        if (!isClickInsideWidget && iframeWrapper.classList.contains('show')) {
+            iframeWrapper.classList.remove('show');
+            sideTabBtn.classList.remove('widget-open');
+            sideTabBtn.classList.remove('active');
+            sideTabBtn.querySelector('.side-tab-text').textContent = 'Report Bug';
+        }
+    });
+
+    sideTabBtn.addEventListener('click', () => {
         iframeWrapper.classList.toggle('show');
+        sideTabBtn.classList.toggle('widget-open');
+        sideTabBtn.classList.toggle('active');
+        
         if (iframeWrapper.classList.contains('show')) {
-            fabBtn.innerHTML = '✕ Close';
-            fabBtn.style.background = '#334155';
+            sideTabBtn.querySelector('.side-tab-text').textContent = 'Close';
         } else {
-            fabBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg> Report Bug';
-            fabBtn.style.background = '#4f46e5';
+            sideTabBtn.querySelector('.side-tab-text').textContent = 'Report Bug';
         }
     });
 }

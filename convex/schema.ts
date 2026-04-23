@@ -51,6 +51,7 @@ export default defineSchema({
         apiKey: v.string(),
         description: v.optional(v.string()),
         lastIssueNumber: v.optional(v.number()), // For sequential "Bug 1", "Bug 2" IDs
+        reportingEnabled: v.optional(v.boolean()), // Admin can disable bug reporting
         createdAt: v.number(),
     })
         .index("by_user_id", ["userId"])

@@ -293,8 +293,9 @@ export const createBug = mutation({
             y_coordinate: args.y_coordinate,
             scroll_position: args.scroll_position ?? args.scrollY,
             element_selector: args.element_selector,
-            consoleErrors: args.consoleErrors ?? [],
-            networkLogs: args.networkLogs ?? [],
+            // Handle both legacy array and new TOON string
+            consoleErrors: typeof args.consoleErrors === "string" ? [args.consoleErrors] : (args.consoleErrors ?? []),
+            networkLogs: typeof args.networkLogs === "string" ? [args.networkLogs] : (args.networkLogs ?? []),
             screenResolution: args.screenResolution,
             userAgent: args.userAgent,
             pageLoadTime: args.pageLoadTime,

@@ -1,7 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
     const setupView = document.getElementById("setupView");
+    const nameView = document.getElementById("nameView");
     const reportView = document.getElementById("reportView");
     const successView = document.getElementById("successView");
+    const disabledView = document.getElementById("disabledView");
     const settingsBtn = document.getElementById("settingsBtn");
 
     const bugType = document.getElementById("bugType");
@@ -15,11 +17,14 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentMediaType = "image";
     let currentSteps = [];
     let pageUrl = "Unknown";
-    let currentDrawTool = "pen"; // "pen", "arrow", "box", "circle", "text"
+    let currentDrawTool = "pen";
     let annotationColor = "#ef4444";
     let strokeHistory = []; 
     let baseImageData = null;
     let bugLocationContext = null;
+    let reportingEnabled = true;
+    let allProjects = [];
+    let activeProjectId = null;
 
     // Sanitize user-supplied strings before inserting into DOM
     function escapeHtml(str) {
@@ -30,36 +35,199 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#39;");
-    } 
+    }
 
-    // --- Loading State & Auth Check ---
-    chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey", "bugscribeConnectionKey"], (result) => {
-        if (result.bugscribeProjectId && result.bugscribeApiKey) {
-            if (result.bugscribeConnectionKey) {
-                document.getElementById("setupConnectionKey").value = result.bugscribeConnectionKey;
-            }
-            showReportView();
-        } else {
-            showSetupView();
+    // Load all projects
+    async function loadProjects() {
+        return new Promise((resolve) => {
+            chrome.storage.local.get(["bugscribeProjects", "bugscribeActiveProject"], (result) => {
+                allProjects = result.bugscribeProjects || [];
+                activeProjectId = result.bugscribeActiveProject || null;
+                resolve();
+            });
+        });
+    }
+
+    // Save projects
+    function saveProjects() {
+        chrome.storage.local.set({
+            bugscribeProjects: allProjects,
+            bugscribeActiveProject: activeProjectId
+        });
+    }
+
+    // Get active project
+    function getActiveProject() {
+        if (!activeProjectId && allProjects.length > 0) {
+            activeProjectId = allProjects[0].id;
         }
-    });
+        return allProjects.find(p => p.id === activeProjectId);
+    }
+
+    // Set active project
+    function setActiveProject(projectId) {
+        activeProjectId = projectId;
+        const project = allProjects.find(p => p.id === projectId);
+        if (project) {
+            // Set legacy storage for compatibility
+            chrome.storage.local.set({
+                bugscribeProjectId: project.projectId,
+                bugscribeApiKey: project.apiKey,
+                bugscribeConnectionKey: project.connectionKey,
+                bugscribeActiveProject: projectId
+            }, async () => {
+                renderProjects();
+                
+                // Check if reporting is enabled
+                const reportingEnabled = await checkReportingStatus();
+                
+                if (!reportingEnabled) {
+                    showDisabledView();
+                } else {
+                    // Check if user has provided their name
+                    chrome.storage.local.get(["bugscribeUserName"], (result) => {
+                        if (!result.bugscribeUserName) {
+                            showNameView();
+                        } else {
+                            showReportView();
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    // Render projects list
+    function renderProjects() {
+        const container = document.getElementById("projectsContainer");
+        const projectsList = document.getElementById("projectsList");
+        
+        if (!allProjects || allProjects.length === 0) {
+            projectsList.style.display = "none";
+            return;
+        }
+
+        projectsList.style.display = "block";
+        container.innerHTML = "";
+
+        allProjects.forEach(project => {
+            const card = document.createElement("div");
+            card.className = `project-card ${project.id === activeProjectId ? 'active' : ''}`;
+            
+            card.innerHTML = `
+                <div class="project-card-content">
+                    <div class="project-card-name">${escapeHtml(project.name || 'Unnamed Project')}</div>
+                    <div class="project-card-id">${escapeHtml(project.projectId.substring(0, 12))}...</div>
+                </div>
+                <div class="project-card-actions">
+                    <button class="project-card-btn delete" data-id="${project.id}" title="Remove">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            card.addEventListener("click", (e) => {
+                if (!e.target.closest('.project-card-btn')) {
+                    setActiveProject(project.id);
+                }
+            });
+
+            const deleteBtn = card.querySelector('.delete');
+            deleteBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (confirm(`Remove "${project.name || 'this project'}"?`)) {
+                    allProjects = allProjects.filter(p => p.id !== project.id);
+                    if (activeProjectId === project.id) {
+                        activeProjectId = allProjects.length > 0 ? allProjects[0].id : null;
+                    }
+                    saveProjects();
+                    renderProjects();
+                    
+                    if (allProjects.length === 0) {
+                        chrome.storage.local.remove(["bugscribeProjectId", "bugscribeApiKey", "bugscribeConnectionKey"]);
+                    } else if (activeProjectId) {
+                        setActiveProject(activeProjectId);
+                    }
+                }
+            });
+
+            container.appendChild(card);
+        });
+    }
 
     settingsBtn.addEventListener("click", () => {
         showSetupView();
+        renderProjects();
     });
+
+    // --- Check if reporting is enabled ---
+    async function checkReportingStatus() {
+        try {
+            const result = await new Promise((resolve) => {
+                chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey"], resolve);
+            });
+
+            if (!result.bugscribeProjectId || !result.bugscribeApiKey) {
+                return true; // Not configured yet
+            }
+
+            const response = await fetch(`https://bugscribe.convex.site/api/check-reporting-status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    projectId: result.bugscribeProjectId,
+                    apiKey: result.bugscribeApiKey
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.enabled !== false;
+            }
+            return true;
+        } catch (error) {
+            console.error("Error checking reporting status:", error);
+            return true; // Allow reporting if check fails
+        }
+    }
+
 
     function showSetupView() {
         setupView.style.display = "block";
+        nameView.style.display = "none";
         reportView.style.display = "none";
         successView.style.display = "none";
-        settingsBtn.style.display = "none";
+        disabledView.style.display = "none";
+        settingsBtn.style.display = "flex";
+    }
+
+    function showNameView() {
+        setupView.style.display = "none";
+        nameView.style.display = "block";
+        reportView.style.display = "none";
+        successView.style.display = "none";
+        disabledView.style.display = "none";
+        settingsBtn.style.display = "flex";
+    }
+
+    function showDisabledView() {
+        setupView.style.display = "none";
+        nameView.style.display = "none";
+        reportView.style.display = "none";
+        successView.style.display = "none";
+        disabledView.style.display = "block";
+        settingsBtn.style.display = "flex";
     }
 
     async function showReportView() {
         setupView.style.display = "none";
+        nameView.style.display = "none";
         reportView.style.display = "block";
         successView.style.display = "none";
-        settingsBtn.style.display = "block";
+        disabledView.style.display = "none";
+        settingsBtn.style.display = "flex";
 
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -68,7 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 try {
                     bugLocationContext = await new Promise((resolve) => {
                         chrome.tabs.sendMessage(tab.id, { action: "GET_BUG_CONTEXT" }, (res) => {
-                            resolve(res || null);
+                            resolve(toon.decode(res) || null);
                         });
                     });
                 } catch (e) {
@@ -79,7 +247,9 @@ document.addEventListener("DOMContentLoaded", () => {
             chrome.storage.local.get(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"], (data) => {
                 if (data.bugscribe_pending_media) {
                     currentMediaType = data.bugscribe_pending_mediatype || "video";
-                    currentSteps = data.bugscribe_pending_steps || [];
+                    currentSteps = Array.isArray(data.bugscribe_pending_steps)
+                        ? data.bugscribe_pending_steps
+                        : (toon.decode(data.bugscribe_pending_steps) || []);
 
                     if (currentMediaType === "video") {
                         document.getElementById("screenshotPreview").style.display = "none";
@@ -125,7 +295,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function initCanvas(mediaUrl) {
         const canvas = document.getElementById("screenshotCanvas");
         const toolbar = document.getElementById("annotationToolbar");
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         const imgEl = document.getElementById("screenshotPreview");
         
         strokeHistory = [];
@@ -287,16 +457,17 @@ document.addEventListener("DOMContentLoaded", () => {
         imgEl.style.display = "block";
 
         chrome.runtime.sendMessage({ action: "CAPTURE_SCREENSHOT" }, (response) => {
-            if (chrome.runtime.lastError || !response || !response.dataUrl) {
-                console.error(chrome.runtime.lastError || response?.error);
+            const decodedResponse = toon.decode(response);
+            if (chrome.runtime.lastError || !decodedResponse || !decodedResponse.dataUrl) {
+                console.error(chrome.runtime.lastError || decodedResponse?.error);
                 document.getElementById("screenshotPreviewContainer").style.display = "none";
                 document.getElementById("annotationToolbar").style.display = "none";
             } else {
-                imgEl.src = response.dataUrl;
+                imgEl.src = decodedResponse.dataUrl;
                 document.getElementById("screenshotPreviewContainer").style.display = "block";
-                initCanvas(response.dataUrl);
+                initCanvas(decodedResponse.dataUrl);
                 
-                fetch(response.dataUrl)
+                fetch(decodedResponse.dataUrl)
                     .then(res => res.blob())
                     .then(blob => currentMediaBlob = blob);
             }
@@ -329,7 +500,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("undoBtn").addEventListener("click", () => {
         const canvas = document.getElementById("screenshotCanvas");
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         if (strokeHistory.length > 0) {
             const prev = strokeHistory.pop();
             ctx.putImageData(prev, 0, 0);
@@ -338,7 +509,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("clearBtn").addEventListener("click", () => {
         const canvas = document.getElementById("screenshotCanvas");
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         if (baseImageData) {
             strokeHistory = [];
             ctx.putImageData(baseImageData, 0, 0);
@@ -357,6 +528,7 @@ document.addEventListener("DOMContentLoaded", () => {
         e.target.disabled = true;
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         chrome.tabs.sendMessage(tab.id, { action: "START_RECORDING" }, (res) => {
+            const decodedRes = toon.decode(res);
             if (chrome.runtime.lastError) {
                 console.error(chrome.runtime.lastError);
                 alert("Please refresh the page before starting a recording.");
@@ -373,6 +545,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
         if (tab && tab.id) {
             chrome.tabs.sendMessage(tab.id, { action: "START_ANNOTATE" }, (res) => {
+                const decodedRes = toon.decode(res);
                 if (chrome.runtime.lastError) {
                     alert("Please refresh the page before annotating.");
                 } else {
@@ -383,8 +556,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --- Save Credentials ---
-    document.getElementById("saveBtn").addEventListener("click", () => {
+    document.getElementById("saveBtn").addEventListener("click", async () => {
         const connectionKey = document.getElementById("setupConnectionKey").value.trim();
+        const projectName = document.getElementById("projectName").value.trim();
         const errorMsg = document.getElementById("setupErrorMsg");
         errorMsg.style.display = "none";
         errorMsg.textContent = "";
@@ -403,18 +577,41 @@ document.addEventListener("DOMContentLoaded", () => {
                 const projectId = parts[0];
                 const apiKey = parts[1];
 
-                chrome.storage.local.set({
-                    bugscribeProjectId: projectId,
-                    bugscribeApiKey: apiKey,
-                    bugscribeConnectionKey: connectionKey
-                }, () => {
-                    const msg = document.getElementById("savedMsg");
-                    msg.style.display = "block";
-                    setTimeout(() => {
-                        msg.style.display = "none";
-                        showReportView();
-                    }, 1000);
-                });
+                // Check if project already exists
+                const existingProject = allProjects.find(p => p.projectId === projectId);
+                if (existingProject) {
+                    errorMsg.textContent = "This project is already added.";
+                    errorMsg.style.display = "block";
+                    return;
+                }
+
+                // Add new project
+                const newProject = {
+                    id: Date.now().toString(),
+                    name: projectName || `Project ${allProjects.length + 1}`,
+                    projectId: projectId,
+                    apiKey: apiKey,
+                    connectionKey: connectionKey,
+                    addedAt: Date.now()
+                };
+
+                allProjects.push(newProject);
+                saveProjects();
+
+                const msg = document.getElementById("savedMsg");
+                msg.style.display = "block";
+                
+                // Clear inputs
+                document.getElementById("setupConnectionKey").value = "";
+                document.getElementById("projectName").value = "";
+                
+                setTimeout(async () => {
+                    msg.style.display = "none";
+                    renderProjects();
+                    
+                    // Set as active project
+                    await setActiveProject(newProject.id);
+                }, 1000);
             } else {
                 throw new Error("Invalid key format");
             }
@@ -424,104 +621,264 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // --- Save User Name ---
+    document.getElementById("saveNameBtn").addEventListener("click", () => {
+        const userName = document.getElementById("userName").value.trim();
+        const userEmail = document.getElementById("userEmail").value.trim();
+        const errorMsg = document.getElementById("nameErrorMsg");
+        
+        errorMsg.style.display = "none";
+        errorMsg.textContent = "";
+
+        if (!userName) {
+            errorMsg.textContent = "Please enter your name.";
+            errorMsg.style.display = "block";
+            return;
+        }
+
+        if (userName.length < 2) {
+            errorMsg.textContent = "Name must be at least 2 characters.";
+            errorMsg.style.display = "block";
+            return;
+        }
+
+        chrome.storage.local.set({
+            bugscribeUserName: userName,
+            bugscribeUserEmail: userEmail || ""
+        }, () => {
+            showReportView();
+        });
+    });
+
     // --- Submit Bug Report ---
     submitBtn.addEventListener("click", async () => {
+        // Validate title
         if (!bugTitle.value.trim()) {
-            errorMessage.textContent = "Title is required";
+            errorMessage.textContent = "⚠️ Title is required";
             errorMessage.style.display = "block";
             return;
         }
 
         if (submitBtn.disabled) return;
         submitBtn.disabled = true;
-        submitBtn.textContent = "Sending...";
+        submitBtn.textContent = "📤 Sending...";
         errorMessage.style.display = "none";
 
-        chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey"], async (creds) => {
-            try {
-                const formData = new FormData();
-                formData.append("projectId", creds.bugscribeProjectId);
-                formData.append("apiKey", creds.bugscribeApiKey);
-                formData.append("title", bugTitle.value.trim());
-                formData.append("description", bugDescription.value.trim());
-                formData.append("priority", bugPriority.value);
-                formData.append("type", bugType.value);
-                formData.append("url", pageUrl);
-                formData.append("page_url", bugLocationContext?.page_url || pageUrl);
-                if (bugLocationContext?.x_coordinate !== undefined) formData.append("x_coordinate", String(bugLocationContext.x_coordinate));
-                if (bugLocationContext?.y_coordinate !== undefined) formData.append("y_coordinate", String(bugLocationContext.y_coordinate));
-                if (bugLocationContext?.scroll_position !== undefined) formData.append("scroll_position", String(bugLocationContext.scroll_position));
-                if (bugLocationContext?.scrollX !== undefined) formData.append("scrollX", String(bugLocationContext.scrollX));
-                if (bugLocationContext?.scrollY !== undefined) formData.append("scrollY", String(bugLocationContext.scrollY));
-                if (bugLocationContext?.element_selector) formData.append("element_selector", bugLocationContext.element_selector);
-                formData.append("created_at", String(bugLocationContext?.created_at || Date.now()));
+        try {
+            // Get credentials
+            const creds = await new Promise((resolve) => {
+                chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey", "bugscribeUserName", "bugscribeUserEmail"], resolve);
+            });
 
+            if (!creds.bugscribeProjectId || !creds.bugscribeApiKey) {
+                throw new Error("⚠️ Please connect your extension first. Click the settings icon.");
+            }
+
+            // Get user name
+            const userName = creds.bugscribeUserName || "Anonymous";
+            const userEmail = creds.bugscribeUserEmail || "";
+
+            console.log("🔍 Submitting bug report...");
+            console.log("Project ID:", creds.bugscribeProjectId);
+            console.log("Reporter:", userName);
+            console.log("Page URL:", pageUrl);
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append("projectId", creds.bugscribeProjectId);
+            formData.append("apiKey", creds.bugscribeApiKey);
+            formData.append("title", bugTitle.value.trim());
+            formData.append("description", bugDescription.value.trim() || "No description provided");
+            formData.append("priority", bugPriority.value);
+            formData.append("type", bugType.value);
+            formData.append("url", pageUrl);
+            formData.append("page_url", bugLocationContext?.page_url || pageUrl);
+            formData.append("reporterName", userName);
+            formData.append("reporterEmail", userEmail);
+            
+            // Add location context
+            if (bugLocationContext?.x_coordinate !== undefined) {
+                formData.append("x_coordinate", String(bugLocationContext.x_coordinate));
+            }
+            if (bugLocationContext?.y_coordinate !== undefined) {
+                formData.append("y_coordinate", String(bugLocationContext.y_coordinate));
+            }
+            if (bugLocationContext?.scroll_position !== undefined) {
+                formData.append("scroll_position", String(bugLocationContext.scroll_position));
+            }
+            if (bugLocationContext?.scrollX !== undefined) {
+                formData.append("scrollX", String(bugLocationContext.scrollX));
+            }
+            if (bugLocationContext?.scrollY !== undefined) {
+                formData.append("scrollY", String(bugLocationContext.scrollY));
+            }
+            if (bugLocationContext?.element_selector) {
+                formData.append("element_selector", bugLocationContext.element_selector);
+            }
+            formData.append("created_at", String(bugLocationContext?.created_at || Date.now()));
+
+            // Get environment data
+            try {
                 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
                 if (tab && tab.id) {
-                    try {
-                        const envData = await new Promise((resolve) => {
-                            chrome.tabs.sendMessage(tab.id, { action: "GET_ENV_DATA" }, (res) => {
-                                resolve(res);
-                            });
+                    const envData = await new Promise((resolve) => {
+                        // Set a timeout to prevent hanging
+                        const timeout = setTimeout(() => {
+                            console.warn("Environment data collection timed out");
+                            resolve(null);
+                        }, 2000);
+
+                        chrome.tabs.sendMessage(tab.id, { action: "GET_ENV_DATA" }, (res) => {
+                            clearTimeout(timeout);
+                            if (chrome.runtime.lastError) {
+                                console.warn("Could not get environment data:", chrome.runtime.lastError.message);
+                                resolve(null);
+                            } else {
+                                try {
+                                    resolve(toon.decode(res));
+                                } catch (e) {
+                                    console.warn("Failed to decode environment data:", e);
+                                    resolve(null);
+                                }
+                            }
                         });
-                        if (envData) {
-                            formData.append("environmentData", JSON.stringify(envData));
-                        }
-                    } catch (e) {
-                        console.log("Could not get environment data", e);
+                    });
+                    
+                    if (envData) {
+                        formData.append("environmentData", JSON.stringify(envData));
+                        console.log("✅ Environment data collected");
                     }
                 }
-                formData.append("mediaType", currentMediaType);
-                formData.append("steps", JSON.stringify(currentSteps));
-                formData.append("browser", navigator.userAgent);
-                formData.append("os", navigator.platform);
-
-                if (currentMediaType === "image") {
-                    const canvas = document.getElementById("screenshotCanvas");
-                    if (canvas && canvas.style.display !== "none") {
-                        currentMediaBlob = await new Promise(resolve => canvas.toBlob(resolve, "image/webp", 0.6));
-                    }
-                }
-
-                if (currentMediaBlob) {
-                    const filename = currentMediaType === "video" ? "recording.webm" : "screenshot.webp";
-                    formData.append("screenshot", currentMediaBlob, filename);
-                }
-
-                const response = await fetch("https://bug-higt.vercel.app/api/reports", {
-                    method: "POST",
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const errObj = await response.json().catch(() => ({}));
-                    throw new Error(errObj.error || "Failed to submit report");
-                }
-
-                chrome.storage.local.remove(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"]);
-
-                reportView.style.display = "none";
-                settingsBtn.style.display = "none";
-                successView.style.display = "block";
-
-                setTimeout(() => {
-                    resetFormForNewBug();
-                }, 3000);
-
-            } catch (err) {
-                console.error(err);
-                errorMessage.textContent = err.message || "Failed to send bug report";
-                errorMessage.style.display = "block";
-                submitBtn.disabled = false;
-                submitBtn.textContent = "Submit Bug Report";
+            } catch (e) {
+                console.warn("Could not get environment data:", e);
             }
-        });
+
+            // Add media type and steps
+            formData.append("mediaType", currentMediaType);
+            formData.append("steps", JSON.stringify(currentSteps));
+            formData.append("browser", navigator.userAgent);
+            formData.append("os", navigator.platform);
+
+            console.log("Media type:", currentMediaType);
+            console.log("Steps count:", currentSteps.length);
+
+            // Handle screenshot/video
+            if (currentMediaType === "image") {
+                const canvas = document.getElementById("screenshotCanvas");
+                if (canvas && canvas.style.display !== "none") {
+                    console.log("📸 Converting canvas to blob...");
+                    currentMediaBlob = await new Promise(resolve => {
+                        canvas.toBlob(resolve, "image/webp", 0.6);
+                    });
+                }
+            }
+
+            if (currentMediaBlob) {
+                const filename = currentMediaType === "video" ? "recording.webm" : "screenshot.webp";
+                formData.append("screenshot", currentMediaBlob, filename);
+                console.log("✅ Media attached:", filename, "Size:", Math.round(currentMediaBlob.size / 1024), "KB");
+            } else {
+                console.warn("⚠️ No media blob available");
+            }
+
+            // Get API endpoint from config or use default
+            let apiEndpoint = "http://localhost:3000/api/reports"; // Default to localhost
+            try {
+                if (typeof BugScribeConfig !== 'undefined') {
+                    const configEndpoint = await BugScribeConfig.get('apiEndpoint');
+                    if (configEndpoint && configEndpoint.trim()) {
+                        apiEndpoint = configEndpoint.trim();
+                    }
+                }
+            } catch (e) {
+                console.log("Using default API endpoint:", e.message);
+            }
+
+            console.log("🌐 Sending to:", apiEndpoint);
+
+            // Submit the report with better error handling
+            let response;
+            try {
+                response = await fetch(apiEndpoint, {
+                    method: "POST",
+                    body: formData,
+                    // Add timeout
+                    signal: AbortSignal.timeout(30000)
+                });
+            } catch (fetchError) {
+                if (fetchError.name === 'AbortError') {
+                    throw new Error("⏱️ Request timed out. Please check your server and try again.");
+                }
+                throw new Error(`🌐 Network error: ${fetchError.message}. Make sure your server is running.`);
+            }
+
+            console.log("📡 Response status:", response.status);
+
+            if (!response.ok) {
+                let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+                try {
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        const errObj = await response.json();
+                        errorMessage = errObj.error || errObj.message || errorMessage;
+                        console.error("Server error details:", errObj);
+                    } else {
+                        const textError = await response.text();
+                        console.error("Server response (text):", textError);
+                        if (textError.length < 200) {
+                            errorMessage = textError;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Could not parse error response:", e);
+                }
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+            console.log("✅ Bug report submitted successfully:", result);
+
+            // Clear pending media
+            chrome.storage.local.remove(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"]);
+
+            // Show success view
+            reportView.style.display = "none";
+            settingsBtn.style.display = "none";
+            successView.style.display = "block";
+
+            // Auto-reset after 3 seconds
+            setTimeout(() => {
+                resetFormForNewBug();
+            }, 3000);
+
+        } catch (err) {
+            console.error("❌ Failed to submit bug report:", err);
+            
+            // Show user-friendly error message
+            let userMessage = err.message || "Failed to send bug report";
+            
+            // Add helpful hints based on error type
+            if (userMessage.includes("Failed to fetch") || userMessage.includes("NetworkError")) {
+                userMessage = "🌐 Network error. Please check your internet connection and try again.";
+            } else if (userMessage.includes("401") || userMessage.includes("403")) {
+                userMessage = "🔒 Authentication failed. Please reconnect your extension in settings.";
+            } else if (userMessage.includes("404")) {
+                userMessage = "❌ API endpoint not found. Please check your configuration.";
+            } else if (userMessage.includes("500") || userMessage.includes("502") || userMessage.includes("503")) {
+                userMessage = "⚠️ Server error. Please try again in a moment.";
+            }
+            
+            errorMessage.textContent = userMessage;
+            errorMessage.style.display = "block";
+            submitBtn.disabled = false;
+            submitBtn.textContent = "🚀 Submit Bug Report";
+        }
     });
 
     function resetFormForNewBug() {
         successView.style.display = "none";
         reportView.style.display = "block";
-        settingsBtn.style.display = "block";
+        settingsBtn.style.display = "flex";
         bugTitle.value = "";
         bugDescription.value = "";
         bugPriority.value = "medium";

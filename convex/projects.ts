@@ -404,3 +404,60 @@ export const deleteBucket = mutation({
         return { movedCount: bugsInBucket.length };
     },
 });
+
+
+/** Toggle bug reporting for a project (admin only) */
+export const toggleReporting = mutation({
+    args: { 
+        projectId: v.id("projects"), 
+        enabled: v.boolean(),
+        devToken: v.optional(v.string()) 
+    },
+    handler: async (ctx, { projectId, enabled, devToken }) => {
+        const identity = await getEffectiveIdentity(ctx, devToken);
+        if (!identity) throw new Error("Unauthorized");
+
+        const project = await ctx.db.get(projectId);
+        if (!project) throw new Error("Project not found");
+
+        // Check if user is owner or admin
+        const isOwner = project.userId === identity.subject;
+        const membership = await ctx.db
+            .query("projectMembers")
+            .withIndex("by_project_user", (q) => 
+                q.eq("projectId", projectId).eq("userId", identity.subject)
+            )
+            .first();
+
+        const isAdmin = membership?.role === "owner" || membership?.role === "admin";
+        const adminEmails = (process.env.SUPER_ADMIN_EMAILS || "").split(",").map(e => e.trim());
+        const isSuperAdmin = adminEmails.includes(identity.email ?? "");
+
+        if (!isOwner && !isAdmin && !isSuperAdmin) {
+            throw new Error("Only project admins can toggle bug reporting");
+        }
+
+        await ctx.db.patch(projectId, { reportingEnabled: enabled });
+        return { success: true, enabled };
+    },
+});
+
+/** Check if bug reporting is enabled for a project (public endpoint) */
+export const checkReportingStatus = query({
+    args: { 
+        projectId: v.id("projects"),
+        apiKey: v.string()
+    },
+    handler: async (ctx, { projectId, apiKey }) => {
+        const project = await ctx.db.get(projectId);
+        if (!project) return { enabled: false, error: "Project not found" };
+        
+        // Verify API key
+        if (project.apiKey !== apiKey) {
+            return { enabled: false, error: "Invalid API key" };
+        }
+
+        // Default to enabled if not set
+        return { enabled: project.reportingEnabled !== false };
+    },
+});

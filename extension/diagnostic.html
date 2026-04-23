@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugScribe Diagnostics</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #6366f1;
+            border-bottom: 2px solid #6366f1;
+            padding-bottom: 10px;
+        }
+        .section {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .section h2 {
+            color: #8b5cf6;
+            margin-top: 0;
+            font-size: 16px;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+        .status-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .success { background: #22c55e; color: white; }
+        .error { background: #ef4444; color: white; }
+        .warning { background: #f59e0b; color: white; }
+        .info { background: #3b82f6; color: white; }
+        button {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        pre {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            padding: 10px;
+            overflow-x: auto;
+            font-size: 11px;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 BugScribe Extension Diagnostics</h1>
+
+    <div class="section">
+        <h2>📋 Configuration Status</h2>
+        <div id="configStatus"></div>
+        <div class="actions">
+            <button onclick="checkConfig()">🔄 Refresh</button>
+            <button onclick="exportConfig()">📥 Export Config</button>
+            <button onclick="resetConfig()">🔄 Reset to Defaults</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔗 Connection Test</h2>
+        <div id="connectionStatus"></div>
+        <div class="actions">
+            <button onclick="testConnection()">🧪 Test API Connection</button>
+            <button onclick="testCORS()">🌐 Test CORS</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔑 Credentials</h2>
+        <div id="credentialsStatus"></div>
+        <div class="actions">
+            <button onclick="checkCredentials()">🔍 Check Credentials</button>
+            <button onclick="clearCredentials()">🗑️ Clear Credentials</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>💾 Storage Info</h2>
+        <div id="storageStatus"></div>
+        <div class="actions">
+            <button onclick="checkStorage()">📊 Check Storage</button>
+            <button onclick="clearStorage()">🗑️ Clear All Storage</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📝 Recent Logs</h2>
+        <pre id="logs">No logs yet. Click "Capture Logs" to start.</pre>
+        <div class="actions">
+            <button onclick="captureLogs()">📝 Capture Logs</button>
+            <button onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        let logs = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
+            if (logs.length > 50) logs.shift();
+        }
+
+        function showStatus(elementId, icon, text, type = 'info') {
+            const iconMap = {
+                success: '✓',
+                error: '✗',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            const html = `
+                <div class="status">
+                    <div class="status-icon ${type}">${iconMap[type]}</div>
+                    <span>${text}</span>
+                </div>
+            `;
+            document.getElementById(elementId).innerHTML += html;
+        }
+
+        async function checkConfig() {
+            const container = document.getElementById('configStatus');
+            container.innerHTML = '<p>Checking configuration...</p>';
+            
+            try {
+                const config = await BugScribeConfig.getAll();
+                container.innerHTML = '';
+                
+                showStatus('configStatus', '✓', `API Endpoint: ${config.apiEndpoint || 'Not set'}`, 
+                    config.apiEndpoint ? 'success' : 'warning');
+                showStatus('configStatus', '✓', `Screenshot Quality: ${config.screenshotQuality || 60}`, 'info');
+                showStatus('configStatus', '✓', `Theme: ${config.theme || 'auto'}`, 'info');
+                showStatus('configStatus', '✓', `Debug Mode: ${config.enableDebugMode ? 'Enabled' : 'Disabled'}`, 
+                    config.enableDebugMode ? 'warning' : 'info');
+                
+                addLog('Configuration checked successfully', 'success');
+            } catch (error) {
+                showStatus('configStatus', '✗', `Error: ${error.message}`, 'error');
+                addLog(`Config check failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testConnection() {
+            const container = document.getElementById('connectionStatus');
+            container.innerHTML = '<p>Testing connection...</p>';
+            
+            try {
+                const config = await BugScribeConfig.get('apiEndpoint');
+                const endpoint = config || 'http://localhost:3000/api/reports';
+                
+                addLog(`Testing connection to: ${endpoint}`, 'info');
+                
+                const response = await fetch(endpoint, {
+                    method: 'OPTIONS',
+                    signal: AbortSignal.timeout(5000)
+                });
+                
+                container.innerHTML = '';
+                showStatus('connectionStatus', '✓', `Connected to: ${endpoint}`, 'success');
+                showStatus('connectionStatus', '✓', `Status: ${response.status} ${response.statusText}`, 'success');
+                
+                addLog(`Connection successful: ${response.status}`, 'success');
+            } catch (error) {
+                container.innerHTML = '';
+                showStatus('connectionStatus', '✗', `Connection failed: ${error.message}`, 'error');
+                showStatus('connectionStatus', 'ℹ', 'Make sure your server is running', 'warning');
+                addLog(`Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCORS() {
+            const container = document.getElementById('connectionStatus');
+            
+            try {
+                const config = await BugScribeConfig.get('apiEndpoint');
+                const endpoint = config || 'http://localhost:3000/api/reports';
+                
+                const response = await fetch(endpoint, {
+                    method: 'OPTIONS'
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+                };
+                
+                container.innerHTML += '<pre>' + JSON.stringify(corsHeaders, null, 2) + '</pre>';
+                showStatus('connectionStatus', '✓', 'CORS headers received', 'success');
+                addLog('CORS test successful', 'success');
+            } catch (error) {
+                showStatus('connectionStatus', '✗', `CORS test failed: ${error.message}`, 'error');
+                addLog(`CORS test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkCredentials() {
+            const container = document.getElementById('credentialsStatus');
+            container.innerHTML = '<p>Checking credentials...</p>';
+            
+            chrome.storage.local.get(['bugscribeProjectId', 'bugscribeApiKey', 'bugscribeConnectionKey'], (result) => {
+                container.innerHTML = '';
+                
+                if (result.bugscribeProjectId) {
+                    showStatus('credentialsStatus', '✓', `Project ID: ${result.bugscribeProjectId.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('credentialsStatus', '✗', 'Project ID not set', 'error');
+                }
+                
+                if (result.bugscribeApiKey) {
+                    showStatus('credentialsStatus', '✓', `API Key: ${result.bugscribeApiKey.substring(0, 20)}...`, 'success');
+                } else {
+                    showStatus('credentialsStatus', '✗', 'API Key not set', 'error');
+                }
+                
+                if (result.bugscribeConnectionKey) {
+                    showStatus('credentialsStatus', '✓', 'Connection Key configured', 'success');
+                } else {
+                    showStatus('credentialsStatus', '⚠', 'Connection Key not set', 'warning');
+                }
+                
+                addLog('Credentials checked', 'info');
+            });
+        }
+
+        async function checkStorage() {
+            const container = document.getElementById('storageStatus');
+            container.innerHTML = '<p>Checking storage...</p>';
+            
+            chrome.storage.local.getBytesInUse(null, (bytes) => {
+                container.innerHTML = '';
+                const mb = (bytes / 1024 / 1024).toFixed(2);
+                showStatus('storageStatus', 'ℹ', `Storage used: ${mb} MB`, 'info');
+                
+                chrome.storage.local.get(null, (items) => {
+                    const keys = Object.keys(items);
+                    showStatus('storageStatus', 'ℹ', `Total keys: ${keys.length}`, 'info');
+                    
+                    if (items.bugscribe_pending_media) {
+                        showStatus('storageStatus', '⚠', 'Pending media found', 'warning');
+                    }
+                    
+                    addLog(`Storage: ${mb} MB, ${keys.length} keys`, 'info');
+                });
+            });
+        }
+
+        async function exportConfig() {
+            try {
+                const jsonString = await BugScribeConfig.export();
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `bugscribe-diagnostic-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                addLog('Configuration exported', 'success');
+                alert('Configuration exported successfully!');
+            } catch (error) {
+                addLog(`Export failed: ${error.message}`, 'error');
+                alert('Export failed: ' + error.message);
+            }
+        }
+
+        async function resetConfig() {
+            if (confirm('Reset all settings to defaults? This cannot be undone.')) {
+                try {
+                    await BugScribeConfig.reset();
+                    addLog('Configuration reset to defaults', 'success');
+                    alert('Configuration reset successfully!');
+                    checkConfig();
+                } catch (error) {
+                    addLog(`Reset failed: ${error.message}`, 'error');
+                    alert('Reset failed: ' + error.message);
+                }
+            }
+        }
+
+        function clearCredentials() {
+            if (confirm('Clear all credentials? You will need to reconnect the extension.')) {
+                chrome.storage.local.remove(['bugscribeProjectId', 'bugscribeApiKey', 'bugscribeConnectionKey'], () => {
+                    addLog('Credentials cleared', 'success');
+                    alert('Credentials cleared!');
+                    checkCredentials();
+                });
+            }
+        }
+
+        function clearStorage() {
+            if (confirm('Clear ALL extension storage? This will reset everything!')) {
+                chrome.storage.local.clear(() => {
+                    addLog('All storage cleared', 'warning');
+                    alert('Storage cleared!');
+                    checkStorage();
+                });
+            }
+        }
+
+        function captureLogs() {
+            document.getElementById('logs').textContent = logs.join('\n') || 'No logs captured yet.';
+        }
+
+        function clearLogs() {
+            logs = [];
+            document.getElementById('logs').textContent = 'Logs cleared.';
+        }
+
+        // Auto-run diagnostics on load
+        window.addEventListener('DOMContentLoaded', () => {
+            addLog('Diagnostics page loaded', 'info');
+            checkConfig();
+            checkCredentials();
+            checkStorage();
+        });
+    </script>
+</body>
+</html>

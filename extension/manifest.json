@@ -1,47 +1,60 @@
 {
     "manifest_version": 3,
     "name": "BugScribe Reporter",
-    "version": "2.0",
-    "description": "Capture bugs naturally. Standalone reporter that takes screenshots and posts to BugScribe.",
+    "version": "2.1",
+    "description": "Capture bugs naturally with enhanced UI/UX. Screenshot, record, and annotate with local configuration support.",
     "permissions": [
         "activeTab",
         "tabs",
         "storage",
         "scripting",
-        "unlimitedStorage"
+        "unlimitedStorage",
+        "notifications"
     ],
     "host_permissions": [
         "http://*/*",
-        "https://*/*"
+        "https://*/*",
+        "http://localhost:*/*"
     ],
     "action": {
-        "default_popup": "popup.html",
         "default_icon": {
-            "16": "images/icon16.png",
-            "48": "images/icon48.png",
-            "128": "images/icon128.png"
+            "16": "icon16.png",
+            "48": "icon48.png",
+            "128": "icon128.png"
         }
     },
+    "options_page": "settings.html",
     "web_accessible_resources": [
         {
             "resources": [
                 "popup.html",
+                "popup-enhanced.html",
                 "popup.js",
+                "settings.html",
+                "settings.js",
+                "settings-styles.css",
+                "config.js",
+                "toon_utils.js",
                 "images/*"
             ],
             "matches": [
-                "<all_urls>"
+                "http://*/*",
+                "https://*/*"
             ]
         }
     ],
     "content_scripts": [
         {
             "matches": [
-                "<all_urls>"
+                "http://*/*",
+                "https://*/*"
             ],
             "js": [
+                "toon_utils.js",
+                "config.js",
                 "content.js"
-            ]
+            ],
+            "run_at": "document_idle"
         }
     ],
     "background": {

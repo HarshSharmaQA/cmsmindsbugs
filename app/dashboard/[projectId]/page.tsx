@@ -14,11 +14,13 @@ import {
     Globe, Settings, Key, Eye, EyeOff, Shield, Zap,
     MessageSquare, Bug, Image as ImageIcon, Video, LayoutList,
     Kanban as KanbanIcon, X, Activity, Hash, Download,
-    Book, Info, HelpCircle, AlertCircle, Edit2, Target, ChevronLeft, ChevronRight, Trash2
+    Book, Info, HelpCircle, AlertCircle, Edit2, Target, ChevronLeft, ChevronRight, Trash2, Upload
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { formatDistanceToNow } from "date-fns";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { GrammarChecker } from "@/components/GrammarChecker";
+import { ImportBugsModal } from "@/components/ImportBugsModal";
 
 export const dynamic = 'force-dynamic';
 
@@ -56,8 +58,8 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = 
 
 function Skeleton({ className }: { className?: string }) {
     return (
-        <div className={`relative overflow-hidden bg-surface-border/50 rounded ${className}`}>
-            <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+        <div className={`relative overflow-hidden bg-surface-border/50 rounded ${className}`} suppressHydrationWarning>
+            <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" suppressHydrationWarning />
         </div>
     );
 }
@@ -120,7 +122,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
 
 // ─── KanbanColumn ─────────────────────────────────────────────────────────────
 
-function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateToLocation, canReorder, isFirst, isLast, onMoveLeft, onMoveRight, isReordering, onDeleteBucket, isSuperAdmin }: {
+function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateToLocation, canReorder, isFirst, isLast, onMoveLeft, onMoveRight, isReordering, onDeleteBucket, isSuperAdmin, onAddIssue, showScreenshot }: {
     status: Status; label: string; icon: React.ReactNode; color: string;
     bugs: any[]; onSelect: (id: Id<"bugs">) => void;
     onNavigateToLocation: (bug: any) => void;
@@ -132,6 +134,8 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
     isReordering?: boolean;
     onDeleteBucket?: (status: string) => void;
     isSuperAdmin?: boolean;
+    onAddIssue?: (status: string) => void;
+    showScreenshot?: boolean;
 }) {
     return (
         <Droppable droppableId={status}>
@@ -139,35 +143,37 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                 <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`flex flex-col rounded-2xl border transition-all duration-300 min-h-[500px] ${snapshot.isDraggingOver
-                        ? "border-brand-500/50 bg-brand-500/5 shadow-2xl shadow-brand-500/10"
-                        : "border-surface-border bg-surface-card/30"
+                    className={`flex flex-col rounded-2xl transition-all duration-200 min-h-[600px] border-2 ${snapshot.isDraggingOver
+                        ? "bg-blue-50 border-blue-300 shadow-lg shadow-blue-200/50"
+                        : "bg-white border-slate-200 shadow-sm hover:shadow-md"
                         }`}
                 >
-                    {/* Column Header */}
-                    <div className={`flex items-center gap-3 px-5 py-4 border-b border-surface-border/50 sticky top-0 z-30 bg-[#09090E]/80 backdrop-blur-xl rounded-t-2xl group`}>
-                        <div className={`p-1.5 rounded-lg bg-surface-elevated border border-surface-border ${color}`}>
-                            {icon || <CircleDot className="w-4 h-4" />}
+                    {/* Column Header - Cleaner Design */}
+                    <div className={`flex items-center justify-between px-5 py-4 border-b-2 border-slate-200/80 bg-gradient-to-r from-white via-slate-50/50 to-white rounded-t-2xl group`}>
+                        <div className="flex items-center gap-3">
+                            <div className={`flex items-center gap-2.5 ${color}`}>
+                                {icon || <CircleDot className="w-5 h-5" />}
+                                <span className="text-sm font-bold text-slate-800">{label}</span>
+                            </div>
+                            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+                                {bugs.length}
+                            </span>
                         </div>
-                        <span className="text-sm font-bold text-white tracking-tight">{label}</span>
-                        <span className="ml-auto bg-surface-elevated text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-surface-border">
-                            {bugs.length}
-                        </span>
                         {(canReorder || isSuperAdmin) && (
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {canReorder && (
                                     <>
                                         <button
                                             onClick={onMoveLeft}
                                             disabled={!!isFirst || isReordering}
-                                            className="w-7 h-7 rounded-lg border border-surface-border bg-surface-elevated text-slate-500 hover:text-white disabled:opacity-30 flex items-center justify-center transition-all hover:border-slate-500"
+                                            className="w-7 h-7 rounded-lg border border-slate-300 bg-white text-slate-600 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-30 flex items-center justify-center transition-all shadow-sm hover:shadow"
                                         >
                                             <ChevronLeft className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={onMoveRight}
                                             disabled={!!isLast || isReordering}
-                                            className="w-7 h-7 rounded-lg border border-surface-border bg-surface-elevated text-slate-500 hover:text-white disabled:opacity-30 flex items-center justify-center transition-all hover:border-slate-500"
+                                            className="w-7 h-7 rounded-lg border border-slate-300 bg-white text-slate-600 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-30 flex items-center justify-center transition-all shadow-sm hover:shadow"
                                         >
                                             <ChevronRight className="w-4 h-4" />
                                         </button>
@@ -180,7 +186,7 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                                                 onDeleteBucket(status);
                                             }
                                         }}
-                                        className="w-7 h-7 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all"
+                                        className="w-7 h-7 rounded-lg border border-red-300 bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all shadow-sm hover:shadow"
                                         title="Delete bucket (Super Admin)"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" />
@@ -191,62 +197,55 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                     </div>
 
                     {/* Cards */}
-                    <div className="flex-1 flex flex-col gap-4 p-4 overflow-y-auto min-h-0 custom-scrollbar">
+                    <div className="flex-1 flex flex-col gap-2.5 p-3 overflow-y-auto min-h-0 custom-scrollbar">
                         {bugs.map((bug, index) => (
                             <Draggable key={bug._id} draggableId={bug._id} index={index}>
                                 {(provided, snapshot) => {
-                                    const priorityAccent: Record<string, string> = {
-                                        critical: "before:bg-red-500",
-                                        high:     "before:bg-amber-500",
-                                        medium:   "before:bg-blue-500",
-                                        low:      "before:bg-slate-600",
+                                    const priorityConfig: Record<string, { bg: string; border: string; text: string; dot: string }> = {
+                                        critical: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", dot: "bg-red-500" },
+                                        high:     { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", dot: "bg-amber-500" },
+                                        medium:   { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", dot: "bg-blue-500" },
+                                        low:      { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-600", dot: "bg-slate-400" },
                                     };
-                                    const accentClass = priorityAccent[bug.priority] ?? "before:bg-slate-600";
+                                    const priorityCfg = priorityConfig[bug.priority] ?? priorityConfig.medium;
 
                                     return (
                                         <div
                                             ref={provided.innerRef}
                                             {...provided.draggableProps}
                                             onClick={() => onSelect(bug._id)}
-                                            className={`group relative rounded-2xl border flex flex-col overflow-hidden cursor-pointer transition-all duration-300
-                                                before:absolute before:left-0 before:top-3 before:bottom-3 before:w-[3px] before:rounded-full ${accentClass}
-                                                ${snapshot.isDragging
-                                                    ? "border-brand-500 shadow-2xl shadow-brand-500/40 rotate-[1deg] bg-surface-elevated scale-[1.02] z-50"
-                                                    : "border-surface-border/60 bg-surface-elevated/30 hover:border-brand-500/40 hover:bg-surface-elevated/70 hover:shadow-2xl hover:shadow-black/50 hover:-translate-y-1"
-                                                }`}
+                                            className={`group relative rounded-2xl bg-white border-2 flex flex-col overflow-hidden cursor-pointer transition-all duration-200 ${
+                                                snapshot.isDragging
+                                                    ? "shadow-2xl shadow-blue-500/30 scale-105 z-50 border-blue-400"
+                                                    : "border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-slate-300"
+                                            }`}
                                         >
-                                            {/* Screenshot preview */}
-                                            {bug.screenshotUrl && bug.mediaType !== "video" && (
-                                                <div className="w-full h-36 relative overflow-hidden shrink-0 border-b border-surface-border/40">
-                                                    <img
-                                                        src={bug.screenshotUrl}
-                                                        alt={bug.title}
-                                                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
-                                                    />
-                                                    {/* Slim fade only at bottom for chip readability */}
-                                                    <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#09090E]/80 to-transparent" />
-                                                    {/* Issue number chip */}
-                                                    <div className="absolute bottom-2 left-3 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-sm text-[10px] font-black text-slate-300 border border-white/10">
-                                                        {bug.issueNumber ? `#${bug.issueNumber}` : `#${index + 1}`}
+                                            {/* Card Content */}
+                                            <div className="p-4 flex flex-col">
+                                                {/* Header: Issue Number + Category */}
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-2">
+                                                        {/* Issue Number */}
+                                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 border border-slate-200">
+                                                            <Hash className="w-3 h-3 text-slate-400" />
+                                                            <span className="text-[10px] font-bold text-slate-600">
+                                                                {bug.issueNumber ?? (index + 1)}
+                                                            </span>
+                                                        </div>
+                                                        {/* Category */}
+                                                        {bug.type && bug.type !== "general" && (
+                                                            <span className="px-2 py-1 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 capitalize">
+                                                                {bug.type.replace(/_/g, ' ')}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                </div>
-                                            )}
-
-                                            <div className="pl-5 pr-4 pt-3.5 pb-3 flex-1 flex flex-col gap-3">
-                                                {/* Top row: issue # + action handle */}
-                                                <div className="flex items-center justify-between">
-                                                    {!bug.screenshotUrl && (
-                                                        <span className="text-[10px] font-black text-slate-600 tracking-widest uppercase">
-                                                            #{bug.issueNumber ?? (index + 1)}
-                                                        </span>
-                                                    )}
-                                                    {bug.screenshotUrl && <span />}
-
-                                                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                    
+                                                    {/* Action Buttons */}
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         {bug.url && bug.url !== "Unknown" && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); onNavigateToLocation(bug); }}
-                                                                className="w-7 h-7 rounded-lg bg-surface-card border border-surface-border text-brand-400 hover:text-brand-300 hover:border-brand-500/50 flex items-center justify-center transition-all"
+                                                                className="w-7 h-7 rounded-md bg-slate-50 border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 flex items-center justify-center transition-all"
                                                                 title="Locate on page"
                                                             >
                                                                 <Target className="w-3.5 h-3.5" />
@@ -254,8 +253,8 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                                                         )}
                                                         <div
                                                             {...provided.dragHandleProps}
-                                                            className="w-7 h-7 rounded-lg bg-surface-card border border-surface-border text-slate-500 hover:text-white cursor-grab active:cursor-grabbing flex items-center justify-center transition-all"
-                                                            title="Drag"
+                                                            className="w-7 h-7 rounded-md bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing flex items-center justify-center transition-all"
+                                                            title="Drag to move"
                                                         >
                                                             <GripVertical className="w-3.5 h-3.5" />
                                                         </div>
@@ -263,51 +262,75 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                                                 </div>
 
                                                 {/* Title */}
-                                                <h4 className="text-[13px] font-bold text-white leading-snug line-clamp-2 group-hover:text-brand-200 transition-colors tracking-tight -mt-1">
+                                                <h4 className="text-sm font-semibold text-slate-800 leading-snug line-clamp-2 mb-3">
                                                     {bug.title}
                                                 </h4>
 
                                                 {/* Description */}
-                                                {bug.description && (
-                                                    <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 -mt-1">
+                                                {bug.description && bug.description !== "No description provided" && (
+                                                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 mb-3">
                                                         {bug.description}
                                                     </p>
                                                 )}
 
-                                                {/* Badges */}
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <PriorityBadge priority={bug.priority} />
-                                                    {bug.type && bug.type !== "general" && (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-brand-500/10 text-brand-400 border border-brand-500/20 capitalize">
-                                                            {bug.type.replace(/-/g, ' ')}
-                                                        </span>
-                                                    )}
-                                                    {bug.screenshotUrl && bug.mediaType === "video" && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
-                                                            <Video className="w-3 h-3" /> Video
-                                                        </span>
-                                                    )}
+                                                {/* Priority Badge */}
+                                                <div className="mb-3">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${priorityCfg.bg} ${priorityCfg.border} ${priorityCfg.text} border uppercase tracking-wide`}>
+                                                        {bug.priority}
+                                                    </span>
                                                 </div>
+                                            </div>
 
-                                                {/* Footer */}
-                                                <div className="pt-2.5 mt-auto border-t border-surface-border/20 flex items-center justify-between gap-2">
-                                                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
-                                                        <Clock className="w-3 h-3 shrink-0" />
-                                                        <span className="truncate">{formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}</span>
-                                                    </div>
-                                                    {bug.url && bug.url !== "Unknown" && (() => {
-                                                        try {
-                                                            return (
-                                                                <div className="flex items-center gap-1 max-w-[110px] px-1.5 py-0.5 rounded-md bg-surface-card/60 border border-surface-border/40">
-                                                                    <Globe className="w-2.5 h-2.5 text-slate-600 shrink-0" />
-                                                                    <span className="truncate text-[9px] text-slate-600 tracking-wide">
-                                                                        {new URL(bug.url).hostname.replace('www.', '')}
-                                                                    </span>
+                                            {/* Screenshot Preview */}
+                                            {showScreenshot !== false && bug.screenshotUrl && (
+                                                <div className="relative aspect-video overflow-hidden border-t border-slate-100 bg-slate-50">
+                                                    {bug.mediaType === "video" ? (
+                                                        <div className="w-full h-full flex items-center justify-center relative">
+                                                            <video src={bug.screenshotUrl} className="w-full h-full object-cover" />
+                                                            <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                                                                <div className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-slate-600 border border-white shadow-lg">
+                                                                    <Video className="w-5 h-5" />
                                                                 </div>
-                                                            );
-                                                        } catch { return null; }
-                                                    })()}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <img
+                                                                src={bug.screenshotUrl}
+                                                                alt={bug.title}
+                                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                            />
+                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        </>
+                                                    )}
                                                 </div>
+                                            )}
+
+                                            {/* Footer */}
+                                            <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    {/* User Avatar */}
+                                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
+                                                        {(bug.reporterName || bug.reporterEmail || 'U')[0].toUpperCase()}
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-500 font-medium">
+                                                        {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                                                    </span>
+                                                </div>
+                                                
+                                                {/* Domain Badge */}
+                                                {bug.url && bug.url !== "Unknown" && (() => {
+                                                    try {
+                                                        return (
+                                                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-slate-200 shadow-sm">
+                                                                <Globe className="w-3 h-3 text-slate-400 shrink-0" />
+                                                                <span className="truncate text-[9px] text-slate-500 font-medium max-w-[70px]">
+                                                                    {new URL(bug.url).hostname.replace('www.', '')}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    } catch { return null; }
+                                                })()}
                                             </div>
                                         </div>
                                     );
@@ -315,13 +338,17 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                             </Draggable>
                         ))}
                         {provided.placeholder}
-                        {bugs.length === 0 && (
-                            <div className="flex-1 flex flex-col items-center justify-center py-16 border-2 border-dashed border-surface-border/30 rounded-2xl m-2 group/empty transition-all hover:border-surface-border/60 hover:bg-surface-card/20">
-                                <div className="w-12 h-12 rounded-2xl bg-surface-border/10 flex items-center justify-center mb-4 group-hover/empty:scale-110 group-hover/empty:bg-surface-border/20 transition-all duration-500">
-                                    <Plus className="w-6 h-6 text-slate-700 group-hover/empty:text-slate-400" />
+                        {bugs.length === 0 && onAddIssue && (
+                            <button
+                                onClick={() => onAddIssue(status)}
+                                className="flex flex-col items-center justify-center py-16 px-4 border-2 border-dashed border-slate-300 rounded-2xl m-3 group/empty transition-all hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer active:scale-95"
+                            >
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center mb-4 group-hover/empty:from-blue-200 group-hover/empty:to-blue-100 group-hover/empty:scale-110 transition-all duration-300 shadow-sm group-hover/empty:shadow-md">
+                                    <Plus className="w-6 h-6 text-blue-500 group-hover/empty:text-blue-600" />
                                 </div>
-                                <p className="text-slate-600 text-xs font-bold uppercase tracking-widest group-hover/empty:text-slate-400">Empty</p>
-                            </div>
+                                <p className="text-slate-600 text-sm font-bold group-hover/empty:text-blue-600 transition-colors">Add issue</p>
+                                <p className="text-slate-400 text-xs mt-1">Click to create</p>
+                            </button>
                         )}
                     </div>
                 </div>
@@ -335,22 +362,22 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
 function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { bugs: any[]; onSelect: (id: Id<"bugs">) => void; onNavigateToLocation: (bug: any) => void; projectStatuses: any[] }) {
     if (bugs.length === 0) {
         return (
-            <div className="card p-12 text-center border-dashed border-2 bg-surface-card/20 border-surface-border/50 rounded-2xl">
-                <div className="w-16 h-16 rounded-2xl bg-surface-card border border-surface-border flex items-center justify-center mx-auto mb-6 shadow-xl">
-                    <Bug className="w-8 h-8 text-brand-400 opacity-20" />
+            <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-slate-50 border-2 border-slate-200 flex items-center justify-center mx-auto mb-6">
+                    <Bug className="w-8 h-8 text-slate-300" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">No issues yet</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">No issues yet</h3>
                 <p className="text-slate-500 max-w-sm mx-auto mb-6">Click &ldquo;+ New Issue&rdquo; to create your first bug report manually.</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-surface-card/30 border border-surface-border/50 rounded-2xl overflow-hidden backdrop-blur-sm">
+        <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
                 <table className="w-full text-sm border-collapse">
                     <thead>
-                        <tr className="border-b border-surface-border/50 text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold bg-[#09090E]/50">
+                        <tr className="border-b-2 border-slate-200 text-[11px] text-slate-600 uppercase tracking-wide font-bold bg-slate-50">
                             <th className="px-4 py-4 text-left font-bold w-[60px]">#</th>
                             <th className="px-6 py-4 text-left font-bold">Issue Details</th>
                             <th className="px-6 py-4 text-left font-bold hidden md:table-cell">Status</th>
@@ -360,16 +387,16 @@ function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { b
                             <th className="px-6 py-4 text-right font-bold">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-surface-border/30">
+                    <tbody className="divide-y divide-slate-100">
                         {bugs.map((bug, index) => (
                             <tr
                                 key={bug._id}
                                 onClick={() => onSelect(bug._id)}
-                                className="hover:bg-surface-elevated/40 cursor-pointer transition-all duration-200 group"
+                                className="hover:bg-slate-50 cursor-pointer transition-all duration-200 group"
                             >
                                 <td className="px-4 py-4">
-                                    <div className="px-2 h-8 rounded-xl bg-surface-card border border-surface-border text-[10px] font-black text-slate-300 flex items-center justify-center min-w-[32px] shadow-sm">
-                                        {bug.issueNumber ? `Bug ${bug.issueNumber}` : (index + 1)}
+                                    <div className="px-2 h-8 rounded-lg bg-slate-100 border border-slate-200 text-[10px] font-black text-slate-700 flex items-center justify-center min-w-[32px]">
+                                        {bug.issueNumber ? `#${bug.issueNumber}` : `#${index + 1}`}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
@@ -379,20 +406,21 @@ function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { b
                                                 <img
                                                     src={bug.screenshotUrl}
                                                     alt=""
-                                                    className="w-10 h-10 rounded-xl object-cover border border-surface-border shadow-lg group-hover:scale-110 transition-transform duration-300"
+                                                    className="w-10 h-10 rounded-lg object-cover border-2 border-slate-200 group-hover:scale-105 transition-transform duration-300"
                                                 />
                                             ) : (
-                                                <div className="w-10 h-10 rounded-xl bg-surface-card border border-surface-border flex items-center justify-center shadow-lg group-hover:bg-surface-elevated transition-colors">
-                                                    <Bug className="w-4 h-4 text-brand-400/50" />
+                                                <div className="w-10 h-10 rounded-lg bg-slate-50 border-2 border-slate-200 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
+                                                    <Bug className="w-4 h-4 text-slate-400" />
                                                 </div>
                                             )}
-                                            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#09090E] ${
+                                            <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
                                                 bug.priority === 'critical' ? 'bg-red-500 animate-pulse' : 
-                                                bug.priority === 'high' ? 'bg-amber-500' : 'bg-slate-500'
+                                                bug.priority === 'high' ? 'bg-amber-500' : 
+                                                bug.priority === 'medium' ? 'bg-blue-500' : 'bg-slate-400'
                                             }`} />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="font-bold text-white text-[14px] leading-tight group-hover:text-brand-300 transition-colors truncate max-w-[300px]">{bug.title}</p>
+                                            <p className="font-bold text-slate-800 text-[14px] leading-tight group-hover:text-cyan-600 transition-colors truncate max-w-[300px]">{bug.title}</p>
                                             {bug.description ? (
                                                 <p className="text-xs text-slate-500 mt-1 line-clamp-1 max-w-[300px]">{bug.description}</p>
                                             ) : (
@@ -412,18 +440,18 @@ function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { b
                                 <td className="px-6 py-4 hidden lg:table-cell">
                                     {bug.url && bug.url !== "Unknown" ? (
                                         <div className="flex items-center gap-2 max-w-[200px]">
-                                            <Globe className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                                            <span className="text-xs text-slate-400 truncate hover:text-brand-400 transition-colors" title={bug.url}>
+                                            <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                            <span className="text-xs text-slate-600 truncate hover:text-cyan-600 transition-colors" title={bug.url}>
                                                 {bug.url.replace(/^https?:\/\//, "")}
                                             </span>
                                         </div>
                                     ) : (
-                                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">—</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">—</span>
                                     )}
                                 </td>
                                 <td className="px-6 py-4 hidden md:table-cell">
                                     <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                                        <Clock className="w-3.5 h-3.5 text-slate-600" />
+                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
                                         {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
                                     </div>
                                 </td>
@@ -435,7 +463,7 @@ function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { b
                                                     e.stopPropagation();
                                                     onNavigateToLocation(bug);
                                                 }}
-                                                className="p-2 rounded-xl bg-surface-card border border-surface-border text-brand-400 hover:text-brand-300 hover:border-brand-500/50 transition-all shadow-lg"
+                                                className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 hover:border-cyan-300 transition-all"
                                                 title="Locate bug on page"
                                             >
                                                 <Target className="w-4 h-4" />
@@ -446,7 +474,7 @@ function ListView({ bugs, onSelect, onNavigateToLocation, projectStatuses }: { b
                                                 e.stopPropagation();
                                                 onSelect(bug._id);
                                             }}
-                                            className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-400 hover:text-white transition-all shadow-lg"
+                                            className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-all"
                                             title="View issue details"
                                         >
                                             <Eye className="w-4 h-4" />
@@ -503,43 +531,43 @@ function TeamManagement({ members, project, isAdmin, devToken }: {
     };
 
     const roleColors: Record<string, string> = {
-        owner: "bg-brand-900/50 text-brand-300 border border-brand-800",
-        admin: "bg-amber-900/50 text-amber-300 border border-amber-800",
-        editor: "bg-blue-900/50 text-blue-300 border border-blue-800",
-        viewer: "bg-slate-800 text-slate-400 border border-slate-700",
+        owner: "bg-purple-100 text-purple-700 border border-purple-200",
+        admin: "bg-amber-100 text-amber-700 border border-amber-200",
+        editor: "bg-blue-100 text-blue-700 border border-blue-200",
+        viewer: "bg-slate-100 text-slate-600 border border-slate-200",
     };
 
     return (
         <div className="max-w-2xl space-y-6">
             {/* Member List */}
-            <div className="card overflow-hidden">
-                <div className="px-4 py-3 border-b border-surface-border flex items-center gap-2">
-                    <Users className="w-4 h-4 text-brand-400" />
-                    <h3 className="text-sm font-semibold text-white">Team Members</h3>
-                    <span className="ml-auto text-xs text-slate-500">{members.length} member{members.length !== 1 ? "s" : ""}</span>
+            <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b-2 border-slate-200 flex items-center gap-2 bg-slate-50">
+                    <Users className="w-4 h-4 text-cyan-600" />
+                    <h3 className="text-sm font-semibold text-slate-800">Team Members</h3>
+                    <span className="ml-auto text-xs text-slate-500 font-medium">{members.length} member{members.length !== 1 ? "s" : ""}</span>
                 </div>
                 {members.length === 0 ? (
                     <div className="px-4 py-8 text-center text-slate-500 text-sm">No team members yet</div>
                 ) : (
-                    <ul className="divide-y divide-surface-border">
+                    <ul className="divide-y divide-slate-100">
                         {members.map((m) => (
-                            <li key={m._id} className="flex items-center gap-3 px-4 py-3">
-                                <div className="w-8 h-8 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
-                                    <User className="w-4 h-4 text-brand-400" />
+                            <li key={m._id} className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50 transition-colors">
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shrink-0 shadow-sm">
+                                    <User className="w-4 h-4 text-white" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-white truncate">{m.name || m.email || m.userId}</p>
+                                    <p className="text-sm font-semibold text-slate-800 truncate">{m.name || m.email || m.userId}</p>
                                     {m.name && m.email && (
                                         <p className="text-xs text-slate-500 truncate">{m.email}</p>
                                     )}
                                 </div>
-                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded capitalize ${roleColors[m.role] ?? roleColors.viewer}`}>
+                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${roleColors[m.role] ?? roleColors.viewer}`}>
                                     {m.role}
                                 </span>
                                 {isAdmin && m.role !== "owner" && (
                                     <button
                                         onClick={() => handleRemove(m._id)}
-                                        className="btn-ghost p-1.5 text-slate-600 hover:text-red-400 transition-colors"
+                                        className="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-all"
                                     >
                                         <Trash className="w-3.5 h-3.5" />
                                     </button>
@@ -552,36 +580,36 @@ function TeamManagement({ members, project, isAdmin, devToken }: {
 
             {/* Invite Form */}
             {isAdmin && (
-                <div className="card p-4">
+                <div className="bg-white border-2 border-slate-200 rounded-2xl p-5 shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
-                        <UserPlus className="w-4 h-4 text-brand-400" />
-                        <h3 className="text-sm font-semibold text-white">Invite Member</h3>
+                        <UserPlus className="w-4 h-4 text-cyan-600" />
+                        <h3 className="text-sm font-semibold text-slate-800">Invite Member</h3>
                     </div>
-                    {error && <p className="text-xs text-red-400 mb-3 p-2 bg-red-900/20 rounded border border-red-800">{error}</p>}
-                    {success && <p className="text-xs text-green-400 mb-3 p-2 bg-green-900/20 rounded border border-green-800">{success}</p>}
+                    {error && <p className="text-xs text-red-600 mb-3 p-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
+                    {success && <p className="text-xs text-green-600 mb-3 p-3 bg-green-50 rounded-lg border border-green-200">{success}</p>}
                     <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-2">
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="member@company.com"
-                            className="input flex-1 text-sm h-9"
+                            className="input flex-1 text-sm h-10 bg-white border-slate-200 text-slate-800"
                             required
                         />
                         <select
                             value={role}
                             onChange={(e) => setRole(e.target.value as any)}
-                            className="input text-sm h-9 w-full sm:w-auto"
+                            className="input text-sm h-10 w-full sm:w-auto bg-white border-slate-200 text-slate-800"
                         >
                             <option value="admin">Admin</option>
                             <option value="editor">Editor</option>
                             <option value="viewer">Viewer</option>
                         </select>
-                        <button type="submit" disabled={loading} className="btn-primary text-sm h-9 px-4 whitespace-nowrap">
+                        <button type="submit" disabled={loading} className="bg-cyan-500 hover:bg-cyan-600 text-white text-sm h-10 px-5 rounded-lg font-semibold transition-colors whitespace-nowrap disabled:opacity-50">
                             {loading ? "Inviting…" : "Invite"}
                         </button>
                     </form>
-                    <p className="text-xs text-slate-600 mt-2">The user must have a BugScribe account before being invited.</p>
+                    <p className="text-xs text-slate-500 mt-3">The user must have a BugScribe account before being invited.</p>
                 </div>
             )}
         </div>
@@ -597,7 +625,9 @@ function SettingsView({ project, devToken, isAdmin }: { project: any; devToken: 
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [showKey, setShowKey] = useState(false);
+    const [togglingReporting, setTogglingReporting] = useState(false);
     const updateProject = useMutation(api.projects.updateProject);
+    const toggleReportingMutation = useMutation(api.projects.toggleReporting);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -613,40 +643,55 @@ function SettingsView({ project, devToken, isAdmin }: { project: any; devToken: 
         }
     };
 
+    const handleToggleReporting = async (enabled: boolean) => {
+        setTogglingReporting(true);
+        try {
+            await toggleReportingMutation({
+                projectId: project._id,
+                enabled,
+                devToken: devToken || undefined
+            });
+        } catch (err: any) {
+            alert(err.message || "Failed to toggle bug reporting");
+        } finally {
+            setTogglingReporting(false);
+        }
+    };
+
     return (
         <div className="max-w-2xl space-y-6">
             {/* Project Details */}
-            <div className="card p-5">
+            <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-5">
-                    <Settings className="w-4 h-4 text-brand-400" />
-                    <h3 className="text-sm font-semibold text-white">Project Settings</h3>
+                    <Settings className="w-5 h-5 text-cyan-600" />
+                    <h3 className="text-base font-bold text-slate-800">Project Settings</h3>
                 </div>
                 <form onSubmit={handleSave} className="space-y-4">
                     <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">Project Name</label>
-                        <input value={name} onChange={(e) => setName(e.target.value)} className="input w-full text-sm h-9" required />
+                        <label className="block text-xs text-slate-600 mb-2 font-semibold">Project Name</label>
+                        <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 transition-all" required />
                     </div>
                     <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">Domain / URL</label>
+                        <label className="block text-xs text-slate-600 mb-2 font-semibold">Domain / URL</label>
                         <input
                             value={domain}
                             onChange={(e) => setDomain(e.target.value)}
                             placeholder="https://yoursite.com"
-                            className="input w-full text-sm h-9"
+                            className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 transition-all"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs text-slate-400 mb-1.5 font-medium">Description</label>
+                        <label className="block text-xs text-slate-600 mb-2 font-semibold">Description</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             rows={3}
                             placeholder="What is this project about?"
-                            className="input w-full text-sm resize-none pt-2"
+                            className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-lg text-sm text-slate-800 resize-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 transition-all"
                         />
                     </div>
-                    <div className="flex justify-end">
-                        <button type="submit" disabled={saving || !isAdmin} className="btn-primary text-sm h-9 px-5">
+                    <div className="flex justify-end pt-2">
+                        <button type="submit" disabled={saving || !isAdmin} className="bg-cyan-500 hover:bg-cyan-600 text-white text-sm h-10 px-6 rounded-lg font-semibold transition-colors disabled:opacity-50">
                             {saved ? "✓ Saved!" : saving ? "Saving…" : "Save Changes"}
                         </button>
                     </div>
@@ -654,34 +699,60 @@ function SettingsView({ project, devToken, isAdmin }: { project: any; devToken: 
             </div>
 
             {/* API Key */}
-            <div className="card p-5">
+            <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
-                    <Key className="w-4 h-4 text-brand-400" />
-                    <h3 className="text-sm font-semibold text-white">API Key</h3>
+                    <Key className="w-5 h-5 text-cyan-600" />
+                    <h3 className="text-base font-bold text-slate-800">API Key</h3>
                 </div>
-                <p className="text-xs text-slate-500 mb-3">Use this key to authenticate bug reports from the widget or extension.</p>
-                <div className="flex items-center gap-2 p-3 bg-surface-elevated rounded-lg border border-surface-border font-mono text-xs">
-                    <span className="flex-1 truncate text-slate-300">
+                <p className="text-xs text-slate-600 mb-4">Use this key to authenticate bug reports from the widget or extension.</p>
+                <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border-2 border-slate-200 font-mono text-xs">
+                    <span className="flex-1 truncate text-slate-700">
                         {showKey ? project.apiKey : "•".repeat(Math.min(project.apiKey?.length ?? 20, 32))}
                     </span>
-                    <button onClick={() => setShowKey(!showKey)} className="btn-ghost p-1 text-slate-500">
-                        {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    <button onClick={() => setShowKey(!showKey)} className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors">
+                        {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                     <CopyButton text={project.apiKey} />
                 </div>
             </div>
 
             {/* Project ID */}
-            <div className="card p-5">
+            <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
-                    <Shield className="w-4 h-4 text-slate-400" />
-                    <h3 className="text-sm font-semibold text-white">Project ID</h3>
+                    <Shield className="w-5 h-5 text-slate-500" />
+                    <h3 className="text-base font-bold text-slate-800">Project ID</h3>
                 </div>
-                <div className="flex items-center gap-2 p-3 bg-surface-elevated rounded-lg border border-surface-border font-mono text-xs">
-                    <span className="flex-1 truncate text-slate-400">{project._id}</span>
+                <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border-2 border-slate-200 font-mono text-xs">
+                    <span className="flex-1 truncate text-slate-600">{project._id}</span>
                     <CopyButton text={project._id} />
                 </div>
             </div>
+
+            {/* Bug Reporting Control */}
+            {isAdmin && (
+                <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Bug className="w-5 h-5 text-purple-600" />
+                        <h3 className="text-base font-bold text-slate-800">Bug Reporting</h3>
+                    </div>
+                    <p className="text-xs text-slate-600 mb-4">
+                        Control whether users can submit new bug reports through the extension or widget. When disabled, the extension will show a message that reporting is currently unavailable.
+                    </p>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={project.reportingEnabled !== false}
+                            onChange={(e) => handleToggleReporting(e.target.checked)}
+                            disabled={togglingReporting}
+                        />
+                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                        <span className="ms-3 text-sm font-medium text-slate-700">
+                            {togglingReporting ? "Updating..." : project.reportingEnabled !== false ? "Enabled" : "Disabled"}
+                        </span>
+                    </label>
+                </div>
+            )}
         </div>
     );
 }
@@ -700,31 +771,31 @@ function IntegrationsView({ project, devToken }: { project: any; devToken: strin
     return (
         <div className="max-w-2xl space-y-6">
             {/* Chrome Extension */}
-            <div className="card p-5">
+            <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
-                    <Zap className="w-4 h-4 text-brand-400" />
-                    <h3 className="text-sm font-semibold text-white">Chrome Extension</h3>
+                    <Zap className="w-5 h-5 text-cyan-600" />
+                    <h3 className="text-base font-bold text-slate-800">Chrome Extension</h3>
                 </div>
-                <p className="text-xs text-slate-500 mb-4">
+                <p className="text-xs text-slate-600 mb-4">
                     Copy your connection key and paste it into the BugScribe Chrome Extension to start capturing bugs on any website.
                 </p>
-                <div className="flex items-center gap-2 p-3 bg-surface-elevated rounded-lg border border-surface-border font-mono text-xs">
-                    <span className="flex-1 truncate text-slate-300">{connectionKey}</span>
+                <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border-2 border-slate-200 font-mono text-xs">
+                    <span className="flex-1 truncate text-slate-700">{connectionKey}</span>
                     <CopyButton text={connectionKey} label="Copy Key" />
                 </div>
             </div>
 
             {/* Widget Embed */}
-            <div className="card p-5">
+            <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
-                    <Globe className="w-4 h-4 text-brand-400" />
-                    <h3 className="text-sm font-semibold text-white">Widget Embed</h3>
+                    <Globe className="w-5 h-5 text-cyan-600" />
+                    <h3 className="text-base font-bold text-slate-800">Widget Embed</h3>
                 </div>
-                <p className="text-xs text-slate-500 mb-4">
-                    Add this script tag to your website&apos;s <code className="text-slate-300">&lt;body&gt;</code> to enable the floating bug reporter widget.
+                <p className="text-xs text-slate-600 mb-4">
+                    Add this script tag to your website&apos;s <code className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">&lt;body&gt;</code> to enable the floating bug reporter widget.
                 </p>
                 <div className="relative">
-                    <pre className="p-4 bg-surface-elevated rounded-lg border border-surface-border text-xs text-slate-300 overflow-x-auto leading-relaxed">
+                    <pre className="p-4 bg-slate-50 rounded-lg border-2 border-slate-200 text-xs text-slate-700 overflow-x-auto leading-relaxed">
                         <code>{widgetScript}</code>
                     </pre>
                     <div className="absolute top-2 right-2">
@@ -734,20 +805,20 @@ function IntegrationsView({ project, devToken }: { project: any; devToken: strin
             </div>
 
             {/* Quick-start */}
-            <div className="card p-5 border-brand-800/50 bg-brand-900/10">
-                <h3 className="text-sm font-semibold text-white mb-3">Quick Reference</h3>
-                <div className="space-y-2 text-xs">
+            <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-200 rounded-2xl p-6 shadow-sm">
+                <h3 className="text-base font-bold text-slate-800 mb-4">Quick Reference</h3>
+                <div className="space-y-3 text-xs">
                     <div className="flex gap-3">
-                        <span className="text-slate-500 w-24 shrink-0">API Endpoint</span>
-                        <code className="text-slate-300">POST https://bug-higt.vercel.app/api/reports</code>
+                        <span className="text-slate-600 w-28 shrink-0 font-semibold">API Endpoint</span>
+                        <code className="text-slate-700 bg-white px-2 py-1 rounded border border-slate-200">POST https://bug-higt.vercel.app/api/reports</code>
                     </div>
                     <div className="flex gap-3">
-                        <span className="text-slate-500 w-24 shrink-0">Project ID</span>
-                        <code className="text-slate-300">{project._id}</code>
+                        <span className="text-slate-600 w-28 shrink-0 font-semibold">Project ID</span>
+                        <code className="text-slate-700 bg-white px-2 py-1 rounded border border-slate-200">{project._id}</code>
                     </div>
                     <div className="flex gap-3">
-                        <span className="text-slate-500 w-24 shrink-0">API Key</span>
-                        <code className="text-slate-300">{project.apiKey?.substring(0, 8)}…</code>
+                        <span className="text-slate-600 w-28 shrink-0 font-semibold">API Key</span>
+                        <code className="text-slate-700 bg-white px-2 py-1 rounded border border-slate-200">{project.apiKey?.substring(0, 8)}…</code>
                     </div>
                 </div>
             </div>
@@ -838,7 +909,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
     const [comment, setComment] = useState("");
     const [posting, setPosting] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [activeTab, setActiveTab] = useState<"details" | "screenshot" | "env" | "console" | "network" | "activity">("details");
+    const [activeTab, setActiveTab] = useState<"details" | "screenshot" | "env" | "console" | "network" | "activity" | "comments">("details");
     const [showLightbox, setShowLightbox] = useState(false);
 
     // Editable field states
@@ -853,6 +924,10 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
     const [bugCategory, setBugCategory] = useState("");
     const [savingCategory, setSavingCategory] = useState(false);
     const [showQuickAddType, setShowQuickAddType] = useState(false);
+    const [bugTitle, setBugTitle] = useState("");
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [savingTitle, setSavingTitle] = useState(false);
+    const [showManagementSection, setShowManagementSection] = useState(false);
 
     // Sync local state when bug loads
     useEffect(() => {
@@ -861,6 +936,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
             setSelectedAssignee(bug.assigneeId ?? null);
             setBugType(bug.type ?? "general");
             setBugCategory(bug.category ?? "");
+            setBugTitle(bug.title ?? "");
             if (bug.dueDate) {
                 const d = new Date(bug.dueDate);
                 setDueDate(d.toISOString().split("T")[0]);
@@ -944,6 +1020,22 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
         } catch (err: any) { alert(err.message); } finally { setSavingCategory(false); }
     };
 
+    const handleTitleSave = async () => {
+        if (!bugTitle.trim() || bugTitle === bug?.title) {
+            setIsEditingTitle(false);
+            return;
+        }
+        setSavingTitle(true);
+        try {
+            await updateBug({ bugId, title: bugTitle.trim(), devToken: token });
+            setIsEditingTitle(false);
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setSavingTitle(false);
+        }
+    };
+
     return (<>
         {/* Lightbox Modal */}
         {showLightbox && bug?.screenshotUrl && (
@@ -993,703 +1085,448 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
             </div>
         )}
 
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-            {/* Drawer */}
-            <div className="relative ml-auto w-full max-w-[580px] h-full bg-[#09090E] border-l border-surface-border flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right-8 duration-500">
+            {/* Modal - Centered */}
+            <div className="relative w-full max-w-[90vw] max-h-[90vh] bg-white rounded-2xl border border-slate-200 flex shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                 {!bug ? (
                     <div className="flex-1 flex flex-col items-center justify-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-surface-card border border-surface-border flex items-center justify-center animate-pulse">
-                            <Bug className="w-6 h-6 text-brand-400 opacity-20" />
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 border-2 border-slate-200 flex items-center justify-center animate-pulse">
+                            <Bug className="w-6 h-6 text-slate-400" />
                         </div>
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest animate-pulse">Loading Issue...</p>
+                        <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider animate-pulse">Loading Issue...</p>
                     </div>
                 ) : (
                     <>
-                        {/* Header */}
-                        <div className="px-6 py-5 border-b border-surface-border/50 bg-[#09090E]/50 backdrop-blur-xl shrink-0">
-                            <div className="flex items-start justify-between gap-6 mb-3">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="p-2 rounded-xl bg-brand-500/10 border border-brand-500/20 shadow-inner group-hover:scale-110 transition-transform">
-                                        <Bug className="w-3.5 h-3.5 text-brand-400" />
-                                    </div>
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">
-                                            {bug.issueNumber ? `Bug ${bug.issueNumber}` : `Issue: ${bug._id.toString().substring(0, 8)}`}
-                                        </span>
-                                        <div className="flex items-center gap-1.5 text-[8px] font-bold text-slate-600 uppercase tracking-widest">
-                                            <Clock className="w-2.5 h-2.5" />
-                                            {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                        {/* Left Side: Image/Video */}
+                        <div className="w-[50%] bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-6 relative border-r border-slate-200">
+                            {bug.screenshotUrl ? (
+                                <div 
+                                    className="w-full h-full flex items-center justify-center cursor-pointer group relative"
+                                    onClick={() => setShowLightbox(true)}
+                                >
+                                    {bug.mediaType === "video" ? (
+                                        <div className="relative w-full h-full flex items-center justify-center">
+                                            <video
+                                                src={bug.screenshotUrl}
+                                                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl border-2 border-slate-200"
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors rounded-xl">
+                                                <div className="p-5 rounded-full bg-white/95 border-2 border-slate-300 text-slate-700 group-hover:scale-110 transition-transform shadow-xl">
+                                                    <Video className="w-8 h-8" />
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    {shareUrl && (
-                                        <button 
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(shareUrl);
-                                                alert("Link copied to clipboard!");
-                                            }}
-                                            className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-brand-400 hover:border-brand-500/30 transition-all shadow-sm"
-                                            title="Copy share link"
-                                        >
-                                            <Copy className="w-3.5 h-3.5" />
-                                        </button>
+                                    ) : (
+                                        <>
+                                            <img
+                                                src={bug.screenshotUrl}
+                                                alt="Bug Screenshot"
+                                                className="max-w-full max-h-[calc(90vh-200px)] object-contain rounded-xl shadow-2xl border-2 border-slate-200 group-hover:shadow-3xl transition-all"
+                                            />
+                                            {/* Hover overlay */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none" />
+                                        </>
                                     )}
-                                    <button onClick={onClose} className="p-2 rounded-xl bg-surface-card border border-surface-border text-slate-500 hover:text-red-400 hover:border-red-500/30 transition-all shadow-sm">
-                                        <X className="w-3.5 h-3.5" />
-                                    </button>
+                                    
+                                    {/* Click to expand hint */}
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-y-0 translate-y-2">
+                                        <div className="px-4 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-300 text-xs font-semibold text-slate-700 flex items-center gap-2 shadow-xl">
+                                            <ImageIcon className="w-4 h-4" />
+                                            Click to view full size
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <h2 className="text-lg font-black text-white leading-[1.2] tracking-tight mb-3">{bug.title}</h2>
-                            <div className="flex items-center gap-2.5 flex-wrap">
-                                <StatusBadge status={bug.status as Status} projectStatuses={statusOptions || []} />
-                                <PriorityBadge priority={bug.priority as Priority} />
-                                {bug.type && bug.type !== "general" && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-bold bg-white/5 text-slate-400 border border-white/10 uppercase tracking-widest">
-                                        {bug.type.replace(/-/g, ' ')}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Large Image Preview (Cover) */}
-                        {bug.screenshotUrl && (
-                            <div 
-                                className="w-full border-b border-surface-border bg-black/40 shrink-0 relative flex items-center justify-center overflow-hidden group/img cursor-zoom-in" 
-                                style={{ maxHeight: '320px' }}
-                                onClick={() => setShowLightbox(true)}
-                            >
-                                {bug.mediaType === "video" ? (
-                                    <div className="relative w-full h-full flex items-center justify-center bg-black">
-                                        <video
-                                            src={bug.screenshotUrl}
-                                            className="w-full h-full object-contain backdrop-blur-md opacity-70 group-hover/img:opacity-90 transition-opacity"
-                                        />
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="p-5 rounded-full bg-brand-500/20 border border-brand-500/50 backdrop-blur-md text-brand-400 group-hover/img:scale-110 transition-transform">
-                                                <Video className="w-8 h-8" />
-                                            </div>
-                                        </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center text-slate-400 gap-4">
+                                    <div className="p-8 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300">
+                                        <ImageIcon className="w-20 h-20" />
                                     </div>
-                                ) : (
-                                    <img
-                                        src={bug.screenshotUrl}
-                                        alt="Preview"
-                                        className="w-full h-full object-contain backdrop-blur-md transition-transform duration-1000 group-hover/img:scale-110"
-                                    />
-                                )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#09090E] via-transparent to-transparent opacity-80" />
-                                
-                                <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between opacity-0 group-hover/img:opacity-100 transition-all transform translate-y-2 group-hover/img:translate-y-0">
-                                    <span className="px-3 py-1.5 rounded-xl bg-[#09090E]/80 border border-surface-border text-[10px] font-black text-white uppercase tracking-[0.2em] backdrop-blur-md">
-                                        Click to enlarge
-                                    </span>
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setShowLightbox(true);
-                                        }}
-                                        className="p-3 rounded-2xl bg-brand-500 text-white shadow-2xl shadow-brand-500/40 hover:scale-110 active:scale-95 transition-all"
-                                    >
-                                        <Eye className="w-5 h-5" />
-                                    </button>
+                                    <p className="text-sm font-medium text-slate-500">No screenshot attached</p>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* Status & Priority Controls */}
-                        <div className="grid grid-cols-2 gap-px bg-surface-border/30 border-b border-surface-border/30 shrink-0">
-                            <div className="bg-[#09090E] p-4 group">
-                                <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold block mb-2 transition-colors group-hover:text-brand-400">Status</label>
-                                <select
-                                    value={bug.status}
-                                    onChange={(e) => onStatusChange(e.target.value as Status)}
-                                    className="w-full bg-transparent text-sm font-bold text-white outline-none cursor-pointer appearance-none"
-                                    disabled={!canUpdate}
-                                >
-                                    {(statusOptions && statusOptions.length ? statusOptions : DEFAULT_COLUMNS).map((status: any) => {
-                                        const value = status.value ?? status.status;
-                                        const label = status.label ?? value;
-                                        return (
-                                            <option key={value} value={value} className="bg-[#09090E]">
-                                                {label}
-                                            </option>
-                                        );
-                                    })}
-                                </select>
-                            </div>
-                            <div className="bg-[#09090E] p-4 group">
-                                <label className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold block mb-2 transition-colors group-hover:text-brand-400">Priority</label>
-                                <select
-                                    value={bug.priority}
-                                    onChange={(e) => updatePriority({ bugId, priority: e.target.value as Priority, devToken: token })}
-                                    className="w-full bg-transparent text-sm font-bold text-white outline-none cursor-pointer appearance-none"
-                                    disabled={!canUpdate}
-                                >
-                                    <option value="low" className="bg-[#09090E]">Low</option>
-                                    <option value="medium" className="bg-[#09090E]">Medium</option>
-                                    <option value="high" className="bg-[#09090E]">High</option>
-                                    <option value="critical" className="bg-[#09090E]">Critical</option>
-                                </select>
-                            </div>
+                            )}
                         </div>
 
-                        {/* Tabs */}
-                        <div className="flex gap-2 border-b border-surface-border/30 px-6 shrink-0 bg-[#09090E]/50 overflow-x-auto no-scrollbar">
-                            {(["details", "screenshot", "env", "console", "network", "activity"] as const).map((tab) => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={`relative py-3.5 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab
-                                        ? "text-brand-400"
-                                        : "text-slate-500 hover:text-slate-300"
-                                        }`}
-                                >
-                                    {tab === "env" ? "Environment" : tab === "activity" ? "Activity" : tab}
-                                    {activeTab === tab && (
-                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-500 shadow-[0_0_12px_rgba(59,130,246,0.5)]" />
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Tab Content */}
-                        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8 custom-scrollbar">
-0                            {activeTab === "details" && (
-                                <div className="space-y-6">
-                                    {/* Project Management & Assignment */}
-                                    <div className="space-y-2.5">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1 h-1 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(0,212,255,0.8)]" />
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Management & Assignment</span>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-white/[0.02] border border-white/5 rounded-xl p-3.5 shadow-inner">
-                                            <div className="space-y-1 group/field">
-                                                <div className="flex items-center justify-between">
-                                                    <label className="text-[8px] text-slate-500 uppercase tracking-widest font-black group-focus-within/field:text-brand-400 transition-colors">Issue Type</label>
-                                                    {isSuperAdmin && canUpdate && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowQuickAddType(true)}
-                                                            className="text-[8px] text-brand-400 hover:text-brand-300 transition-colors font-black"
-                                                        >
-                                                            + NEW
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <div className="relative">
-                                                    <select
-                                                        value={bugType}
-                                                        onChange={(e) => handleTypeChange(e.target.value)}
-                                                        className="input w-full text-[10px] font-bold bg-white/5 border-white/5 focus:border-brand-500/50 appearance-none h-8.5 px-3"
-                                                        disabled={!canUpdate || savingType}
-                                                    >
-                                                        <optgroup label="Core Types" className="bg-[#09090E]">
-                                                            {BUG_TYPES.map(t => (
-                                                                <option key={t.value} value={t.value}>{t.label}</option>
-                                                            ))}
-                                                        </optgroup>
-                                                        {customModules && customModules.length > 0 && (
-                                                            <optgroup label="Custom Modules" className="bg-[#09090E]">
-                                                                {customModules.map((mod: any) => (
-                                                                    <option key={mod.slug} value={mod.slug}>{mod.name}</option>
-                                                                ))}
-                                                            </optgroup>
-                                                        )}
-                                                    </select>
-                                                    <ChevronDown className="w-3 h-3 text-slate-600 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                                </div>
+                        {/* Right Side: Information */}
+                        <div className="flex-1 flex flex-col bg-white">
+                            {/* Header */}
+                            <div className="px-6 py-5 border-b border-slate-200 bg-white shrink-0">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 text-white shadow-md">
+                                                <span className="text-sm font-bold tracking-wide">
+                                                    #{bug.issueNumber ? bug.issueNumber : bug._id.toString().substring(0, 8).toUpperCase()}
+                                                </span>
                                             </div>
-
-                                            <div className="space-y-1 group/field">
-                                                <label className="text-[8px] text-slate-500 uppercase tracking-widest font-black block group-focus-within/field:text-brand-400 transition-colors">Assignee</label>
-                                                <div className="relative">
-                                                    <select
-                                                        value={selectedAssignee ?? ""}
-                                                        onChange={(e) => handleAssigneeChange(e.target.value)}
-                                                        className="input w-full text-[10px] font-bold bg-white/5 border-white/5 focus:border-brand-500/50 appearance-none h-8.5 px-3"
-                                                        disabled={!canUpdate || savingAssignee}
-                                                    >
-                                                        <option value="" className="bg-[#09090E]">Unassigned</option>
-                                                        {projectMembers.map((m: any) => (
-                                                            <option key={m.userId} value={m.userId} className="bg-[#09090E]">
-                                                                {m.name || m.email || m.userId}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                    <User className="w-3 h-3 text-slate-600 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-1 group/field">
-                                                <label className="text-[8px] text-slate-500 uppercase tracking-widest font-black block group-focus-within/field:text-brand-400 transition-colors">Category</label>
-                                                <div className="relative">
-                                                    <input
-                                                        value={bugCategory}
-                                                        onChange={(e) => setBugCategory(e.target.value)}
-                                                        onBlur={() => handleCategoryChange(bugCategory)}
-                                                        placeholder="e.g. Authentication"
-                                                        className="input w-full text-[10px] font-bold bg-white/5 border-white/5 focus:border-brand-500/50 h-8.5 px-3"
-                                                        disabled={!canUpdate || savingCategory}
-                                                    />
-                                                    <Tag className="w-3 h-3 text-slate-600 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-1 group/field">
-                                                <label className="text-[8px] text-slate-500 uppercase tracking-widest font-black block group-focus-within/field:text-brand-400 transition-colors">Due Date</label>
-                                                <div className="relative">
-                                                    <input
-                                                        type="date"
-                                                        value={dueDate}
-                                                        onChange={(e) => handleDueDateChange(e.target.value)}
-                                                        className="input w-full text-[10px] font-bold bg-white/5 border-white/5 focus:border-brand-500/50 h-8.5 px-3"
-                                                        disabled={!canUpdate || savingDue}
-                                                    />
-                                                    <Calendar className="w-3 h-3 text-slate-600 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                                </div>
+                                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
                                             </div>
                                         </div>
-                                    </div>
-
-                                    {/* Description */}
-                                    <div className="space-y-2.5">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1 h-1 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Description</span>
-                                        </div>
-                                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 text-[11px] text-slate-300 leading-relaxed shadow-inner relative group min-h-[60px]">
-                                            <Edit2 className="w-3 h-3 text-slate-700 absolute top-3.5 right-3.5 group-hover:text-brand-400 transition-colors" />
-                                            {bug.description || <span className="text-slate-600 italic">No description provided.</span>}
-                                        </div>
-                                    </div>
-
-                                    {/* Labels & Tags */}
-                                    <div className="space-y-2.5">
-                                        <div className="flex items-center justify-between">
+                                        
+                                        {isEditingTitle && isSuperAdmin ? (
                                             <div className="flex items-center gap-2">
-                                                <div className="w-1 h-1 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
-                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Labels & Tags</span>
+                                                <input
+                                                    type="text"
+                                                    value={bugTitle}
+                                                    onChange={(e) => setBugTitle(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") handleTitleSave();
+                                                        if (e.key === "Escape") {
+                                                            setBugTitle(bug?.title ?? "");
+                                                            setIsEditingTitle(false);
+                                                        }
+                                                    }}
+                                                    className="flex-1 text-xl font-bold text-slate-900 bg-white border-2 border-blue-400 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200"
+                                                    autoFocus
+                                                    disabled={savingTitle}
+                                                />
+                                                <button
+                                                    onClick={handleTitleSave}
+                                                    disabled={savingTitle}
+                                                    className="p-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-all"
+                                                >
+                                                    <Check className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setBugTitle(bug?.title ?? "");
+                                                        setIsEditingTitle(false);
+                                                    }}
+                                                    className="p-2 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-all"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
                                             </div>
-                                            {savingTags && <span className="text-[8px] font-black text-brand-400 animate-pulse">SAVING...</span>}
-                                        </div>
-                                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-2.5 shadow-inner">
-                                            <TagsInput tags={tagInput} onChange={handleSaveTags} disabled={!canUpdate} />
-                                        </div>
-                                    </div>
-
-                                    {/* Steps to Reproduce */}
-                                    {bug.steps && bug.steps.length > 0 && (
-                                        <div className="space-y-2.5">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-1 h-1 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(0,212,255,0.8)]" />
-                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Steps to Reproduce</span>
-                                            </div>
-                                            <div className="space-y-2 pl-2">
-                                                {bug.steps.map((step: string, i: number) => (
-                                                    <div key={i} className="flex gap-3 group/step relative before:absolute before:-left-2 before:top-6 before:bottom-0 before:w-px before:bg-slate-800 last:before:hidden">
-                                                        <div className="flex-shrink-0 w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-black text-slate-500 group-hover/step:border-brand-500 group-hover/step:text-brand-400 transition-all shadow-inner group-hover/step:scale-110">
-                                                            {i + 1}
-                                                        </div>
-                                                        <div className="flex-1 bg-white/[0.02] rounded-lg px-3 py-1.5 border border-transparent group-hover/step:border-white/5 transition-all text-[11px] text-slate-300 leading-relaxed shadow-sm">
-                                                            {step}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Context Metadata Cards */}
-                                    <div className="space-y-2.5">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Environment Context</span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2.5">
-                                            {[
-                                                { label: "Reporter", value: bug.reporterName || "Widget", icon: <User className="w-3 h-3" />, color: "text-blue-400" },
-                                                { label: "Browser", value: bug.browser?.split(" ").slice(0, 2).join(" "), icon: <Monitor className="w-3 h-3" />, color: "text-purple-400" },
-                                                { label: "OS", value: bug.os, icon: <Zap className="w-3 h-3" />, color: "text-amber-400" },
-                                                { label: "Resolution", value: bug.screenResolution || (bug.screenWidth ? `${bug.screenWidth}×${bug.screenHeight}` : null), icon: <Monitor className="w-3 h-3" />, color: "text-emerald-400" },
-                                            ].filter(r => r.value).map((row) => (
-                                                <div key={row.label} className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5 flex flex-col gap-1 group hover:bg-white/[0.04] transition-all">
-                                                    <div className="flex items-center gap-1.5 text-slate-500">
-                                                        <span className={row.color}>{row.icon}</span>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest">{row.label}</span>
-                                                    </div>
-                                                    <span className="text-[10px] font-black text-white truncate" title={row.value ?? undefined}>{row.value}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {(bug.url && bug.url !== "Unknown") && (
-                                            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 flex items-center gap-3 group/url hover:bg-white/[0.04] transition-all shadow-inner">
-                                                <div className="p-2 rounded-lg bg-brand-500/10 border border-brand-500/20 text-brand-400 group-hover/url:scale-110 transition-transform">
-                                                    <Globe className="w-3.5 h-3.5" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Source URL</p>
-                                                    <a href={bug.trackerUrl || bug.url} target="_blank" rel="noopener noreferrer"
-                                                        className="text-[10px] font-bold text-brand-400 hover:text-brand-300 hover:underline truncate block transition-colors" title={bug.url}>
-                                                        {bug.url}
-                                                    </a>
-                                                </div>
-                                                <CopyButton text={bug.url} />
+                                        ) : (
+                                            <div className="flex items-start gap-2 group/title">
+                                                <h2 className="text-xl font-bold text-slate-900 leading-tight flex-1">{bug.title}</h2>
+                                                {isSuperAdmin && (
+                                                    <button
+                                                        onClick={() => setIsEditingTitle(true)}
+                                                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover/title:opacity-100 transition-all"
+                                                    >
+                                                        <Edit2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
                                             </div>
                                         )}
                                     </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                        {shareUrl && (
+                                            <button 
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(shareUrl);
+                                                    alert("Link copied!");
+                                                }}
+                                                className="p-2.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all"
+                                                title="Copy link"
+                                            >
+                                                <Copy className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={onClose} 
+                                            className="p-2.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-2 flex-wrap mt-3">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                        {(statusOptions?.find((s: any) => (s.value ?? s.status) === bug.status)?.label) || bug.status}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                        {bug.priority === "low" && "Low"}
+                                        {bug.priority === "medium" && "Medium"}
+                                        {bug.priority === "high" && "High"}
+                                        {bug.priority === "critical" && "Critical"}
+                                    </span>
+                                </div>
+                            </div>
 
-                                    {/* Discussion Feed */}
-                                    <div className="space-y-4 pt-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1 h-1 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(0,212,255,0.8)]" />
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Discussion ({bug.comments?.length ?? 0})</span>
-                                        </div>
-                                        <div className="space-y-4">
-                                            {bug.comments?.map((c: any) => (
-                                                <div key={c._id} className="flex gap-2.5 group/comment">
-                                                    <div className="w-7 h-7 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0 shadow-inner group-hover/comment:scale-105 transition-transform">
-                                                        <User className="w-3.5 h-3.5 text-brand-400" />
+                            {/* Status & Priority Controls */}
+                            <div className="grid grid-cols-2 gap-4 border-b border-slate-200 px-6 py-5 shrink-0 bg-gradient-to-br from-slate-50 to-white">
+                                <div className="space-y-2.5">
+                                    <label className="text-[11px] text-slate-600 font-bold block uppercase tracking-wider flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm" />
+                                        STATUS
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={bug.status}
+                                            onChange={(e) => onStatusChange(e.target.value as Status)}
+                                            className="w-full bg-slate-900 text-white border-2 border-slate-800 rounded-xl px-4 py-3 text-sm font-bold outline-none cursor-pointer hover:bg-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all appearance-none shadow-sm"
+                                            disabled={!canUpdate}
+                                        >
+                                            {(statusOptions && statusOptions.length ? statusOptions : DEFAULT_COLUMNS).map((status: any) => {
+                                                const value = status.value ?? status.status;
+                                                const label = status.label ?? value;
+                                                return (
+                                                    <option key={value} value={value}>
+                                                        {label}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2.5">
+                                    <label className="text-[11px] text-slate-600 font-bold block uppercase tracking-wider flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-orange-500 shadow-sm" />
+                                        PRIORITY
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={bug.priority}
+                                            onChange={(e) => updatePriority({ bugId, priority: e.target.value as Priority, devToken: token })}
+                                            className="w-full bg-slate-900 text-white border-2 border-slate-800 rounded-xl px-4 py-3 text-sm font-bold outline-none cursor-pointer hover:bg-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all appearance-none shadow-sm"
+                                            disabled={!canUpdate}
+                                        >
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                            <option value="critical">Critical</option>
+                                        </select>
+                                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Tabs */}
+                            <div className="flex gap-1 border-b border-slate-200 px-6 shrink-0 bg-white">
+                                {(["details", "comments", "activity"] as const).map((tab) => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab as any)}
+                                        className={`relative px-4 py-3 text-sm font-semibold capitalize transition-all ${
+                                            activeTab === tab
+                                                ? "text-blue-600 border-b-2 border-blue-600"
+                                                : "text-slate-500 hover:text-slate-700"
+                                        }`}
+                                    >
+                                        {tab}
+                                        {tab === "comments" && bug.comments?.length > 0 && (
+                                            <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
+                                                {bug.comments.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Tab Content */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
+                                {activeTab === "details" && (
+                                    <div className="grid grid-cols-[1fr_280px] min-h-full">
+                                        {/* Left: Main Content */}
+                                        <div className="px-6 py-6 border-r border-slate-200">
+                                            {/* User Description */}
+                                            <div className="flex gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center shrink-0 text-sm font-bold text-orange-600">
+                                                    {(bug.reporterName || 'U')[0].toUpperCase()}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className="text-sm font-semibold text-slate-800">{bug.reporterName || "User"}</span>
+                                                        <span className="text-xs text-slate-400">
+                                                            {formatDistanceToNow(new Date(bug.createdAt), { addSuffix: true })}
+                                                        </span>
                                                     </div>
-                                                    <div className="flex-1 space-y-1">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-black text-white">{c.author}</span>
-                                                            <div className="w-0.5 h-0.5 rounded-full bg-slate-800" />
-                                                            <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">
-                                                                {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
-                                                            </span>
-                                                        </div>
-                                                        <div className="bg-white/[0.03] border border-white/5 rounded-lg rounded-tl-none p-3 text-[11px] text-slate-300 shadow-sm leading-relaxed">
-                                                            {c.body}
-                                                        </div>
+                                                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-700 leading-relaxed">
+                                                        {bug.description || "No description provided."}
                                                     </div>
                                                 </div>
-                                            ))}
+                                            </div>
                                         </div>
-                                        <form onSubmit={handleComment} className="pt-1">
-                                            <div className="relative group">
+
+                                        {/* Right: Metadata Sidebar */}
+                                        <div className="px-6 py-6 bg-gradient-to-br from-slate-50 to-white space-y-5">
+                                            {/* Reporter Info */}
+                                            <div className="space-y-2.5">
+                                                <label className="text-[10px] text-slate-500 font-bold block uppercase tracking-[0.1em]">Reporter</label>
+                                                <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-sm font-bold text-white shadow-md">
+                                                        {(bug.reporterName || 'U')[0].toUpperCase()}
+                                                    </div>
+                                                    <div className="text-sm text-slate-800 font-semibold">{bug.reporterName || "Anonymous"}</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Type */}
+                                            <div className="space-y-2.5">
+                                                <label className="text-[10px] text-slate-500 font-bold block uppercase tracking-[0.1em]">Type</label>
+                                                <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                                                    <div className="text-sm text-slate-800 font-semibold capitalize">
+                                                        {bug.type && bug.type !== "general" ? bug.type.replace(/-/g, ' ') : 'General'}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Browser */}
+                                            {bug.browser && (
+                                                <div className="space-y-2.5">
+                                                    <label className="text-[10px] text-slate-500 font-bold block uppercase tracking-[0.1em]">Browser</label>
+                                                    <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                                                        <div className="text-sm text-slate-700 font-medium leading-relaxed">{bug.browser}</div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* OS */}
+                                            {bug.os && (
+                                                <div className="space-y-2.5">
+                                                    <label className="text-[10px] text-slate-500 font-bold block uppercase tracking-[0.1em]">Operating System</label>
+                                                    <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                                                        <div className="text-sm text-slate-700 font-medium">{bug.os}</div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Page URL */}
+                                            {(bug.url && bug.url !== "Unknown") && (
+                                                <div className="space-y-2.5">
+                                                    <label className="text-[10px] text-slate-500 font-bold block uppercase tracking-[0.1em]">Page URL</label>
+                                                    <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                                                        <a 
+                                                            href={bug.url} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs text-blue-600 hover:text-blue-700 hover:underline break-all leading-relaxed font-medium"
+                                                        >
+                                                            {bug.url}
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Created Date */}
+                                            <div className="space-y-2.5 pt-4 border-t border-slate-200">
+                                                <label className="text-[10px] text-slate-500 font-bold block uppercase tracking-[0.1em]">Created</label>
+                                                <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                                                    <div className="text-sm text-slate-700 font-semibold">
+                                                        {new Date(bug.createdAt).toLocaleDateString('en-US', { 
+                                                            month: 'short', 
+                                                            day: 'numeric', 
+                                                            year: 'numeric',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === "comments" && (
+                                    <div className="px-6 py-6">
+                                        {/* Comments List */}
+                                        <div className="space-y-4 mb-6">
+                                            {bug.comments && bug.comments.length > 0 ? (
+                                                bug.comments.map((c: any) => (
+                                                    <div key={c._id} className="flex gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-cyan-100 border border-cyan-200 flex items-center justify-center shrink-0">
+                                                            <User className="w-4 h-4 text-cyan-600" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="text-sm font-semibold text-slate-800">{c.author}</span>
+                                                                <span className="text-xs text-slate-400">
+                                                                    {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                                                                </span>
+                                                            </div>
+                                                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700">
+                                                                {c.body}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-12 text-slate-400 text-sm">
+                                                    No comments yet
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Comment Input */}
+                                        <form onSubmit={handleComment} className="pt-4 border-t border-slate-200">
+                                            <div className="relative">
                                                 <input
                                                     value={comment}
                                                     onChange={(e) => setComment(e.target.value)}
-                                                    placeholder="Reply to this thread..."
-                                                    className="input w-full text-[10px] font-bold h-9.5 pl-4 pr-12 bg-white/5 border-white/5 focus:border-brand-500/50 transition-all rounded-lg shadow-inner placeholder:text-slate-700"
+                                                    placeholder="Add a comment..."
+                                                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 pr-12 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
                                                 />
                                                 <button 
                                                     type="submit" 
                                                     disabled={posting || !comment.trim()} 
-                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-brand-400 hover:bg-brand-500/10 disabled:opacity-30 transition-all shadow-xl"
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg text-blue-600 hover:bg-blue-50 disabled:opacity-30 transition-all"
                                                 >
-                                                    <Send className="w-3.5 h-3.5" />
+                                                    <Send className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </form>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {activeTab === "screenshot" && (
-                                <div>
-                                    {bug.screenshotUrl ? (
-                                        <>
-                                            <div className="flex items-center gap-2 mb-3">
-                                                {bug.mediaType === "video" ? (
-                                                    <Video className="w-4 h-4 text-brand-400" />
-                                                ) : (
-                                                    <ImageIcon className="w-4 h-4 text-brand-400" />
-                                                )}
-                                                <span className="text-xs text-slate-400 capitalize">{bug.mediaType ?? "Image"}</span>
-                                                <a href={bug.screenshotUrl} target="_blank" rel="noopener noreferrer"
-                                                    className="ml-auto btn-ghost text-xs flex items-center gap-1">
-                                                    <ExternalLink className="w-3 h-3" /> Open
-                                                </a>
-                                            </div>
-                                            {bug.mediaType === "video" ? (
-                                                <video
-                                                    src={bug.screenshotUrl}
-                                                    controls
-                                                    className="w-full rounded-lg border border-surface-border"
-                                                />
-                                            ) : (
-                                                <img
-                                                    src={bug.screenshotUrl}
-                                                    alt="Bug screenshot"
-                                                    className="w-full rounded-lg border border-surface-border"
-                                                />
-                                            )}
-                                        </>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center py-12 text-slate-600">
-                                            <ImageIcon className="w-10 h-10 mb-3" />
-                                            <p className="text-sm">No screenshot attached</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {activeTab === "env" && (
-                                <div className="space-y-8">
-                                    {bug.environmentData ? (
-                                        <>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">System Metadata</span>
-                                            </div>
-                                            
-                                            {bug.userAgent && (
-                                                <div className="space-y-3">
-                                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">User Agent</p>
-                                                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 font-mono text-[11px] text-slate-400 break-all leading-relaxed shadow-inner">
-                                                        {bug.userAgent}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div className="grid grid-cols-2 gap-4">
-                                                {bug.environmentData.windowSize && (
-                                                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col gap-1.5 shadow-inner">
-                                                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Window Size</span>
-                                                        <span className="text-xs font-bold text-white font-mono">
-                                                            {typeof bug.environmentData.windowSize === 'string' ? bug.environmentData.windowSize : `${bug.environmentData.windowSize.width}×${bug.environmentData.windowSize.height}`}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col gap-1.5 shadow-inner">
-                                                    <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Screen Resolution</span>
-                                                    <span className="text-xs font-bold text-white font-mono">{bug.screenResolution || "N/A"}</span>
-                                                </div>
-                                            </div>
-
-                                            {bug.environmentData.cookies && (
-                                                <div className="space-y-3">
-                                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Session Cookies</p>
-                                                    <div className="relative group">
-                                                        <pre className="bg-black/40 border border-white/5 rounded-2xl p-5 text-[11px] text-brand-400 overflow-x-auto max-h-40 font-mono leading-relaxed shadow-inner custom-scrollbar">
-                                                            {typeof bug.environmentData.cookies === "string"
-                                                                ? bug.environmentData.cookies.substring(0, 1000)
-                                                                : JSON.stringify(bug.environmentData.cookies, null, 2)}
-                                                        </pre>
-                                                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <CopyButton text={typeof bug.environmentData.cookies === "string" ? bug.environmentData.cookies : JSON.stringify(bug.environmentData.cookies)} />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {bug.environmentData.localStorage && (
-                                                <div className="space-y-3">
-                                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">LocalStorage Snapshot</p>
-                                                    <div className="relative group">
-                                                        <pre className="bg-black/40 border border-white/5 rounded-2xl p-5 text-[11px] text-emerald-400 overflow-x-auto max-h-60 font-mono leading-relaxed shadow-inner custom-scrollbar">
-                                                            {bug.environmentData.localStorage.substring(0, 2000)}
-                                                        </pre>
-                                                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <CopyButton text={bug.environmentData.localStorage} />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center py-20 text-slate-700 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl">
-                                            <Monitor className="w-12 h-12 mb-4 opacity-20" />
-                                            <p className="text-sm font-bold uppercase tracking-widest">No Environment Data</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {activeTab === "console" && (
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Runtime Console Logs</span>
-                                        </div>
-                                        {bug.consoleErrors && bug.consoleErrors.length > 0 && (
-                                            <span className="text-[10px] font-black bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full border border-red-500/20">
-                                                {bug.consoleErrors.length} ERRORS
-                                            </span>
-                                        )}
-                                    </div>
-                                    
-                                    {bug.consoleErrors && bug.consoleErrors.length > 0 ? (
+                                {activeTab === "activity" && (
+                                    <div className="px-6 py-6">
                                         <div className="space-y-3">
-                                            {bug.consoleErrors.map((e: any, i: number) => (
-                                                <div key={i} className="bg-red-500/[0.02] border border-red-500/10 rounded-2xl p-5 font-mono group hover:bg-red-500/[0.04] transition-all">
-                                                    <div className="flex items-start gap-4">
-                                                        <div className="p-1.5 rounded-lg bg-red-500/10 text-red-500 shrink-0">
-                                                            <XCircle className="w-4 h-4" />
+                                            {activities && activities.length > 0 ? (
+                                                activities.map((activity: any) => (
+                                                    <div key={activity._id} className="flex gap-3 text-sm">
+                                                        <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                                                            {ACTIVITY_ICONS[activity.type] || <Activity className="w-3 h-3 text-slate-400" />}
                                                         </div>
-                                                        <div className="flex-1 min-w-0 space-y-3">
-                                                            <div className="text-red-400 font-bold text-xs leading-relaxed break-all">
-                                                                {typeof e === 'string' ? e : e.message}
-                                                            </div>
-                                                            {e.file && (
-                                                                <div className="flex items-center gap-2 text-[10px] text-slate-500 font-black uppercase tracking-widest">
-                                                                    <Globe className="w-3 h-3" />
-                                                                    {e.file}:{e.line}:{e.column}
-                                                                </div>
-                                                            )}
-                                                            {e.stack && (
-                                                                <pre className="mt-3 text-[10px] text-slate-600 overflow-x-auto max-h-40 whitespace-pre-wrap leading-relaxed bg-black/20 p-4 rounded-xl border border-white/5 custom-scrollbar">
-                                                                    {e.stack}
-                                                                </pre>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center py-20 text-slate-700 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl">
-                                            <LayoutList className="w-12 h-12 mb-4 opacity-20" />
-                                            <p className="text-sm font-bold uppercase tracking-widest">Console Clean</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {activeTab === "network" && (
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Network Request Monitor</span>
-                                        </div>
-                                        {bug.networkLogs && bug.networkLogs.length > 0 && (
-                                            <span className="text-[10px] font-black bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full border border-amber-500/20">
-                                                {bug.networkLogs.length} FAILED
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {bug.networkLogs && bug.networkLogs.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {bug.networkLogs.map((log: any, i: number) => (
-                                                <div key={i} className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 font-mono group hover:bg-white/[0.04] transition-all shadow-sm">
-                                                    <div className="flex items-center gap-4 mb-4">
-                                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${log.status >= 500 ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'bg-amber-500/20 text-amber-400 border border-amber-500/20'}`}>
-                                                            {log.status || 'FAIL'}
-                                                        </span>
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{log.method}</span>
-                                                        <div className="ml-auto flex items-center gap-1.5 text-slate-600 text-[10px] font-black">
-                                                            <Clock className="w-3 h-3" /> {log.responseTime}ms
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-xs font-bold text-white break-all leading-relaxed mb-3">{log.url}</div>
-                                                    {log.error && (
-                                                        <div className="text-red-400/80 text-[10px] font-medium bg-red-500/5 p-3 rounded-xl border border-red-500/10 italic">
-                                                            {log.error}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center py-20 text-slate-700 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl">
-                                            <Globe className="w-12 h-12 mb-4 opacity-20" />
-                                            <p className="text-sm font-bold uppercase tracking-widest">No Failed Requests</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {activeTab === "activity" && (
-                                <div className="space-y-8">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(0,212,255,0.8)]" />
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Activity Timeline</span>
-                                        </div>
-                                    </div>
-
-                                    {!activities || activities.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center py-20 text-slate-700 bg-white/[0.01] border border-dashed border-white/5 rounded-3xl">
-                                            <Activity className="w-12 h-12 mb-4 opacity-20" />
-                                            <p className="text-sm font-bold uppercase tracking-widest">No Activity Yet</p>
-                                        </div>
-                                    ) : (
-                                        <div className="relative pl-8 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-gradient-to-b before:from-brand-500/50 before:via-slate-800 before:to-transparent">
-                                            {activities.map((act: any, idx: number) => (
-                                                <div key={act._id} className="relative group/activity">
-                                                    {/* Timeline Node */}
-                                                    <div className="absolute -left-8 top-1.5 w-6 h-6 rounded-full bg-[#09090E] border-2 border-slate-800 flex items-center justify-center z-10 group-hover/activity:border-brand-500 group-hover/activity:scale-110 transition-all shadow-[0_0_10px_rgba(0,0,0,0.5)]">
-                                                        <div className="p-1 rounded-full text-slate-500 group-hover/activity:text-brand-400 transition-colors">
-                                                            {ACTIVITY_ICONS[act.type] ?? <Activity className="w-3 h-3" />}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="text-xs font-black text-white">{act.actorName}</span>
-                                                            <div className="w-1 h-1 rounded-full bg-slate-800" />
-                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                                                {act.type === "created" && "created this issue"}
-                                                                {act.type === "asset_added" && "attached an asset"}
-                                                                {act.type === "status_changed" && `updated status`}
-                                                                {act.type === "priority_changed" && `changed priority`}
-                                                                {act.type === "comment_added" && "added a comment"}
-                                                                {act.type === "assignee_changed" && "changed assignee"}
-                                                                {act.type === "tags_changed" && "updated tags"}
-                                                                {act.type === "type_changed" && "changed type"}
-                                                                {act.type === "category_changed" && "changed category"}
+                                                        <div className="flex-1">
+                                                            <span className="text-slate-700">{activity.description}</span>
+                                                            <span className="text-xs text-slate-400 ml-2">
+                                                                {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
                                                             </span>
                                                         </div>
-
-                                                        {act.detail && (
-                                                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/5 text-[10px] font-bold text-brand-400 font-mono shadow-inner">
-                                                                <Hash className="w-3 h-3 text-slate-600" />
-                                                                {act.detail}
-                                                            </div>
-                                                        )}
-
-                                                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
-                                                            {formatDistanceToNow(new Date(act.createdAt), { addSuffix: true })}
-                                                        </p>
                                                     </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-12 text-slate-400 text-sm">
+                                                    No activity yet
                                                 </div>
-                                            ))}
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                                    </div>
+                                )}
+                            </div>
 
-                        {/* Footer Actions */}
-                        <div className="border-t border-surface-border px-5 py-3 flex justify-between items-center">
-                            {canDelete ? (
+                        {/* Bottom Actions */}
+                        <div className="px-6 py-4 border-t border-slate-200 bg-white shrink-0 flex items-center justify-between">
+                            <button
+                                onClick={onClose}
+                                className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all text-sm font-semibold"
+                            >
+                                Close
+                            </button>
+                            {canDelete && (
                                 <button
                                     onClick={handleDelete}
                                     disabled={deleting}
-                                    className="btn-ghost text-xs text-red-400 hover:text-red-300 flex items-center gap-1.5"
+                                    className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-all text-sm font-semibold"
                                 >
-                                    <Trash className="w-3.5 h-3.5" />
-                                    {deleting ? "Deleting…" : "Delete Bug"}
+                                    {deleting ? "Deleting..." : "Delete Issue"}
                                 </button>
-                            ) : (
-                                <div></div>
                             )}
-                            <button onClick={onClose} className="btn-ghost text-xs">
-                                Close
-                            </button>
+                        </div>
                         </div>
                     </>
                 )}
             </div>
         </div>
-        {showQuickAddType && (
-            <QuickAddModuleModal
-                devToken={devToken}
-                onClose={() => setShowQuickAddType(false)}
-                onCreated={(slug) => {
-                    handleTypeChange(slug);
-                    setShowQuickAddType(false);
-                }}
-            />
-        )}
     </>);
 }
 
@@ -1770,19 +1607,32 @@ function QuickAddModuleModal({ devToken, onClose, onCreated }: {
 // ─── Create Bug Modal ─────────────────────────────────────────────────────────
 
 
-function CreateBugModal({ projectId, devToken, onClose, initialType }: {
-    projectId: Id<"projects">; devToken: string | null; onClose: () => void; initialType?: string;
+function CreateBugModal({ projectId, project, devToken, onClose, initialType, initialStatus }: {
+    projectId: Id<"projects">; project: any; devToken: string | null; onClose: () => void; initialType?: string; initialStatus?: string;
 }) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [priority, setPriority] = useState<Priority>("medium");
     const [type, setType] = useState(initialType || "general");
+    const [status, setStatus] = useState(initialStatus || "open");
     const [category, setCategory] = useState("");
+    const [assignee, setAssignee] = useState<string>("");
+    const [dueDate, setDueDate] = useState("");
+    const [tags, setTags] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState("");
+    const [url, setUrl] = useState("");
+    const [screenshot, setScreenshot] = useState<File | null>(null);
+    const [screenshotPreview, setScreenshotPreview] = useState<string>("");
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showQuickAdd, setShowQuickAdd] = useState(false);
     const createBug = useMutation(api.bugs.dashboardManualCreateBug);
+    const updateBugStatus = useMutation(api.bugs.updateStatus);
+    const updateBug = useMutation(api.bugs.updateBug);
+    const generateUploadUrl = useMutation(api.bugs.generateUploadUrl);
     const customModules = useQuery(api.modules.listModules, { devToken: devToken || undefined });
     const currentUser = useQuery(api.users.currentUser, { devToken: devToken || undefined });
+    const members = useQuery(api.projects.listMembers, projectId ? { projectId, devToken: devToken || undefined } : "skip");
     const isSuperAdmin = currentUser?.role === "super_admin";
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -1790,7 +1640,32 @@ function CreateBugModal({ projectId, devToken, onClose, initialType }: {
         if (!title.trim() || !devToken) return;
         setLoading(true);
         try {
-            await createBug({
+            let screenshotUrl: string | undefined = undefined;
+
+            // Upload screenshot if provided
+            if (screenshot) {
+                setUploadingImage(true);
+                try {
+                    const uploadUrl = await generateUploadUrl({ 
+                        projectId, 
+                        apiKey: project.apiKey 
+                    });
+                    const result = await fetch(uploadUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": screenshot.type },
+                        body: screenshot,
+                    });
+                    const { storageId } = await result.json();
+                    screenshotUrl = storageId;
+                } catch (err) {
+                    console.error("Failed to upload screenshot:", err);
+                    alert("Failed to upload screenshot. Creating issue without it.");
+                } finally {
+                    setUploadingImage(false);
+                }
+            }
+
+            const newBugId = await createBug({
                 projectId,
                 title: title.trim(),
                 description: description.trim(),
@@ -1799,6 +1674,30 @@ function CreateBugModal({ projectId, devToken, onClose, initialType }: {
                 category: category.trim() || undefined,
                 devToken
             });
+            
+            // If initialStatus is provided and different from default, update the status
+            if (initialStatus && initialStatus !== "open" && newBugId) {
+                await updateBugStatus({ bugId: newBugId, status: initialStatus, devToken });
+            }
+
+            // Update additional fields if provided
+            if (newBugId) {
+                const updateData: any = {};
+                if (assignee) updateData.assigneeId = assignee;
+                if (dueDate) updateData.dueDate = new Date(dueDate).getTime();
+                if (tags.length > 0) updateData.tags = tags;
+                if (url) updateData.url = url;
+                if (screenshotUrl) updateData.screenshotUrl = screenshotUrl;
+
+                if (Object.keys(updateData).length > 0) {
+                    await updateBug({
+                        bugId: newBugId,
+                        ...updateData,
+                        devToken
+                    });
+                }
+            }
+            
             onClose();
         } catch (err: any) {
             alert(err.message || "Failed to create bug");
@@ -1807,67 +1706,375 @@ function CreateBugModal({ projectId, devToken, onClose, initialType }: {
         }
     };
 
+    const handleAddTag = () => {
+        if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+            setTags([...tags, tagInput.trim()]);
+            setTagInput("");
+        }
+    };
+
+    const handleRemoveTag = (tag: string) => {
+        setTags(tags.filter(t => t !== tag));
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Check file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert("File size must be less than 10MB");
+                return;
+            }
+            
+            // Check file type
+            if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+                alert("Please upload an image or video file");
+                return;
+            }
+
+            setScreenshot(file);
+            
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setScreenshotPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleRemoveScreenshot = () => {
+        setScreenshot(null);
+        setScreenshotPreview("");
+    };
+
     return (
         <>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-                <div className="relative w-full max-w-md bg-surface-card border border-surface-border rounded-xl shadow-2xl p-6">
-                    <div className="flex items-center gap-2 mb-5">
-                        <Plus className="w-4 h-4 text-brand-400" />
-                        <h3 className="text-sm font-semibold text-white">New Issue</h3>
-                        <button onClick={onClose} className="ml-auto btn-ghost p-1.5 text-slate-500">
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Title *</label>
-                            <input value={title} onChange={(e) => setTitle(e.target.value)} className="input w-full text-sm h-9" placeholder="Short, clear bug title" required />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Description</label>
-                            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="input w-full text-sm resize-none pt-2" placeholder="Steps to reproduce, expected vs. actual…" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-1.5 font-medium">Priority</label>
-                                <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)} className="input w-full text-sm h-9">
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="critical">Critical</option>
-                                </select>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+                <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                    {/* Header */}
+                    <div className="relative px-6 py-5 border-b border-slate-200 bg-white">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center shadow-sm">
+                                <Plus className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <label className="text-xs text-slate-400 font-medium">Type / Module</label>
+                                <h3 className="text-base font-bold text-slate-900">New Issue</h3>
+                                <p className="text-xs text-slate-500">Create a new bug report or issue</p>
+                            </div>
+                            <button 
+                                onClick={onClose} 
+                                className="ml-auto w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-all flex items-center justify-center"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Form */}
+                    <form onSubmit={handleSubmit} className="p-6 space-y-5 bg-white max-h-[calc(90vh-120px)] overflow-y-auto">
+                        {/* Title Input */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                <Bug className="w-3.5 h-3.5 text-cyan-500" />
+                                Issue Title
+                                <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative group">
+                                <input 
+                                    value={title} 
+                                    onChange={(e) => setTitle(e.target.value)} 
+                                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
+                                    placeholder="Short, clear bug title" 
+                                    required 
+                                />
+                                {title && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                                <Info className="w-3 h-3" />
+                                Be specific and descriptive
+                            </p>
+                        </div>
+
+                        {/* Description Textarea */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                                Description
+                            </label>
+                            <textarea 
+                                value={description} 
+                                onChange={(e) => setDescription(e.target.value)} 
+                                rows={4} 
+                                className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all resize-none" 
+                                placeholder="Steps to reproduce, expected vs. actual behavior..."
+                            />
+                            <GrammarChecker
+                                text={description}
+                                onApplySuggestion={(_, newText) => setDescription(newText)}
+                            />
+                            <p className="text-[10px] text-slate-500">
+                                {description.length} characters
+                            </p>
+                        </div>
+
+                        {/* Priority & Type Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                    Priority
+                                </label>
+                                <div className="relative">
+                                    <select 
+                                        value={priority} 
+                                        onChange={(e) => setPriority(e.target.value as Priority)} 
+                                        className="w-full px-4 py-3 bg-slate-900 border-2 border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="low">🟢 Low</option>
+                                        <option value="medium">🔵 Medium</option>
+                                        <option value="high">🟠 High</option>
+                                        <option value="critical">🔴 Critical</option>
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                        <Tag className="w-3.5 h-3.5 text-indigo-500" />
+                                        Type
+                                    </label>
                                     {isSuperAdmin && (
                                         <button
                                             type="button"
                                             onClick={() => setShowQuickAdd(true)}
-                                            className="inline-flex items-center gap-1 text-[10px] text-brand-400 hover:text-brand-300 transition-colors font-medium"
+                                            className="inline-flex items-center gap-1 text-[10px] text-cyan-600 hover:text-cyan-700 transition-colors font-semibold"
                                             title="Add new module type"
                                         >
-                                            <Plus className="w-3 h-3" /> New Type
+                                            <Plus className="w-3 h-3" /> New
                                         </button>
                                     )}
                                 </div>
-                                <select value={type} onChange={(e) => setType(e.target.value)} className="input w-full text-sm h-9">
-                                    <option value="general">🐛 General Bug</option>
-                                    {(customModules || []).map((mod: any) => (
-                                        <option key={mod.slug} value={mod.slug}>{mod.name}</option>
-                                    ))}
-                                </select>
+                                <div className="relative">
+                                    <select 
+                                        value={type} 
+                                        onChange={(e) => setType(e.target.value)} 
+                                        className="w-full px-4 py-3 bg-slate-900 border-2 border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="general">🐛 General Bug</option>
+                                        {(customModules || []).map((mod: any) => (
+                                            <option key={mod.slug} value={mod.slug}>{mod.name}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Category (Optional)</label>
-                            <input value={category} onChange={(e) => setCategory(e.target.value)} className="input w-full text-sm h-9" placeholder="e.g. Header, Billing, API..." />
+
+                        {/* Category Input */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                <LayoutList className="w-3.5 h-3.5 text-slate-500" />
+                                Category
+                                <span className="text-[10px] text-slate-500 normal-case font-normal">(Optional)</span>
+                            </label>
+                            <input 
+                                value={category} 
+                                onChange={(e) => setCategory(e.target.value)} 
+                                className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
+                                placeholder="e.g. Header, Billing, API..." 
+                            />
                         </div>
-                        <div className="flex gap-2 justify-end pt-1">
-                            <button type="button" onClick={onClose} className="btn-ghost text-sm h-9 px-4">Cancel</button>
-                            <button type="submit" disabled={loading || !title.trim()} className="btn-primary text-sm h-9 px-5">
-                                {loading ? "Creating…" : "Create Issue"}
+
+                        {/* URL Input */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                                Page URL
+                                <span className="text-[10px] text-slate-500 normal-case font-normal">(Optional)</span>
+                            </label>
+                            <input 
+                                type="url"
+                                value={url} 
+                                onChange={(e) => setUrl(e.target.value)} 
+                                className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
+                                placeholder="https://example.com/page-with-bug" 
+                            />
+                        </div>
+
+                        {/* Screenshot Upload */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                <ImageIcon className="w-3.5 h-3.5 text-pink-500" />
+                                Screenshot / Video
+                                <span className="text-[10px] text-slate-500 normal-case font-normal">(Optional, max 10MB)</span>
+                            </label>
+                            
+                            {!screenshotPreview ? (
+                                <label className="block">
+                                    <input 
+                                        type="file"
+                                        accept="image/*,video/*"
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                    />
+                                    <div className="w-full px-4 py-8 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl text-center cursor-pointer hover:bg-slate-100 hover:border-slate-400 transition-all">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-12 h-12 rounded-full bg-cyan-100 flex items-center justify-center">
+                                                <Upload className="w-6 h-6 text-cyan-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-slate-700">Click to upload</p>
+                                                <p className="text-xs text-slate-500">PNG, JPG, GIF, MP4 up to 10MB</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            ) : (
+                                <div className="relative group">
+                                    {screenshot?.type.startsWith('video/') ? (
+                                        <video 
+                                            src={screenshotPreview} 
+                                            className="w-full h-48 object-cover rounded-xl border-2 border-slate-200"
+                                            controls
+                                        />
+                                    ) : (
+                                        <img 
+                                            src={screenshotPreview} 
+                                            alt="Preview" 
+                                            className="w-full h-48 object-cover rounded-xl border-2 border-slate-200"
+                                        />
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleRemoveScreenshot}
+                                        className="absolute top-2 right-2 p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                    <div className="absolute bottom-2 left-2 px-3 py-1 rounded-lg bg-black/70 text-white text-xs font-semibold">
+                                        {screenshot?.name}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Assignee & Due Date Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                    <User className="w-3.5 h-3.5 text-purple-500" />
+                                    Assignee
+                                    <span className="text-[10px] text-slate-500 normal-case font-normal">(Optional)</span>
+                                </label>
+                                <div className="relative">
+                                    <select 
+                                        value={assignee} 
+                                        onChange={(e) => setAssignee(e.target.value)} 
+                                        className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Unassigned</option>
+                                        {(members || []).map((m: any) => (
+                                            <option key={m.userId} value={m.userId}>
+                                                {m.name || m.email || m.userId}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                    <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                                    Due Date
+                                    <span className="text-[10px] text-slate-500 normal-case font-normal">(Optional)</span>
+                                </label>
+                                <input 
+                                    type="date"
+                                    value={dueDate} 
+                                    onChange={(e) => setDueDate(e.target.value)} 
+                                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
+                                />
+                            </div>
+                        </div>
+
+                        {/* Tags Input */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
+                                <Hash className="w-3.5 h-3.5 text-green-500" />
+                                Tags
+                                <span className="text-[10px] text-slate-500 normal-case font-normal">(Optional)</span>
+                            </label>
+                            <div className="flex gap-2">
+                                <input 
+                                    value={tagInput} 
+                                    onChange={(e) => setTagInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddTag();
+                                        }
+                                    }}
+                                    className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
+                                    placeholder="Add tags..." 
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddTag}
+                                    className="px-4 py-3 bg-slate-100 border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-all"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                            {tags.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {tags.map((tag) => (
+                                        <span key={tag} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-lg text-xs font-semibold border border-cyan-200">
+                                            {tag}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveTag(tag)}
+                                                className="hover:text-cyan-900 transition-colors"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-2">
+                            <button 
+                                type="button" 
+                                onClick={onClose} 
+                                className="flex-1 px-5 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="submit" 
+                                disabled={loading || uploadingImage || !title.trim()} 
+                                className="flex-1 px-5 py-3 bg-cyan-500 rounded-xl text-sm font-bold text-white hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                            >
+                                {loading || uploadingImage ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        {uploadingImage ? "Uploading..." : "Creating…"}
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        Create Issue
+                                    </>
+                                )}
                             </button>
                         </div>
                     </form>
@@ -1899,8 +2106,31 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         if (stored) setDevToken(stored);
     }, []);
 
-    const isValidId = rawProjectId.length >= 10;
-    const projectId = (isValidId ? rawProjectId : undefined) as Id<"projects"> | undefined;
+    // Validate that the ID is actually from the projects table
+    // Convex IDs start with a table identifier prefix
+    const isValidProjectId = rawProjectId.length >= 10 && !rawProjectId.startsWith('bookings_') && !rawProjectId.includes('booking');
+    const projectId = (isValidProjectId ? rawProjectId : undefined) as Id<"projects"> | undefined;
+
+    // Show error for invalid project IDs
+    if (!isValidProjectId) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+                <div className="bg-white border-2 border-red-200 rounded-2xl p-8 max-w-md text-center shadow-lg">
+                    <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                        <AlertCircle className="w-8 h-8 text-red-600" />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-800 mb-2">Invalid Project ID</h2>
+                    <p className="text-slate-600 mb-6">
+                        The URL contains an invalid project identifier. Please check the link and try again.
+                    </p>
+                    <Link href="/dashboard" className="btn-primary inline-flex items-center gap-2">
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Dashboard
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     const project = useQuery(api.projects.getProject, projectId ? { projectId, devToken: devToken || undefined } : "skip");
     const bugs = useQuery(api.bugs.getBugs, projectId ? { projectId, devToken: devToken || undefined } : "skip");
@@ -1912,16 +2142,29 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
     const [selectedBugId, setSelectedBugId] = useState<Id<"bugs"> | null>(null);
     const [showCreateBugModal, setShowCreateBugModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [initialStatus, setInitialStatus] = useState<string | undefined>(undefined);
     const [view, setView] = useState<string>("kanban");
     const [searchQuery, setSearchQuery] = useState("");
     const [typeFilter, setTypeFilter] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [priorityFilter, setPriorityFilter] = useState<string>("all");
+    const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
     const [showAddBucketInput, setShowAddBucketInput] = useState(false);
     const [newBucketLabel, setNewBucketLabel] = useState("");
     const [addingBucket, setAddingBucket] = useState(false);
     const [movingBucketStatus, setMovingBucketStatus] = useState<string | null>(null);
+    const [showCustomizeDropdown, setShowCustomizeDropdown] = useState(false);
+    const [groupBy, setGroupBy] = useState<"status" | "priority" | "assignee">("status");
+    const [sortBy, setSortBy] = useState<"created" | "updated" | "due">("created");
+    const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+    const [showScreenshot, setShowScreenshot] = useState(true);
+    const [showSentiment, setShowSentiment] = useState(false);
+    const [showBoardViewDropdown, setShowBoardViewDropdown] = useState(false);
+    const [boardView, setBoardView] = useState<"status" | "priority" | "assignee">("status");
     const kanbanScrollRef = useRef<HTMLDivElement | null>(null);
+    const customizeRef = useRef<HTMLDivElement | null>(null);
+    const boardViewRef = useRef<HTMLDivElement | null>(null);
 
     const customModules = useQuery(api.modules.listModules, { devToken: devToken || undefined });
     const projectStatuses = useQuery(api.statuses.getProjectStatuses, projectId ? { projectId, devToken: devToken || undefined } : "skip");
@@ -1957,6 +2200,20 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         }
     }, [statusColumnCount, view]);
 
+    // Close customize dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (customizeRef.current && !customizeRef.current.contains(event.target as Node)) {
+                setShowCustomizeDropdown(false);
+            }
+            if (boardViewRef.current && !boardViewRef.current.contains(event.target as Node)) {
+                setShowBoardViewDropdown(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     if (project === undefined || bugs === undefined) return <LoadingSkeleton />;
     if (project === null) {
         return (
@@ -1974,10 +2231,31 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             (typeFilter === "general" ? (!bug.type || bug.type === "general") : bug.type === typeFilter);
         const matchesStatus = statusFilter === "all" || bug.status === statusFilter;
         const matchesPriority = priorityFilter === "all" || bug.priority === priorityFilter;
-        return matchesSearch && matchesType && matchesStatus && matchesPriority;
+        const matchesAssignee = assigneeFilter === "all" || 
+            (assigneeFilter === "unassigned" ? !bug.assigneeId : bug.assigneeId === assigneeFilter);
+        return matchesSearch && matchesType && matchesStatus && matchesPriority && matchesAssignee;
     });
 
-    const bugsByStatus = (status: Status) => filteredBugs.filter((b: any) => b.status === status);
+    // Sort filtered bugs
+    const sortedBugs = [...filteredBugs].sort((a, b) => {
+        let comparison = 0;
+        if (sortBy === "created") {
+            comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        } else if (sortBy === "updated") {
+            comparison = new Date(a._creationTime).getTime() - new Date(b._creationTime).getTime();
+        } else if (sortBy === "due") {
+            const aDate = a.dueDate || 0;
+            const bDate = b.dueDate || 0;
+            comparison = aDate - bDate;
+        }
+        return sortOrder === "newest" ? -comparison : comparison;
+    });
+
+    const bugsByStatus = (status: Status) => sortedBugs.filter((b: any) => b.status === status);
+    const bugsByPriority = (priority: Priority) => sortedBugs.filter((b: any) => b.priority === priority);
+    const bugsByAssignee = (assigneeId: string | null) => sortedBugs.filter((b: any) => 
+        assigneeId === null ? !b.assigneeId : b.assigneeId === assigneeId
+    );
     const kanbanColumns = ((projectStatuses && projectStatuses.length ? projectStatuses : DEFAULT_COLUMNS) as any[]).map((status: any) => {
         const normalizedStatus = status.value ?? status.status;
         const fallback = DEFAULT_COLUMNS.find(c => c.status === normalizedStatus);
@@ -2503,26 +2781,31 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         document.body.removeChild(link);
     };
 
+    const handleAddIssueToColumn = (status: string) => {
+        setInitialStatus(status);
+        setShowCreateBugModal(true);
+    };
+
     const TAB_LABELS: Record<string, string> = {
         kanban: "Kanban", list: "List", team: "Users", integrations: "API", settings: "Settings"
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-[#09090E]">
+        <div className="min-h-screen flex flex-col bg-slate-50" suppressHydrationWarning>
             <Navbar />
             <div className="flex-1 flex flex-col max-w-[1700px] mx-auto w-full px-6 sm:px-8 lg:px-10 py-10 gap-8">
-                <div className="rounded-[28px] border border-surface-border/70 bg-surface-card/25 backdrop-blur-2xl p-6 lg:p-8 shadow-[0_18px_70px_-36px_rgba(0,0,0,0.9)]">
+                <div className="rounded-[28px] border border-slate-200 bg-white backdrop-blur-2xl p-6 lg:p-8 shadow-sm">
                     <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8">
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">
                                 <Link href="/" className="hover:text-brand-400 transition-all flex items-center gap-2 group">
                                     <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" /> Projects
                                 </Link>
-                                <span className="text-slate-800">/</span>
-                                <span className="text-slate-400 truncate max-w-[240px]">{project.name}</span>
+                                <span className="text-slate-300">/</span>
+                                <span className="text-slate-600 truncate max-w-[240px]">{project.name}</span>
                             </div>
                             <div className="flex items-center gap-4 flex-wrap">
-                                <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                                <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">
                                     {project.name}
                                 </h1>
                                 {project.domain && (
@@ -2544,50 +2827,73 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
                         {stats && (
                             <div className="flex flex-wrap gap-2 w-full xl:w-auto">
-                                {/* Total */}
-                                <div className="flex items-center gap-2 rounded-xl border border-surface-border/70 bg-gradient-to-br from-slate-500/20 to-transparent px-3 py-2 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 min-w-[80px]">
-                                    <span className="p-1 rounded-lg bg-black/25 text-white shrink-0"><Hash className="w-3 h-3" /></span>
+                                {/* Total - Always colorized */}
+                                <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm hover:shadow transition-all min-w-[100px]">
+                                    <span className="p-1.5 rounded-lg bg-slate-100 text-slate-600 shrink-0"><Hash className="w-3.5 h-3.5" /></span>
                                     <div className="flex flex-col">
-                                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-500 leading-none">Total</span>
-                                        <p className="text-base font-black text-white leading-tight">{stats.total}</p>
+                                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 leading-none">Total</span>
+                                        <p className="text-lg font-black text-slate-800 leading-tight">{stats.total}</p>
                                     </div>
                                 </div>
 
-                                {/* Critical */}
-                                <div className="flex items-center gap-2 rounded-xl border border-surface-border/70 bg-gradient-to-br from-red-500/20 to-transparent px-3 py-2 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 min-w-[80px]">
-                                    <span className="p-1 rounded-lg bg-black/25 text-red-400 shrink-0"><AlertTriangle className="w-3 h-3" /></span>
+                                {/* Critical - Colorized only if count > 0 */}
+                                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm hover:shadow transition-all min-w-[100px] ${
+                                    stats.critical > 0 
+                                        ? 'border-red-200 bg-red-50' 
+                                        : 'border-slate-200 bg-slate-50'
+                                }`}>
+                                    <span className={`p-1.5 rounded-lg shrink-0 ${
+                                        stats.critical > 0 
+                                            ? 'bg-red-100 text-red-500' 
+                                            : 'bg-slate-100 text-slate-400'
+                                    }`}>
+                                        <AlertTriangle className="w-3.5 h-3.5" />
+                                    </span>
                                     <div className="flex flex-col">
-                                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-500 leading-none">Critical</span>
-                                        <p className="text-base font-black text-red-400 leading-tight">{stats.critical}</p>
+                                        <span className={`text-[9px] font-bold uppercase tracking-wider leading-none ${
+                                            stats.critical > 0 ? 'text-red-600' : 'text-slate-400'
+                                        }`}>Critical</span>
+                                        <p className={`text-lg font-black leading-tight ${
+                                            stats.critical > 0 ? 'text-red-600' : 'text-slate-400'
+                                        }`}>{stats.critical}</p>
                                     </div>
                                 </div>
 
-                                {/* One card per project status */}
+                                {/* One card per project status - Colorized only if count > 0 */}
                                 {(projectStatuses && projectStatuses.length ? projectStatuses : DEFAULT_COLUMNS).map((ps: any) => {
                                     const statusValue = ps.value ?? ps.status;
                                     const statusLabel = ps.label;
                                     const statusColor = ps.color ?? "text-slate-400";
-
-                                    const colorMap: Record<string, { gradient: string; text: string; icon: React.ReactNode }> = {
-                                        "text-blue-400":   { gradient: "from-blue-500/20 to-transparent",   text: "text-blue-400",   icon: <CircleDot className="w-3 h-3" /> },
-                                        "text-amber-400":  { gradient: "from-amber-500/20 to-transparent",  text: "text-amber-400",  icon: <Clock className="w-3 h-3" /> },
-                                        "text-green-400":  { gradient: "from-green-500/20 to-transparent",  text: "text-green-400",  icon: <CheckCircle2 className="w-3 h-3" /> },
-                                        "text-slate-500":  { gradient: "from-slate-500/20 to-transparent",  text: "text-slate-400",  icon: <XCircle className="w-3 h-3" /> },
-                                        "text-indigo-400": { gradient: "from-indigo-500/20 to-transparent", text: "text-indigo-400", icon: <CircleDot className="w-3 h-3" /> },
-                                        "text-purple-400": { gradient: "from-purple-500/20 to-transparent", text: "text-purple-400", icon: <CircleDot className="w-3 h-3" /> },
-                                        "text-pink-400":   { gradient: "from-pink-500/20 to-transparent",   text: "text-pink-400",   icon: <CircleDot className="w-3 h-3" /> },
-                                        "text-cyan-400":   { gradient: "from-cyan-500/20 to-transparent",   text: "text-cyan-400",   icon: <CircleDot className="w-3 h-3" /> },
-                                        "text-red-400":    { gradient: "from-red-500/20 to-transparent",    text: "text-red-400",    icon: <AlertCircle className="w-3 h-3" /> },
-                                    };
-                                    const cfg = colorMap[statusColor] ?? { gradient: "from-slate-500/20 to-transparent", text: "text-slate-400", icon: <CircleDot className="w-3 h-3" /> };
                                     const count = (bugs ?? []).filter((b: any) => b.status === statusValue).length;
+                                    const hasCount = count > 0;
+
+                                    const colorMap: Record<string, { bg: string; border: string; iconBg: string; text: string; icon: React.ReactNode }> = {
+                                        "text-blue-400":   { bg: "bg-blue-50",   border: "border-blue-200",   iconBg: "bg-blue-100",   text: "text-blue-600",   icon: <CircleDot className="w-3.5 h-3.5" /> },
+                                        "text-amber-400":  { bg: "bg-amber-50",  border: "border-amber-200",  iconBg: "bg-amber-100",  text: "text-amber-600",  icon: <Clock className="w-3.5 h-3.5" /> },
+                                        "text-green-400":  { bg: "bg-green-50",  border: "border-green-200",  iconBg: "bg-green-100",  text: "text-green-600",  icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+                                        "text-slate-500":  { bg: "bg-slate-50",  border: "border-slate-200",  iconBg: "bg-slate-100",  text: "text-slate-600",  icon: <XCircle className="w-3.5 h-3.5" /> },
+                                        "text-indigo-400": { bg: "bg-indigo-50", border: "border-indigo-200", iconBg: "bg-indigo-100", text: "text-indigo-600", icon: <CircleDot className="w-3.5 h-3.5" /> },
+                                        "text-purple-400": { bg: "bg-purple-50", border: "border-purple-200", iconBg: "bg-purple-100", text: "text-purple-600", icon: <CircleDot className="w-3.5 h-3.5" /> },
+                                        "text-pink-400":   { bg: "bg-pink-50",   border: "border-pink-200",   iconBg: "bg-pink-100",   text: "text-pink-600",   icon: <CircleDot className="w-3.5 h-3.5" /> },
+                                        "text-cyan-400":   { bg: "bg-cyan-50",   border: "border-cyan-200",   iconBg: "bg-cyan-100",   text: "text-cyan-600",   icon: <CircleDot className="w-3.5 h-3.5" /> },
+                                        "text-red-400":    { bg: "bg-red-50",    border: "border-red-200",    iconBg: "bg-red-100",    text: "text-red-600",    icon: <AlertCircle className="w-3.5 h-3.5" /> },
+                                    };
+                                    const cfg = colorMap[statusColor] ?? { bg: "bg-slate-50", border: "border-slate-200", iconBg: "bg-slate-100", text: "text-slate-600", icon: <CircleDot className="w-3.5 h-3.5" /> };
 
                                     return (
-                                        <div key={statusValue} className={`flex items-center gap-2 rounded-xl border border-surface-border/70 bg-gradient-to-br ${cfg.gradient} px-3 py-2 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 min-w-[80px]`}>
-                                            <span className={`p-1 rounded-lg bg-black/25 ${cfg.text} shrink-0`}>{cfg.icon}</span>
+                                        <div key={statusValue} className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm hover:shadow transition-all min-w-[100px] ${
+                                            hasCount ? `${cfg.bg} ${cfg.border}` : 'bg-slate-50 border-slate-200'
+                                        }`}>
+                                            <span className={`p-1.5 rounded-lg shrink-0 ${
+                                                hasCount ? `${cfg.iconBg} ${cfg.text}` : 'bg-slate-100 text-slate-400'
+                                            }`}>{cfg.icon}</span>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="text-[8px] font-black uppercase tracking-[0.15em] text-slate-500 leading-none truncate">{statusLabel}</span>
-                                                <p className={`text-base font-black ${cfg.text} leading-tight`}>{count}</p>
+                                                <span className={`text-[9px] font-bold uppercase tracking-wider leading-none truncate ${
+                                                    hasCount ? cfg.text : 'text-slate-400'
+                                                }`}>{statusLabel}</span>
+                                                <p className={`text-lg font-black leading-tight ${
+                                                    hasCount ? cfg.text : 'text-slate-400'
+                                                }`}>{count}</p>
                                             </div>
                                         </div>
                                     );
@@ -2597,161 +2903,408 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                     </div>
                 </div>
 
-                <div className="sticky top-5 z-40 bg-[#0A0A10]/80 backdrop-blur-3xl border border-white/5 rounded-[28px] px-5 lg:px-7 pt-4 pb-5 shadow-[0_28px_56px_-16px_rgba(0,0,0,0.6)]">
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
                     {/* Toolbar */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-                        <div className="flex gap-1.5 p-1.5 bg-surface-card/50 border border-surface-border rounded-2xl w-full md:w-auto shadow-inner">
-                            {(["kanban", "list"] as const).map((v) => (
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-4 py-3 border-b border-slate-100">
+                        {/* Left: View Tabs */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setView("kanban")}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                    view === "kanban" 
+                                        ? "bg-cyan-500 text-white shadow-sm" 
+                                        : "text-slate-600 hover:bg-slate-50"
+                                }`}
+                            >
+                                <KanbanIcon className="w-4 h-4" />
+                                KANBAN
+                            </button>
+                            <button
+                                onClick={() => setView("list")}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                    view === "list" 
+                                        ? "bg-cyan-500 text-white shadow-sm" 
+                                        : "text-slate-600 hover:bg-slate-50"
+                                }`}
+                            >
+                                <LayoutList className="w-4 h-4" />
+                                LIST
+                            </button>
+                            
+                            {/* Admin Tabs */}
+                            {canManageUsers && (
                                 <button
-                                    key={v}
-                                    onClick={() => setView(v)}
-                                    className={`flex-1 md:flex-none px-6 py-2.5 text-xs font-bold uppercase tracking-widest rounded-xl transition-all ${view === v ? "bg-brand-500 text-white shadow-xl shadow-brand-500/25" : "text-slate-500 hover:text-slate-200 hover:bg-surface-elevated"}`}
+                                    onClick={() => setView("team")}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                        view === "team" 
+                                            ? "bg-cyan-500 text-white shadow-sm" 
+                                            : "text-slate-600 hover:bg-slate-50"
+                                    }`}
                                 >
-                                    <span className="flex items-center gap-2.5 justify-center">
-                                        {v === "kanban" ? <KanbanIcon className="w-4 h-4" /> : <LayoutList className="w-4 h-4" />}
-                                        {TAB_LABELS[v]}
-                                    </span>
+                                    <Users className="w-4 h-4" />
+                                    TEAM
                                 </button>
-                            ))}
-
-                            <div className="w-px h-5 bg-surface-border my-auto mx-2 hidden md:block" />
-
-                            {/* Admin Sections */}
-                            <div className="flex gap-1.5">
-                                {(["team", "integrations", "settings"] as const).map((v) => {
-                                    if (v === "team" && !canManageUsers) return null;
-                                    if (v === "integrations" && !canViewApi) return null;
-                                    if (v === "settings" && !canViewSettings) return null;
-                                    return (
-                                        <button
-                                            key={v}
-                                            onClick={() => setView(v)}
-                                            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all ${view === v ? "bg-brand-500 text-white shadow-xl shadow-brand-500/25" : "text-slate-500 hover:text-slate-300 hover:bg-surface-elevated"}`}
-                                            title={TAB_LABELS[v]}
-                                        >
-                                            {v === "team" && <Users className="w-4 h-4" />}
-                                            {v === "integrations" && <Zap className="w-4 h-4" />}
-                                            {v === "settings" && <Settings className="w-4 h-4" />}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            )}
+                            {canViewApi && (
+                                <button
+                                    onClick={() => setView("integrations")}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                        view === "integrations" 
+                                            ? "bg-cyan-500 text-white shadow-sm" 
+                                            : "text-slate-600 hover:bg-slate-50"
+                                    }`}
+                                >
+                                    <Zap className="w-4 h-4" />
+                                    API
+                                </button>
+                            )}
+                            {canViewSettings && (
+                                <button
+                                    onClick={() => setView("settings")}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                        view === "settings" 
+                                            ? "bg-cyan-500 text-white shadow-sm" 
+                                            : "text-slate-600 hover:bg-slate-50"
+                                    }`}
+                                >
+                                    <Settings className="w-4 h-4" />
+                                    SETTINGS
+                                </button>
+                            )}
                         </div>
 
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                            <button onClick={() => setShowCreateBugModal(true)} className="flex-1 md:flex-none btn-primary text-xs font-bold uppercase tracking-widest flex items-center gap-2.5 px-6 h-12 shadow-xl shadow-brand-500/20">
-                                <Plus className="w-5 h-5" /> New Issue
+                        {/* Right: Action Buttons */}
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => setShowCreateBugModal(true)} 
+                                className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg text-sm font-semibold hover:bg-cyan-600 transition-all shadow-sm"
+                            >
+                                <Plus className="w-4 h-4" />
+                                NEW ISSUE
                             </button>
                             {isProjectAdmin && (
-                                <div className="flex items-center gap-2">
+                                <>
+                                    <button
+                                        onClick={() => setShowImportModal(true)}
+                                        className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
+                                        title="Import bugs from CSV/JSON"
+                                    >
+                                        <Upload className="w-4 h-4" />
+                                        IMPORT
+                                    </button>
                                     <button
                                         onClick={handleExportHTML}
-                                        className="p-3 rounded-2xl border border-surface-border bg-surface-card text-brand-400 hover:text-brand-300 hover:border-brand-500/30 transition-all shadow-lg hover:bg-surface-elevated flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
-                                        title="Export all issues to HTML"
+                                        className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
+                                        title="Export to HTML"
                                     >
-                                        <Globe className="w-4 h-4" /> HTML
+                                        <Globe className="w-4 h-4" />
+                                        HTML
                                     </button>
                                     <button
                                         onClick={handleExport}
-                                        className="p-3 rounded-2xl border border-surface-border bg-surface-card text-slate-400 hover:text-white hover:border-slate-500 transition-all shadow-lg hover:bg-surface-elevated flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
-                                        title="Export all issues to CSV"
+                                        className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
+                                        title="Export to CSV"
                                     >
-                                        <Download className="w-4 h-4" /> CSV
+                                        <Download className="w-4 h-4" />
+                                        CSV
                                     </button>
-                                </div>
+                                </>
                             )}
                         </div>
                     </div>
 
-                    {/* Search / Filter bar for list/kanban */}
+                    {/* Filter Bar */}
                     {(view === "kanban" || view === "list") && (
-                        <div className="flex flex-col gap-6 pb-6">
-                            <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
-                                <div className="relative flex-1 group">
-                                    <Search className="w-5 h-5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-brand-400 transition-colors" />
-                                    <input
-                                        type="text"
-                                        className="input pl-12 h-12 text-sm w-full bg-surface-card/50 border-surface-border/50 focus:border-brand-500/50 transition-all rounded-2xl shadow-inner"
-                                        placeholder="Search by title, URL, or ID..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2 px-4 h-12 bg-surface-card/50 border border-surface-border/50 rounded-2xl shadow-inner">
-                                        <CircleDot className="w-4 h-4 text-slate-500" />
-                                        <select
-                                            value={statusFilter}
-                                            onChange={(e) => setStatusFilter(e.target.value)}
-                                            className="bg-transparent text-xs font-bold uppercase tracking-widest text-slate-300 outline-none w-[120px] cursor-pointer"
-                                        >
-                                            <option value="all">All Status</option>
-                                            {kanbanColumns.map((statusCol) => (
-                                                <option key={statusCol.status} value={statusCol.status}>
-                                                    {statusCol.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="flex items-center gap-2 px-4 h-12 bg-surface-card/50 border border-surface-border/50 rounded-2xl shadow-inner">
-                                        <AlertTriangle className="w-4 h-4 text-slate-500" />
-                                        <select
-                                            value={priorityFilter}
-                                            onChange={(e) => setPriorityFilter(e.target.value)}
-                                            className="bg-transparent text-xs font-bold uppercase tracking-widest text-slate-300 outline-none w-[120px] cursor-pointer"
-                                        >
-                                            <option value="all">All Priority</option>
-                                            <option value="low">Low</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="high">High</option>
-                                            <option value="critical">Critical</option>
-                                        </select>
-                                    </div>
-                                </div>
+                        <div className="sticky top-0 z-30 bg-white px-4 py-3 flex flex-col lg:flex-row gap-3 lg:items-center justify-between shadow-sm">
+                            {/* Left: Search */}
+                            <div className="relative flex-1 max-w-xs">
+                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    className="w-full pl-9 pr-3 h-9 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-slate-300 transition-all placeholder:text-slate-400"
+                                    placeholder="Search feedback"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
                             </div>
-
-                        {/* Type Filter Pills */}
-                        {allTypeFilters.length > 2 && (
+                            
+                            {/* Right: Filters */}
                             <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium shrink-0">Filter by type:</span>
-                                <div className="flex gap-1.5 flex-wrap">
-                                    {allTypeFilters.map((tf) => (
-                                        <button
-                                            key={tf.value}
-                                            onClick={() => setTypeFilter(tf.value)}
-                                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-all ${typeFilter === tf.value
-                                                    ? "bg-brand-500 border-brand-400 text-white shadow-sm shadow-brand-500/30"
-                                                    : "bg-surface-card border-surface-border text-slate-400 hover:text-white hover:border-slate-600"
-                                                }`}
-                                        >
-                                            {tf.icon && <span className="w-3 h-3">{tf.icon}</span>}
-                                            {tf.label}
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter === tf.value ? "bg-white/20 text-white" : "bg-surface-elevated text-slate-500"
-                                                }`}>{tf.count}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                                {typeFilter !== "all" && (
-                                    <button
-                                        onClick={() => setTypeFilter("all")}
-                                        className="text-[10px] text-slate-500 hover:text-white flex items-center gap-1 transition-colors"
+                                {/* Type Filter */}
+                                <div className="relative">
+                                    <select
+                                        value={typeFilter}
+                                        onChange={(e) => setTypeFilter(e.target.value)}
+                                        className="h-9 pl-3 pr-8 text-sm rounded-lg cursor-pointer transition-all appearance-none font-semibold bg-white text-slate-900 border border-slate-200 hover:border-slate-300"
                                     >
-                                        <X className="w-3 h-3" /> Clear
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                                        <option value="all">Type</option>
+                                        <option value="general">General</option>
+                                        {(customModules || []).map((mod: any) => (
+                                            <option key={mod.slug} value={mod.slug}>{mod.name}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                </div>
 
-                        {/* Active filter indicator */}
-                        {typeFilter !== "all" && (
-                            <div className="flex items-center gap-2 text-xs text-slate-400 bg-brand-900/20 border border-brand-800/40 rounded-lg px-3 py-2">
-                                <Tag className="w-3.5 h-3.5 text-brand-400" />
-                                Showing <span className="font-semibold text-brand-300 capitalize">{typeFilter.replace(/-/g, ' ')}</span> issues only
-                                <span className="ml-auto text-[10px] bg-brand-800/40 px-2 py-0.5 rounded-full">{filteredBugs.length} issue{filteredBugs.length !== 1 ? 's' : ''}</span>
+                                {/* Status Filter */}
+                                <div className="relative">
+                                    <select
+                                        value={statusFilter}
+                                        onChange={(e) => setStatusFilter(e.target.value)}
+                                        className="h-9 pl-3 pr-8 text-sm rounded-lg cursor-pointer transition-all appearance-none font-semibold bg-white text-slate-900 border border-slate-200 hover:border-slate-300"
+                                    >
+                                        <option value="all">Status</option>
+                                        {kanbanColumns.map((statusCol) => (
+                                            <option key={statusCol.status} value={statusCol.status}>
+                                                {statusCol.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                </div>
+
+                                {/* Assignee Filter */}
+                                <div className="relative">
+                                    <select
+                                        value={assigneeFilter}
+                                        onChange={(e) => setAssigneeFilter(e.target.value)}
+                                        className="h-9 pl-3 pr-8 text-sm rounded-lg cursor-pointer transition-all appearance-none font-semibold bg-white text-slate-900 border border-slate-200 hover:border-slate-300"
+                                    >
+                                        <option value="all">Assignee {members && members.length > 0 ? members.length : ''}</option>
+                                        <option value="unassigned">Unassigned</option>
+                                        {(members || []).map((m: any) => (
+                                            <option key={m.userId} value={m.userId}>
+                                                {m.name || m.email || m.userId}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                </div>
+
+                                {/* Priority Filter */}
+                                <div className="relative">
+                                    <select
+                                        value={priorityFilter}
+                                        onChange={(e) => setPriorityFilter(e.target.value)}
+                                        className="h-9 pl-3 pr-8 text-sm rounded-lg cursor-pointer transition-all appearance-none font-semibold bg-white text-slate-900 border border-slate-200 hover:border-slate-300"
+                                    >
+                                        <option value="all">Priority</option>
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="critical">Critical</option>
+                                    </select>
+                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                </div>
+
+                                {/* Customize - Purple Gradient */}
+                                <div className="relative" ref={customizeRef}>
+                                    <button
+                                        onClick={() => setShowCustomizeDropdown(!showCustomizeDropdown)}
+                                        className="h-9 pl-3 pr-8 text-sm bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg hover:border-indigo-300 transition-all text-indigo-600 font-semibold shadow-sm hover:shadow relative"
+                                    >
+                                        Customize
+                                        <ChevronDown className="w-4 h-4 text-indigo-400 absolute right-2 top-1/2 -translate-y-1/2" />
+                                    </button>
+                                    
+                                    {showCustomizeDropdown && (
+                                            <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 py-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                {/* Group By Section */}
+                                                <div className="px-4 py-2">
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Group By</p>
+                                                    <button
+                                                        onClick={() => setGroupBy("status")}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            groupBy === "status" 
+                                                                ? "bg-indigo-50 text-indigo-600" 
+                                                                : "text-slate-600 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        <span>Status</span>
+                                                        {groupBy === "status" && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setGroupBy("priority")}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            groupBy === "priority" 
+                                                                ? "bg-indigo-50 text-indigo-600" 
+                                                                : "text-slate-600 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        <span>Priority</span>
+                                                        {groupBy === "priority" && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setGroupBy("assignee")}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            groupBy === "assignee" 
+                                                                ? "bg-indigo-50 text-indigo-600" 
+                                                                : "text-slate-600 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        <span>Assignee</span>
+                                                        {groupBy === "assignee" && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                </div>
+
+                                                <div className="h-px bg-slate-200 my-2" />
+
+                                                {/* Sort By Section */}
+                                                <div className="px-4 py-2">
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Sort By</p>
+                                                    <button
+                                                        onClick={() => setSortBy("created")}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            sortBy === "created" 
+                                                                ? "bg-indigo-50 text-indigo-600" 
+                                                                : "text-slate-600 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        <span>Date created</span>
+                                                        {sortBy === "created" && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSortBy("updated")}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            sortBy === "updated" 
+                                                                ? "bg-indigo-50 text-indigo-600" 
+                                                                : "text-slate-600 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        <span>Date updated</span>
+                                                        {sortBy === "updated" && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSortBy("due")}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            sortBy === "due" 
+                                                                ? "bg-indigo-50 text-indigo-600" 
+                                                                : "text-slate-600 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        <span>Due date</span>
+                                                        {sortBy === "due" && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                </div>
+
+                                                <div className="h-px bg-slate-200 my-2" />
+
+                                                {/* Sort Order */}
+                                                <div className="px-4 py-2">
+                                                    <button
+                                                        onClick={() => setSortOrder("newest")}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            sortOrder === "newest" 
+                                                                ? "bg-indigo-50 text-indigo-600" 
+                                                                : "text-slate-600 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        <span>Newest first</span>
+                                                        {sortOrder === "newest" && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSortOrder("oldest")}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                            sortOrder === "oldest" 
+                                                                ? "bg-indigo-50 text-indigo-600" 
+                                                                : "text-slate-600 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        <span>Oldest first</span>
+                                                        {sortOrder === "oldest" && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                </div>
+
+                                                <div className="h-px bg-slate-200 my-2" />
+
+                                                {/* View Settings */}
+                                                <div className="px-4 py-2">
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">View Settings</p>
+                                                    <button
+                                                        onClick={() => setShowScreenshot(!showScreenshot)}
+                                                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+                                                    >
+                                                        <span>Show screenshot</span>
+                                                        {showScreenshot && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setShowSentiment(!showSentiment)}
+                                                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+                                                    >
+                                                        <span>Show sentiment</span>
+                                                        {showSentiment && <Check className="w-4 h-4 text-indigo-600" />}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                </div>
+
+                                {/* Board View Toggle */}
+                                <div className="relative" ref={boardViewRef}>
+                                    <button
+                                        onClick={() => setShowBoardViewDropdown(!showBoardViewDropdown)}
+                                        className="h-9 pl-3 pr-8 text-sm bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-all text-slate-600 font-medium relative"
+                                    >
+                                        Board View
+                                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    </button>
+                                    
+                                    {showBoardViewDropdown && (
+                                        <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 py-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <div className="px-4 py-2">
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">View Type</p>
+                                                <button
+                                                    onClick={() => {
+                                                        setBoardView("status");
+                                                        setGroupBy("status");
+                                                        setShowBoardViewDropdown(false);
+                                                    }}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                        boardView === "status" 
+                                                            ? "bg-cyan-50 text-cyan-600" 
+                                                            : "text-slate-600 hover:bg-slate-50"
+                                                    }`}
+                                                >
+                                                    <span>Status Board</span>
+                                                    {boardView === "status" && <Check className="w-4 h-4 text-cyan-600" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setBoardView("priority");
+                                                        setGroupBy("priority");
+                                                        setShowBoardViewDropdown(false);
+                                                    }}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                        boardView === "priority" 
+                                                            ? "bg-cyan-50 text-cyan-600" 
+                                                            : "text-slate-600 hover:bg-slate-50"
+                                                    }`}
+                                                >
+                                                    <span>Priority Board</span>
+                                                    {boardView === "priority" && <Check className="w-4 h-4 text-cyan-600" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setBoardView("assignee");
+                                                        setGroupBy("assignee");
+                                                        setShowBoardViewDropdown(false);
+                                                    }}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                        boardView === "assignee" 
+                                                            ? "bg-cyan-50 text-cyan-600" 
+                                                            : "text-slate-600 hover:bg-slate-50"
+                                                    }`}
+                                                >
+                                                    <span>Assignee Board</span>
+                                                    {boardView === "assignee" && <Check className="w-4 h-4 text-cyan-600" />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        )}
-                    </div>
-                )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Views */}
@@ -2777,81 +3330,170 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                     <>
                         {view === "kanban" && (
                             <DragDropContext onDragEnd={handleDragEnd}>
-                                <div ref={kanbanScrollRef} className="overflow-x-auto pb-2">
-                                    <div className="flex gap-4 items-start min-w-max">
-                                    {kanbanColumns.map((col: { status: string; label: string; icon: React.ReactNode; color: string }) => (
-                                        <div key={col.status} className="w-[320px] shrink-0">
-                                            <KanbanColumn
-                                                {...col}
-                                                bugs={bugsByStatus(col.status)}
-                                                onSelect={setSelectedBugId}
-                                                onNavigateToLocation={navigateToBugLocation}
-                                                canReorder={isProjectAdmin}
-                                                isFirst={kanbanColumns[0]?.status === col.status}
-                                                isLast={kanbanColumns[kanbanColumns.length - 1]?.status === col.status}
-                                                onMoveLeft={() => handleMoveBucket(col.status, "left")}
-                                                onMoveRight={() => handleMoveBucket(col.status, "right")}
-                                                isReordering={movingBucketStatus === col.status}
-                                                onDeleteBucket={handleDeleteBucket}
-                                                isSuperAdmin={isSuperAdmin}
-                                            />
-                                        </div>
-                                    ))}
-                                    {isProjectAdmin && (
-                                        <div className="w-[320px] shrink-0 rounded-2xl border border-dashed border-surface-border/50 bg-surface-card/10 min-h-[500px] p-6 flex flex-col group/add transition-all hover:bg-surface-card/20 hover:border-surface-border">
+                                <div className="relative">
+                                    {/* Scroll Controls Bar - Only show for status grouping */}
+                                    {groupBy === "status" && (
+                                        <div className="sticky top-[72px] z-20 flex items-center justify-between gap-4 bg-white border-2 border-slate-200 rounded-2xl px-6 py-3 shadow-sm mb-4">
                                             <button
-                                                onClick={() => setShowAddBucketInput(true)}
-                                                className="text-sm font-bold text-slate-500 flex items-center gap-3 hover:text-brand-400 transition-all uppercase tracking-[0.2em]"
+                                                onClick={() => kanbanScrollRef.current?.scrollBy({ left: -320, behavior: "smooth" })}
+                                                className="p-2.5 rounded-full bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50 hover:border-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95"
+                                                title="Scroll left"
                                             >
-                                                <div className="w-10 h-10 rounded-xl bg-surface-card border border-surface-border flex items-center justify-center group-hover/add:scale-110 group-hover/add:border-brand-500/50 transition-all shadow-xl">
-                                                    <Plus className="w-5 h-5" />
-                                                </div>
-                                                Add Bucket
+                                                <ChevronLeft className="w-5 h-5" />
                                             </button>
-                                            {showAddBucketInput && (
-                                                <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    <input
-                                                        type="text"
-                                                        className="input w-full text-sm font-semibold h-11 bg-surface-card/50 border-surface-border/50 focus:border-brand-500/50"
-                                                        placeholder="Bucket name..."
-                                                        autoFocus
-                                                        value={newBucketLabel}
-                                                        onChange={(e) => setNewBucketLabel(e.target.value)}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === "Enter") {
-                                                                e.preventDefault();
-                                                                handleAddBucket();
-                                                            }
-                                                            if (e.key === "Escape") {
-                                                                setShowAddBucketInput(false);
-                                                                setNewBucketLabel("");
-                                                            }
-                                                        }}
-                                                    />
-                                                    <div className="flex gap-2">
-                                                        <button 
-                                                            onClick={handleAddBucket} 
-                                                            disabled={addingBucket || !newBucketLabel.trim()}
-                                                            className="btn-primary flex-1 h-10 text-xs font-bold uppercase tracking-widest"
-                                                        >
-                                                            {addingBucket ? "Adding..." : "Add"}
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => { setShowAddBucketInput(false); setNewBucketLabel(""); }}
-                                                            className="btn-ghost px-4 h-10 text-xs font-bold uppercase tracking-widest"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
+                                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Scroll to navigate</div>
+                                            <button
+                                                onClick={() => kanbanScrollRef.current?.scrollBy({ left: 320, behavior: "smooth" })}
+                                                className="p-2.5 rounded-full bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50 hover:border-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95"
+                                                title="Scroll right"
+                                            >
+                                                <ChevronRight className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     )}
-                                    </div>
+
+                                    {/* Kanban Board - Group by Status */}
+                                    {groupBy === "status" && (
+                                        <div ref={kanbanScrollRef} className="overflow-x-auto pb-2">
+                                            <div className="flex gap-4 items-start min-w-max">
+                                            {kanbanColumns.map((col: { status: string; label: string; icon: React.ReactNode; color: string }) => (
+                                                <div key={col.status} className="w-[320px] shrink-0">
+                                                    <KanbanColumn
+                                                        {...col}
+                                                        bugs={bugsByStatus(col.status)}
+                                                        onSelect={setSelectedBugId}
+                                                        onNavigateToLocation={navigateToBugLocation}
+                                                        canReorder={isProjectAdmin}
+                                                        isFirst={kanbanColumns[0]?.status === col.status}
+                                                        isLast={kanbanColumns[kanbanColumns.length - 1]?.status === col.status}
+                                                        onMoveLeft={() => handleMoveBucket(col.status, "left")}
+                                                        onMoveRight={() => handleMoveBucket(col.status, "right")}
+                                                        isReordering={movingBucketStatus === col.status}
+                                                        onDeleteBucket={handleDeleteBucket}
+                                                        isSuperAdmin={isSuperAdmin}
+                                                        onAddIssue={handleAddIssueToColumn}
+                                                        showScreenshot={showScreenshot}
+                                                    />
+                                                </div>
+                                            ))}
+                                            {isProjectAdmin && (
+                                                <div className="w-[320px] shrink-0 rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-slate-50/50 min-h-[600px] p-6 flex flex-col group/add transition-all hover:bg-slate-100/50 hover:border-slate-400">
+                                                    <button
+                                                        onClick={() => setShowAddBucketInput(true)}
+                                                        className="text-sm font-bold text-slate-600 flex items-center gap-3 hover:text-slate-800 transition-all uppercase tracking-[0.2em] group-hover/add:text-slate-900"
+                                                    >
+                                                        <div className="w-12 h-12 rounded-2xl bg-white border-2 border-slate-300 flex items-center justify-center group-hover/add:scale-110 group-hover/add:border-slate-400 group-hover/add:shadow-md transition-all shadow-sm">
+                                                            <Plus className="w-6 h-6 text-slate-600 group-hover/add:text-slate-800" />
+                                                        </div>
+                                                        Add Bucket
+                                                    </button>
+                                                    {showAddBucketInput && (
+                                                        <div className="mt-8 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                            <input
+                                                                type="text"
+                                                                className="input w-full text-sm font-semibold h-11 bg-white border-2 border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 rounded-xl"
+                                                                placeholder="Bucket name..."
+                                                                autoFocus
+                                                                value={newBucketLabel}
+                                                                onChange={(e) => setNewBucketLabel(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === "Enter") {
+                                                                        e.preventDefault();
+                                                                        handleAddBucket();
+                                                                    }
+                                                                    if (e.key === "Escape") {
+                                                                        setShowAddBucketInput(false);
+                                                                        setNewBucketLabel("");
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <div className="flex gap-2">
+                                                                <button 
+                                                                    onClick={handleAddBucket} 
+                                                                    disabled={addingBucket || !newBucketLabel.trim()}
+                                                                    className="btn-primary flex-1 h-10 text-xs font-bold uppercase tracking-widest rounded-xl"
+                                                                >
+                                                                    {addingBucket ? "Adding..." : "Add"}
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => { setShowAddBucketInput(false); setNewBucketLabel(""); }}
+                                                                    className="btn-ghost px-4 h-10 text-xs font-bold uppercase tracking-widest rounded-xl border border-slate-300"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Kanban Board - Group by Priority */}
+                                    {groupBy === "priority" && (
+                                        <div className="overflow-x-auto pb-2">
+                                            <div className="flex gap-4 items-start min-w-max">
+                                                {(["critical", "high", "medium", "low"] as Priority[]).map((priority) => (
+                                                    <div key={priority} className="w-[320px] shrink-0">
+                                                        <KanbanColumn
+                                                            status={priority}
+                                                            label={PRIORITY_CONFIG[priority].label}
+                                                            icon={<AlertTriangle className="w-4 h-4" />}
+                                                            color={priority === "critical" ? "text-red-400" : priority === "high" ? "text-amber-400" : priority === "medium" ? "text-blue-400" : "text-slate-400"}
+                                                            bugs={bugsByPriority(priority)}
+                                                            onSelect={setSelectedBugId}
+                                                            onNavigateToLocation={navigateToBugLocation}
+                                                            onAddIssue={handleAddIssueToColumn}
+                                                            showScreenshot={showScreenshot}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Kanban Board - Group by Assignee */}
+                                    {groupBy === "assignee" && (
+                                        <div className="overflow-x-auto pb-2">
+                                            <div className="flex gap-4 items-start min-w-max">
+                                                {/* Unassigned Column */}
+                                                <div className="w-[320px] shrink-0">
+                                                    <KanbanColumn
+                                                        status="unassigned"
+                                                        label="Unassigned"
+                                                        icon={<User className="w-4 h-4" />}
+                                                        color="text-slate-400"
+                                                        bugs={bugsByAssignee(null)}
+                                                        onSelect={setSelectedBugId}
+                                                        onNavigateToLocation={navigateToBugLocation}
+                                                        onAddIssue={handleAddIssueToColumn}
+                                                        showScreenshot={showScreenshot}
+                                                    />
+                                                </div>
+                                                {/* Assignee Columns */}
+                                                {(members || []).map((member: any) => (
+                                                    <div key={member.userId} className="w-[320px] shrink-0">
+                                                        <KanbanColumn
+                                                            status={member.userId}
+                                                            label={member.name || member.email || member.userId}
+                                                            icon={<User className="w-4 h-4" />}
+                                                            color="text-indigo-400"
+                                                            bugs={bugsByAssignee(member.userId)}
+                                                            onSelect={setSelectedBugId}
+                                                            onNavigateToLocation={navigateToBugLocation}
+                                                            onAddIssue={handleAddIssueToColumn}
+                                                            showScreenshot={showScreenshot}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </DragDropContext>
                         )}
-                        {view === "list" && <ListView bugs={filteredBugs} onSelect={setSelectedBugId} onNavigateToLocation={navigateToBugLocation} projectStatuses={projectStatuses || []} />}
+                        {view === "list" && <ListView bugs={sortedBugs} onSelect={setSelectedBugId} onNavigateToLocation={navigateToBugLocation} projectStatuses={projectStatuses || []} />}
                     </>
                 )}
 
@@ -2891,9 +3533,21 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                     projectMembers={members ?? []}
                 />
             )}
+            {showImportModal && projectId && (
+                <ImportBugsModal
+                    projectId={projectId}
+                    devToken={devToken}
+                    onClose={() => setShowImportModal(false)}
+                    onSuccess={() => {
+                        setShowImportModal(false);
+                        // Bugs will auto-refresh via Convex reactivity
+                    }}
+                />
+            )}
             {showCreateBugModal && projectId && (
                 <CreateBugModal
                     projectId={projectId}
+                    project={project}
                     devToken={devToken}
                     initialType={
                         // If viewing a module tab, pre-select that module
@@ -2902,7 +3556,11 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                             // If a type filter is active on kanban/list, pre-select that type
                             : (typeFilter !== "all" ? typeFilter : undefined)
                     }
-                    onClose={() => setShowCreateBugModal(false)}
+                    initialStatus={initialStatus}
+                    onClose={() => {
+                        setShowCreateBugModal(false);
+                        setInitialStatus(undefined);
+                    }}
                 />
             )}
         </div>
@@ -3087,7 +3745,7 @@ function ModuleView({ moduleId, projectId, devToken, module }: {
 
 function LoadingSkeleton() {
     return (
-        <div className="min-h-screen flex flex-col bg-[#09090E]">
+        <div className="min-h-screen flex flex-col bg-[#09090E]" suppressHydrationWarning>
             <Navbar />
             <div className="flex-1 flex flex-col max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
                 {/* Header Skeleton */}
@@ -3128,10 +3786,10 @@ function LoadingSkeleton() {
                         <div key={i} className="flex flex-col gap-4">
                             <Skeleton className="w-full h-14 rounded-xl" />
                             {[1, 2, 3].map((j) => (
-                                <div key={j} className="p-4 rounded-2xl border border-surface-border bg-surface-card/50 space-y-4">
+                                <div key={j} className="p-4 rounded-2xl border border-surface-border bg-surface-card/50 space-y-4" suppressHydrationWarning>
                                     <Skeleton className="w-full h-32 rounded-xl" />
                                     <Skeleton className="w-3/4 h-5 rounded-lg" />
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2" suppressHydrationWarning>
                                         <Skeleton className="w-16 h-5 rounded-full" />
                                         <Skeleton className="w-16 h-5 rounded-full" />
                                     </div>

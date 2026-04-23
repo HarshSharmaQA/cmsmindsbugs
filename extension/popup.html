@@ -5,202 +5,314 @@
     <meta charset="UTF-8">
     <title>BugScribe Reporter</title>
     <style>
-        body {
-            width: 350px;
+        * {
             box-sizing: border-box;
+        }
+
+        body {
+            width: 100%;
+            max-width: 420px;
+            min-width: 320px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 16px;
+            padding: 0;
             margin: 0;
-            background-color: #0c0a1a;
-            color: #fff;
+            background: #ffffff;
+            color: #1e293b;
             overflow-x: hidden;
         }
 
-        h1 {
-            font-size: 16px;
-            margin-top: 0;
-            margin-bottom: 15px;
+        @media (max-width: 420px) {
+            body {
+                width: 100vw;
+            }
+        }
+
+        /* Header with gradient */
+        h2 {
+            font-size: 17px;
+            margin: 0;
+            padding: 16px 18px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            color: white;
             justify-content: space-between;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            color: #ffffff;
         }
 
         .header-left {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
         }
 
         .settings-btn {
-            background: none;
+            background: rgba(255, 255, 255, 0.15);
             border: none;
-            color: #94a3b8;
+            color: white;
             cursor: pointer;
-            padding: 4px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .settings-btn:hover {
-            color: white;
+            background: rgba(255, 255, 255, 0.25);
+            transform: rotate(90deg);
         }
 
+        /* Content padding */
+        #setupView,
+        #reportView,
+        #successView {
+            display: none;
+            padding: 18px;
+        }
+
+        /* Labels with gradient accent */
         label {
             font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #94a3b8;
-            font-weight: 600;
+            letter-spacing: 0.8px;
+            color: #64748b;
+            font-weight: 700;
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
+            margin-top: 4px;
         }
 
+        /* Enhanced inputs */
         input,
         textarea,
         select {
             width: 100%;
-            box-sizing: border-box;
-            padding: 10px;
-            margin-bottom: 12px;
-            border-radius: 6px;
-            border: 1px solid #1e293b;
-            background: #0f172a;
-            color: white;
-            font-size: 12px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            background: #ffffff;
+            color: #1e293b;
+            font-size: 13px;
             resize: none;
+            transition: all 0.3s;
         }
 
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #4f46e5;
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+            transform: translateY(-1px);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: #94a3b8;
+        }
+
+        /* Primary button with gradient */
         button.btn-primary {
             width: 100%;
-            padding: 10px;
-            background: #4f46e5;
+            padding: 13px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
             color: white;
             border: none;
-            border-radius: 6px;
-            font-weight: 500;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 13px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button.btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        button.btn-primary:hover:not(:disabled)::before {
+            left: 100%;
         }
 
         button.btn-primary:hover:not(:disabled) {
-            background: #4338ca;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+        }
+
+        button.btn-primary:active:not(:disabled) {
+            transform: translateY(0);
         }
 
         button:disabled {
-            opacity: 0.7;
+            opacity: 0.6;
             cursor: not-allowed;
+            transform: none !important;
         }
 
-        button.btn-cancel {
-            width: 100%;
-            padding: 10px;
-            background: transparent;
-            color: #94a3b8;
-            border: 1px solid #1e293b;
-            border-radius: 6px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-top: 8px;
-        }
-
+        /* Messages with icons */
         .saved-message,
         .error-message,
         .success-message {
             display: none;
-            font-size: 11px;
+            font-size: 12px;
             text-align: center;
-            margin-top: 10px;
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .saved-message {
-            color: #4ade80;
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            border: 1px solid rgba(34, 197, 94, 0.3);
         }
 
         .success-message {
-            color: #4ade80;
-            margin-bottom: 10px;
-        }
-
-        .error-message {
-            color: #ef4444;
-            margin-bottom: 10px;
-        }
-
-        .action-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            border: 1px solid rgba(34, 197, 94, 0.3);
             margin-bottom: 12px;
         }
 
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            margin-bottom: 12px;
+        }
+
+        /* Enhanced action buttons */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
         .action-buttons button {
-            padding: 8px;
-            font-size: 11px;
-            background: transparent;
-            border: 1px solid #1e293b;
-            color: white;
-            border-radius: 6px;
+            padding: 11px 8px;
+            font-size: 12px;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            color: #475569;
+            border-radius: 10px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            transition: 0.2s;
+            transition: all 0.3s;
+            font-weight: 600;
         }
 
         .action-buttons button:hover {
-            background: #1e293b;
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
         .action-buttons button.record {
-            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
             border-color: #ef4444;
+            color: #dc2626;
         }
 
         .action-buttons button.record:hover {
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.15);
+            border-color: #dc2626;
         }
 
+        /* Steps container with better styling */
         .steps-container {
             display: none;
-            background: #0f172a;
-            border: 1px solid #1e293b;
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 12px;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 16px;
         }
 
         .steps-container h4 {
-            margin: 0 0 8px 0;
-            font-size: 10px;
-            color: #94a3b8;
+            margin: 0 0 10px 0;
+            font-size: 11px;
+            color: #64748b;
             text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 700;
         }
 
         .steps-container ol {
             margin: 0;
-            padding-left: 16px;
-            font-size: 11px;
-            color: #cbd5e1;
-            max-height: 80px;
+            padding-left: 18px;
+            font-size: 12px;
+            color: #475569;
+            max-height: 90px;
             overflow-y: auto;
         }
 
-        #setupView,
-        #reportView,
-        #successView {
-            display: none;
+        .steps-container ol::-webkit-scrollbar {
+            width: 6px;
         }
 
+        .steps-container ol::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+
+        .steps-container ol::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .steps-container ol li {
+            margin-bottom: 6px;
+            line-height: 1.5;
+        }
+
+        /* Preview container with better shadow */
         .preview-container {
             width: 100%;
-            height: 180px;
-            background: #000;
-            border-radius: 6px;
-            border: 1px solid #1e293b;
+            height: 200px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
             overflow: hidden;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
             position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .preview-container img,
@@ -210,57 +322,249 @@
             object-fit: contain;
         }
 
+        /* Enhanced annotation toolbar */
         .annotation-toolbar {
             display: none;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 10px;
-            padding: 6px 8px;
-            background: #1e293b;
-            border-radius: 6px;
-            border: 1px solid #334155;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+            padding: 10px 12px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
         }
 
         .annotation-toolbar .color-dot {
-            width: 18px;
-            height: 18px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             border: 2px solid transparent;
             cursor: pointer;
-            transition: 0.15s;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .annotation-toolbar .color-dot:hover,
+        .annotation-toolbar .color-dot:hover {
+            border-color: #4f46e5;
+            transform: scale(1.2);
+            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+        }
+
         .annotation-toolbar .color-dot.active {
-            border-color: white;
+            border-color: #4f46e5;
             transform: scale(1.15);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
         }
 
         .annotation-toolbar .tool-btn {
-            background: #334155;
-            border: 1px solid #475569;
-            color: #e2e8f0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #475569;
             font-size: 11px;
-            padding: 4px 10px;
-            border-radius: 4px;
+            padding: 6px 12px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            transition: 0.15s;
+            transition: all 0.2s;
         }
 
         .annotation-toolbar .tool-btn:hover {
-            background: #475569;
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
         }
 
         .annotation-toolbar .tool-btn.active-tool {
-            background: #4f46e5;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
             color: white;
+            border-color: #4f46e5;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
         }
 
         .annotation-toolbar .separator {
             width: 1px;
-            height: 18px;
-            background: #475569;
+            height: 20px;
+            background: #e2e8f0;
+        }
+
+        /* Grid layout for type and priority */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Success view enhancement */
+        #successView {
+            text-align: center;
+            padding: 40px 20px !important;
+        }
+
+        #successView h2 {
+            background: none;
+            box-shadow: none;
+            padding: 0;
+            margin: 12px 0 8px 0;
+            font-size: 18px;
+            display: block;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #successView p {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+
+        #successView .success-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        #successView .success-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        #reportAnotherBtn {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            border: none;
+            color: white;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+        }
+
+        #reportAnotherBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
+        }
+
+        #closeBtn {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            color: #475569;
+        }
+
+        #closeBtn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Info text styling */
+        .info-text {
+            font-size: 11px;
+            color: #64748b;
+            margin: -4px 0 10px 0;
+            line-height: 1.5;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Project cards */
+        .project-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .project-card:hover {
+            border-color: #4f46e5;
+            background: #f8fafc;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+        }
+
+        .project-card.active {
+            border-color: #4f46e5;
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(124, 58, 237, 0.05) 100%);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .project-card-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .project-card-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .project-card-id {
+            font-size: 10px;
+            color: #64748b;
+            font-family: monospace;
+        }
+
+        .project-card-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .project-card:hover .project-card-actions {
+            opacity: 1;
+        }
+
+        .project-card-btn {
+            padding: 6px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .project-card-btn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .project-card-btn.delete:hover {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #ef4444;
         }
     </style>
 </head>
@@ -269,7 +573,7 @@
     <h2>
         <div class="header-left">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m8 2 1.88 1.88" />
                 <path d="M14.12 3.88 16 2" />
                 <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
@@ -284,7 +588,7 @@
             </svg>
             BugScribe Reporter
         </div>
-        <button id="settingsBtn" class="settings-btn" title="Settings" style="display: none;">
+        <button id="settingsBtn" class="settings-btn" title="Settings">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path
@@ -295,13 +599,49 @@
     </h2>
 
     <div id="setupView">
-        <label for="setupConnectionKey">Connection Key</label>
-        <p style="font-size: 10px; color:#94a3b8; margin-top:0; margin-bottom:8px;">Copy the single key from your
-            dashboard's Integrations page.</p>
+        <div id="projectsList" style="display: none; margin-bottom: 16px;">
+            <label style="margin-bottom: 8px;">🗂️ Your Projects</label>
+            <div id="projectsContainer" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                <!-- Projects will be dynamically added here -->
+            </div>
+        </div>
+
+        <label for="setupConnectionKey">🔑 Add New Project</label>
+        <p class="info-text">Copy the connection key from your dashboard's Integrations page.</p>
         <input type="text" id="setupConnectionKey" placeholder="Paste connection key here..." />
-        <button id="saveBtn" class="btn-primary">Connect Extension</button>
+        <input type="text" id="projectName" placeholder="Project name (optional)" style="margin-bottom: 14px;" />
+        <button id="saveBtn" class="btn-primary">➕ Add Project</button>
         <div class="error-message" id="setupErrorMsg" style="margin-top:8px;"></div>
-        <div class="saved-message" id="savedMsg">Connected successfully!</div>
+        <div class="saved-message" id="savedMsg">✅ Project added successfully!</div>
+    </div>
+
+    <div id="nameView" style="display: none;">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 12px;">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <h3 style="font-size: 16px; font-weight: 700; color: #1e293b; margin: 0 0 8px 0;">Welcome to BugScribe!</h3>
+            <p class="info-text" style="margin: 0;">Please enter your name to start reporting bugs.</p>
+        </div>
+        
+        <label for="userName">👤 Your Name *</label>
+        <input type="text" id="userName" placeholder="Enter your full name..." />
+        
+        <label for="userEmail">📧 Email (Optional)</label>
+        <input type="email" id="userEmail" placeholder="your.email@example.com" />
+        
+        <button id="saveNameBtn" class="btn-primary">✅ Continue</button>
+        <div class="error-message" id="nameErrorMsg" style="margin-top:8px;"></div>
+    </div>
+
+    <div id="disabledView" style="display: none; text-align: center; padding: 40px 20px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 16px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        </svg>
+        <h3 style="font-size: 18px; font-weight: 700; color: #1e293b; margin: 0 0 8px 0;">Bug Reporting Disabled</h3>
+        <p style="font-size: 13px; color: #64748b; margin: 0;">The administrator has temporarily disabled bug reporting for this project.</p>
     </div>
 
     <div id="reportView">
@@ -314,49 +654,50 @@
                 controls autoplay muted loop></video>
         </div>
         <div class="annotation-toolbar" id="annotationToolbar">
-            <!-- Row 1: Tools -->
-            <div style="display:flex; gap:4px; flex-wrap:wrap; width:100%; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:6px;">
-                <button class="tool-btn active-tool" data-draw-tool="pen" title="Pen">✏️ Pen</button>
-                <button class="tool-btn" data-draw-tool="arrow" title="Arrow">↗ Arrow</button>
-                <button class="tool-btn" data-draw-tool="box" title="Box">⬜ Box</button>
-                <button class="tool-btn" data-draw-tool="circle" title="Circle">⭕ Circle</button>
-                <button class="tool-btn" data-draw-tool="blur" title="Blur">🌫️ Blur</button>
-                <button class="tool-btn" data-draw-tool="text" title="Text">T Text</button>
+            <!-- Tools Row -->
+            <div style="display:flex; gap:6px; flex-wrap:wrap; width:100%; padding-bottom:8px; border-bottom:2px solid rgba(79, 70, 229, 0.2);">
+                <button class="tool-btn active-tool" data-draw-tool="pen" title="Pen Tool">✏️ Pen</button>
+                <button class="tool-btn" data-draw-tool="arrow" title="Arrow Tool">↗️ Arrow</button>
+                <button class="tool-btn" data-draw-tool="box" title="Rectangle Tool">⬜ Box</button>
+                <button class="tool-btn" data-draw-tool="circle" title="Circle Tool">⭕ Circle</button>
+                <button class="tool-btn" data-draw-tool="blur" title="Blur Tool">🌫️ Blur</button>
+                <button class="tool-btn" data-draw-tool="text" title="Text Tool">T Text</button>
             </div>
-            <!-- Row 2: Colors + Actions -->
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                <span style="font-size:10px; color:#94a3b8; font-weight:600;">Color:</span>
+            <!-- Colors & Actions Row -->
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-top:4px;">
+                <span style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Colors:</span>
                 <span class="color-dot active" data-color="#ef4444" style="background:#ef4444;" title="Red"></span>
                 <span class="color-dot" data-color="#facc15" style="background:#facc15;" title="Yellow"></span>
                 <span class="color-dot" data-color="#22c55e" style="background:#22c55e;" title="Green"></span>
                 <span class="color-dot" data-color="#3b82f6" style="background:#3b82f6;" title="Blue"></span>
-                <span class="color-dot" data-color="#ffffff" style="background:#ffffff;" title="White"></span>
+                <span class="color-dot" data-color="#a855f7" style="background:#a855f7;" title="Purple"></span>
+                <span class="color-dot" data-color="#ffffff" style="background:#ffffff; border: 2px solid #e2e8f0;" title="White"></span>
                 <span class="separator"></span>
-                <button class="tool-btn" id="undoBtn" title="Undo last stroke">↩ Undo</button>
-                <button class="tool-btn" id="clearBtn" title="Clear all drawings">🗑 Clear</button>
+                <button class="tool-btn" id="undoBtn" title="Undo last stroke">↩️ Undo</button>
+                <button class="tool-btn" id="clearBtn" title="Clear all drawings">🗑️ Clear</button>
             </div>
         </div>
 
-        <div class="action-buttons" style="flex-wrap: wrap; gap: 6px;">
-            <button id="captureBtn" title="Take a static screenshot" style="flex:1; min-width:0;">📷 Screenshot</button>
-            <button id="annotatePageBtn" class="record" title="Draw on the page, then screenshot"
-                style="flex:1; min-width:0; background:#22c55e; border-color:#16a34a;">✏️ Annotate</button>
-            <button id="recordBtn" class="record" title="Record video &amp; auto-track steps"
-                style="flex:1; min-width:0;">🔴 Record</button>
+        <div class="action-buttons" style="grid-template-columns: 1fr; gap: 10px;">
+            <button id="captureBtn" title="Take a static screenshot">📷 Capture Screenshot</button>
+            <button id="annotatePageBtn" title="Draw on the page, then screenshot" style="background: rgba(34, 197, 94, 0.1); border-color: #22c55e; color: #16a34a;">✏️ Annotate Page</button>
+            <button id="recordBtn" class="record" title="Record video &amp; auto-track steps">🔴 Start Recording</button>
         </div>
 
         <div class="steps-container" id="stepsContainer">
-            <h4>Dynamic Tracking Steps</h4>
+            <h4>📋 Recorded Steps</h4>
             <ol id="stepsList"></ol>
         </div>
 
-        <label for="bugTitle">Title *</label>
-        <input type="text" id="bugTitle" placeholder="What went wrong?" />
-        <label for="bugDescription">Description</label>
-        <textarea id="bugDescription" rows="3" placeholder="Steps to reproduce..."></textarea>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <label for="bugTitle">📝 Title *</label>
+        <input type="text" id="bugTitle" placeholder="Brief description of the issue..." />
+        
+        <label for="bugDescription">💬 Description</label>
+        <textarea id="bugDescription" rows="3" placeholder="Detailed steps to reproduce the issue..."></textarea>
+        
+        <div class="form-grid">
             <div>
-                <label for="bugType">Type</label>
+                <label for="bugType">🏷️ Type</label>
                 <select id="bugType">
                     <option value="general">General</option>
                     <option value="ui_ux">UI/UX</option>
@@ -367,7 +708,7 @@
                 </select>
             </div>
             <div>
-                <label for="bugPriority">Priority</label>
+                <label for="bugPriority">⚡ Priority</label>
                 <select id="bugPriority">
                     <option value="low">Low</option>
                     <option value="medium" selected>Medium</option>
@@ -376,26 +717,24 @@
                 </select>
             </div>
         </div>
-        <button id="submitBtn" class="btn-primary">Submit Bug Report</button>
+        <button id="submitBtn" class="btn-primary">🚀 Submit Bug Report</button>
     </div>
 
-    <div id="successView" style="text-align: center; padding: 20px 0;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4ade80"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 12px;">
+    <div id="successView" style="text-align: center; padding: 40px 20px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#4ade80"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px;">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <path d="m9 11 3 3L22 4" />
         </svg>
-        <h2 style="font-size: 16px; margin-bottom: 4px;">Report Sent!</h2>
-        <p style="font-size: 12px; color: #94a3b8;">Resetting in 3s for your next report...</p>
-        <div style="display: flex; gap: 8px; margin-top: 16px;">
-            <button id="reportAnotherBtn" class="btn-primary"
-                style="flex: 1; background: #22c55e; border-color: #16a34a;">🐛 Report Another</button>
-            <button id="closeBtn"
-                style="flex: 1; background: #334155; border: 1px solid #475569; color: #e2e8f0; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px;">✕
-                Close</button>
+        <h2 style="font-size: 20px; margin-bottom: 8px;">🎉 Report Sent!</h2>
+        <p style="font-size: 13px; color: #64748b;">Your bug report has been submitted successfully.<br>Resetting in 3 seconds...</p>
+        <div class="success-actions">
+            <button id="reportAnotherBtn" class="btn-primary">🐛 Report Another</button>
+            <button id="closeBtn">✕ Close</button>
         </div>
     </div>
 
+    <script src="toon_utils.js"></script>
     <script src="popup.js"></script>
 </body>
 

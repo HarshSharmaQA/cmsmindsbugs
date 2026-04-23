@@ -52,7 +52,7 @@ function NavbarContent() {
     const rightMenu = displayedPages.slice(half);
 
     return (
-        <div className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-4 pointer-events-none">
+        <div className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-4 pointer-events-none" suppressHydrationWarning>
             {/* Mobile Menu Backdrop */}
             {mobileMenuOpen && (
                 <div 
@@ -301,8 +301,8 @@ export function Navbar() {
 
     if (!mounted) {
         return (
-            <div className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-4">
-                <nav className="h-16 w-32 rounded-full border border-white/5 bg-surface-card/50 backdrop-blur-xl animate-pulse" />
+            <div className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-4" suppressHydrationWarning>
+                <nav className="h-16 w-32 rounded-full border border-white/5 bg-surface-card/50 backdrop-blur-xl animate-pulse" suppressHydrationWarning />
             </div>
         );
     }

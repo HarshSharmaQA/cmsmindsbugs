@@ -145,6 +145,27 @@
         if (capturedErrors.length > 20) capturedErrors.shift();
     });
 
+    // ── TOON Helper (Inlined for widget isolation) ──────────────────────────────
+    const toonEncode = (val) => {
+        if (val === null) return "null";
+        if (typeof val !== "object") return String(val);
+        if (Array.isArray(val)) {
+            if (val.length === 0) return "[]";
+            const first = val[0];
+            if (typeof first === "object" && first !== null) {
+                const keys = Object.keys(first);
+                const header = `[${val.length}]{${keys.join(",")}}:`;
+                const rows = val.map(item => keys.map(k => {
+                    const v = String(item[k] ?? "");
+                    return (v.includes(",") || v.includes("\n")) ? `"${v.replace(/"/g, '\\"')}"` : v;
+                }).join(","));
+                return `${header}\n  ${rows.join("\n  ")}`;
+            }
+            return `[${val.length}]: ${val.join(",")}`;
+        }
+        return Object.entries(val).map(([k, v]) => `${k}: ${toonEncode(v)}`).join("\n");
+    };
+
     // ── Styles (Scoped & Isolated) ─────────────────────────────────────────────
     const css = `
     #bugscribe-btn {
@@ -935,6 +956,15 @@
             };
 
             console.log("[BugScribe] Creating bug record...");
+            
+            // Format environment data as TOON for efficiency
+            const environmentData = {
+                window: { width: window.innerWidth, height: window.innerHeight },
+                scroll: { x: window.scrollX, y: window.scrollY },
+                screen: { resolution: `${screen.width}x${screen.height}`, density: window.devicePixelRatio },
+                location: { href: window.location.href, pathname: window.location.pathname }
+            };
+
             await convexReq("bugs:createBug", {
                 projectId: PROJECT_ID,
                 apiKey: API_KEY,
@@ -955,7 +985,9 @@
                 x_coordinate: selectionCoords ? selectionCoords.x : window.scrollX,
                 y_coordinate: selectionCoords ? selectionCoords.y : window.scrollY,
                 element_selector: selectedElement ? getQuerySelector(selectedElement) : undefined,
-                consoleErrors: capturedErrors
+                // Encode diagnostic fields using TOON
+                consoleErrors: capturedErrors.length > 0 ? toonEncode(capturedErrors.map(e => ({ message: e }))) : undefined,
+                environmentData: toonEncode(environmentData)
             });
 
             console.log("[BugScribe] Success!");

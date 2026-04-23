@@ -202,7 +202,7 @@ function HomePageContent() {
 export default function HomePage() {
     const [mounted, setMounted] = useState(false);
     useEffect(() => { setMounted(true); }, []);
-    if (!mounted) return <div className="min-h-screen bg-[#0A0A0A]" />;
+    if (!mounted) return <div className="min-h-screen bg-[#0A0A0A]" suppressHydrationWarning />;
     return <HomePageContent />;
 }
 

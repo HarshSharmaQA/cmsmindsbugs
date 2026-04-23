@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugScribe Reporter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 420px;
+            min-height: 500px;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #fff;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Decorative gradient overlay */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899, #f59e0b);
+            z-index: 1000;
+        }
+
+        .container {
+            padding: 24px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-center;
+            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .settings-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 10px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-center;
+        }
+
+        .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        /* Labels */
+        label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #94a3b8;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        label .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Inputs */
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            background: rgba(15, 23, 42, 0.6);
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            resize: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #6366f1;
+            background: rgba(15, 23, 42, 0.8);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: #475569;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Action Buttons Grid */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .action-btn {
+            padding: 12px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-center;
+            gap: 8px;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .action-btn.record {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .action-btn.record:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .action-btn.annotate {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+            grid-column: span 2;
+        }
+
+        .action-btn.annotate:hover {
+            background: rgba(34, 197, 94, 0.2);
+        }
+
+        /* Preview Container */
+        .preview-container {
+            width: 100%;
+            height: 200px;
+            background: #000;
+            border-radius: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            margin-bottom: 16px;
+            position: relative;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .preview-container img,
+        .preview-container canvas,
+        .preview-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* Annotation Toolbar */
+        .annotation-toolbar {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 16px;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .toolbar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-right: 4px;
+        }
+
+        .color-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-dot:hover,
+        .color-dot.active {
+            border-color: white;
+            transform: scale(1.15);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+        }
+
+        .tool-btn {
+            background: rgba(51, 65, 85, 0.8);
+            border: 2px solid rgba(71, 85, 105, 0.5);
+            color: #e2e8f0;
+            font-size: 11px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .tool-btn:hover {
+            background: rgba(71, 85, 105, 0.8);
+            transform: translateY(-1px);
+        }
+
+        .tool-btn.active-tool {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border-color: #6366f1;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .separator {
+            width: 2px;
+            height: 24px;
+            background: rgba(71, 85, 105, 0.5);
+            margin: 0 4px;
+        }
+
+        /* Messages */
+        .message {
+            display: none;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .success-message {
+            color: #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .error-message {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Steps Container */
+        .steps-container {
+            display: none;
+            background: rgba(30, 41, 59, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+
+        .steps-container h4 {
+            margin: 0 0 12px 0;
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+        }
+
+        .steps-container ol {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 12px;
+            color: #cbd5e1;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        /* Views */
+        #setupView,
+        #reportView,
+        #successView,
+        #settingsView {
+            display: none;
+        }
+
+        /* Success View */
+        #successView {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .success-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-center;
+            box-shadow: 0 8px 24px rgba(34, 197, 94, 0.3);
+        }
+
+        .success-title {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #fff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .success-subtitle {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 24px;
+        }
+
+        .success-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .success-actions button {
+            flex: 1;
+        }
+
+        /* Grid Layout */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        /* Info Text */
+        .info-text {
+            font-size: 11px;
+            color: #64748b;
+            margin: -8px 0 12px 0;
+            line-height: 1.5;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m8 2 1.88 1.88" />
+                        <path d="M14.12 3.88 16 2" />
+                        <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+                        <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" />
+                        <path d="M12 20v-9" />
+                    </svg>
+                </div>
+                <div class="logo-text">BugScribe</div>
+            </div>
+            <button id="settingsBtn" class="settings-btn" title="Settings" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Setup View -->
+        <div id="setupView">
+            <label for="setupConnectionKey">
+                <span class="dot" style="background: #6366f1;"></span>
+                Connection Key
+            </label>
+            <p class="info-text">Copy the connection key from your dashboard's Integrations page and paste it below.</p>
+            <input type="text" id="setupConnectionKey" placeholder="Paste your connection key here..." />
+            <button id="saveBtn" class="btn-primary">🔗 Connect Extension</button>
+            <div class="error-message message" id="setupErrorMsg"></div>
+            <div class="success-message message" id="savedMsg">✓ Connected successfully!</div>
+        </div>
+
+        <!-- Report View -->
+        <div id="reportView">
+            <div class="error-message message" id="errorMessage"></div>
+            
+            <!-- Preview -->
+            <div class="preview-container" id="screenshotPreviewContainer">
+                <img id="screenshotPreview" src="" alt="Screenshot" draggable="false" />
+                <canvas id="screenshotCanvas" style="display: none; cursor: crosshair;"></canvas>
+                <video id="videoPreview" src="" style="display: none;" controls autoplay muted loop></video>
+            </div>
+
+            <!-- Annotation Toolbar -->
+            <div class="annotation-toolbar" id="annotationToolbar">
+                <div class="toolbar-row">
+                    <button class="tool-btn active-tool" data-draw-tool="pen">✏️ Pen</button>
+                    <button class="tool-btn" data-draw-tool="arrow">↗ Arrow</button>
+                    <button class="tool-btn" data-draw-tool="box">⬜ Box</button>
+                    <button class="tool-btn" data-draw-tool="circle">⭕ Circle</button>
+                    <button class="tool-btn" data-draw-tool="blur">🌫️ Blur</button>
+                    <button class="tool-btn" data-draw-tool="text">T Text</button>
+                </div>
+                <div class="toolbar-row">
+                    <span class="toolbar-label">Color:</span>
+                    <span class="color-dot active" data-color="#ef4444" style="background:#ef4444;"></span>
+                    <span class="color-dot" data-color="#facc15" style="background:#facc15;"></span>
+                    <span class="color-dot" data-color="#22c55e" style="background:#22c55e;"></span>
+                    <span class="color-dot" data-color="#3b82f6" style="background:#3b82f6;"></span>
+                    <span class="color-dot" data-color="#ffffff" style="background:#ffffff;"></span>
+                    <span class="separator"></span>
+                    <button class="tool-btn" id="undoBtn">↩ Undo</button>
+                    <button class="tool-btn" id="clearBtn">🗑 Clear</button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button id="captureBtn" class="action-btn" title="Take a static screenshot">
+                    📷 Screenshot
+                </button>
+                <button id="recordBtn" class="action-btn record" title="Record video & auto-track steps">
+                    🔴 Record
+                </button>
+                <button id="annotatePageBtn" class="action-btn annotate" title="Draw on the page, then screenshot">
+                    ✏️ Annotate Page
+                </button>
+            </div>
+
+            <!-- Steps -->
+            <div class="steps-container" id="stepsContainer">
+                <h4>📋 Tracked Steps</h4>
+                <ol id="stepsList"></ol>
+            </div>
+
+            <!-- Form -->
+            <label for="bugTitle">
+                <span class="dot" style="background: #ef4444;"></span>
+                Title *
+            </label>
+            <input type="text" id="bugTitle" placeholder="What went wrong?" />
+
+            <label for="bugDescription">
+                <span class="dot" style="background: #facc15;"></span>
+                Description
+            </label>
+            <textarea id="bugDescription" rows="3" placeholder="Describe the issue in detail..."></textarea>
+
+            <div class="form-grid">
+                <div>
+                    <label for="bugType">
+                        <span class="dot" style="background: #3b82f6;"></span>
+                        Type
+                    </label>
+                    <select id="bugType">
+                        <option value="general">🐛 General</option>
+                        <option value="ui_ux">🎨 UI/UX</option>
+                        <option value="performance">⚡ Performance</option>
+                        <option value="security">🔒 Security</option>
+                        <option value="crash">💥 Crash</option>
+                        <option value="network">🌐 Network</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="bugPriority">
+                        <span class="dot" style="background: #f59e0b;"></span>
+                        Priority
+                    </label>
+                    <select id="bugPriority">
+                        <option value="low">🟢 Low</option>
+                        <option value="medium" selected>🔵 Medium</option>
+                        <option value="high">🟠 High</option>
+                        <option value="critical">🔴 Critical</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="submitBtn" class="btn-primary">🚀 Submit Bug Report</button>
+        </div>
+
+        <!-- Success View -->
+        <div id="successView">
+            <div class="success-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white"
+                    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <path d="m9 11 3 3L22 4" />
+                </svg>
+            </div>
+            <h2 class="success-title">Report Sent!</h2>
+            <p class="success-subtitle">Your bug report has been submitted successfully.</p>
+            <div class="success-actions">
+                <button id="reportAnotherBtn" class="btn-primary">🐛 Report Another</button>
+                <button id="closeBtn" class="btn-secondary">✕ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="toon_utils.js"></script>
+    <script src="config.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>
