@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 
 const isDev = process.env.NODE_ENV === "development";
-const isProd = process.env.NODE_ENV === "production";
 
 // Enhanced security headers with environment-aware CSP
 const securityHeaders = [
@@ -43,9 +42,6 @@ const nextConfig = {
     reactStrictMode: true,
     poweredByHeader: false,
     compress: true,
-    
-    // Silence Turbopack warning regarding existing webpack config
-    turbopack: {},
     
     // Experimental features
     experimental: {
