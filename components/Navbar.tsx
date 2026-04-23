@@ -26,7 +26,8 @@ function NavbarContent() {
     const isSuperAdmin = user?.role === "super_admin";
 
     // Still need pages.list for menu fallback — but only if no custom links set
-    const publishedPages = useQuery(api.pages.list, { devToken: undefined }) ?? [];
+    // Use the real devToken from context (not hardcoded undefined) for consistent auth
+    const publishedPages = useQuery(api.pages.list, { devToken: devToken ?? undefined }) ?? [];
 
     // Read from shared settings map (one subscription for the whole app)
     const customLinksRaw = settings["nav_header_links"];

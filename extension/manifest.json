@@ -1,10 +1,10 @@
 {
     "manifest_version": 3,
     "name": "BugScribe Reporter",
-    "version": "2.3",
+    "version": "2.4",
     "description": "Capture bugs naturally with enhanced UI/UX. Screenshot, record, and annotate with local configuration support.",
     "content_security_policy": {
-        "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://cmsmindsqa.vercel.app https://bugscribe.convex.site http://localhost:* http://127.0.0.1:*; frame-src 'self'; object-src 'none';"
+        "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://cmsmindsqa1-theta.vercel.app https://cmsmindsqa.vercel.app https://bugscribe.convex.site http://localhost:* http://127.0.0.1:*; frame-src 'self'; object-src 'none';"
     },
     "permissions": [
         "activeTab",

@@ -73,18 +73,9 @@ const nextConfig = {
         contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     },
 
-    // Webpack configuration
-    webpack: (config, { isServer }) => {
-        if (!isServer) {
-            config.resolve.fallback = {
-                ...config.resolve.fallback,
-                fs: false,
-                net: false,
-                tls: false,
-            };
-        }
-        return config;
-    },
+    // Turbopack configuration (Next.js 16+ default bundler)
+    // fs/net/tls fallbacks are handled natively by Turbopack for browser builds
+    turbopack: {},
 
     // Security and performance headers
     async headers() {

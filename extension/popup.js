@@ -384,7 +384,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             // Determine the API base URL from the active tab's origin
             // Falls back to production URL if we can't get the tab
-            let apiBase = "https://cmsmindsqa.vercel.app";
+            let apiBase = "https://cmsmindsqa1-theta.vercel.app";
             try {
                 const tabs = await Promise.race([
                     chrome.tabs.query({ active: true, currentWindow: true }),
@@ -1117,7 +1117,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             // Determine API endpoint
-            let apiEndpoint = "https://cmsmindsqa.vercel.app/api/reports";
+            let apiEndpoint = "https://cmsmindsqa1-theta.vercel.app/api/reports";
             try {
                 const tabs2 = await Promise.race([
                     chrome.tabs.query({ active: true, currentWindow: true }),

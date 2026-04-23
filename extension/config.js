@@ -7,7 +7,7 @@ const BugScribeConfig = {
     // Default configuration values
     defaults: {
         // API Configuration
-        apiEndpoint: 'https://cmsmindsqa.vercel.app/api/reports', // Production Vercel deployment
+        apiEndpoint: 'https://cmsmindsqa1-theta.vercel.app/api/reports', // Production Vercel deployment
         apiTimeout: 30000,
         
         // UI Preferences
@@ -132,7 +132,7 @@ const BugScribeConfig = {
     async export() {
         const config = await this.getAll();
         const exportData = {
-            version: '2.0',
+            version: '2.4',
             timestamp: Date.now(),
             config: config
         };

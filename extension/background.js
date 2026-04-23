@@ -1,6 +1,6 @@
 importScripts('toon_utils.js');
 
-console.log("BugScribe Ext: Background Service Worker Active v2.1");
+console.log("BugScribe Ext: Background Service Worker Active v2.4");
 
 // Handle extension icon click - inject widget on active tab and open it
 chrome.action.onClicked.addListener((tab) => {
