@@ -385,7 +385,7 @@ function saveRecording() {
             const wdw = document.getElementById('bugscribe-iframe-widget-container');
             if (wdw) {
                 const iframe = wdw.shadowRoot ? wdw.shadowRoot.querySelector('iframe') : null;
-                if (iframe) iframe.src = chrome.runtime.getURL('popup.html?v=' + Date.now());
+                if (iframe) iframe.src = chrome.runtime.getURL('extension/popup.html?v=' + Date.now());
                 // Also open the widget if it's closed
                 const shadow = wdw.shadowRoot;
                 if (shadow) {
@@ -555,7 +555,7 @@ function startAnnotation() {
                             const iframe = shadow.querySelector('iframe');
                             const iframeWrapper = shadow.getElementById('iframeWrapper');
                             const fabBtn = shadow.getElementById('fabBtn');
-                            if (iframe) iframe.src = chrome.runtime.getURL('popup.html?v=' + Date.now());
+                            if (iframe) iframe.src = chrome.runtime.getURL('extension/popup.html?v=' + Date.now());
                             if (iframeWrapper) iframeWrapper.classList.add('show');
                             if (fabBtn) {
                                 fabBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
@@ -1021,7 +1021,7 @@ function injectIframeWidget() {
                 <span class="side-tab-text">Report Bug</span>
             </button>
             <div class="iframe-wrapper" id="iframeWrapper">
-                <iframe src="${chrome.runtime.getURL('popup.html')}" allow="display-capture *"></iframe>
+                <iframe src="${chrome.runtime.getURL('extension/popup.html')}" allow="display-capture *"></iframe>
             </div>
         </div>
     `;
