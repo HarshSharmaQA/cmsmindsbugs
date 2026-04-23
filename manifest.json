@@ -1,0 +1,65 @@
+{
+    "manifest_version": 3,
+    "name": "BugScribe Reporter",
+    "version": "2.4",
+    "description": "Capture bugs naturally with enhanced UI/UX. Screenshot, record, and annotate with local configuration support.",
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://cmsmindsqa1-theta.vercel.app https://cmsmindsqa.vercel.app https://bugscribe.convex.site http://localhost:* http://127.0.0.1:*; frame-src 'self'; object-src 'none';"
+    },
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "storage",
+        "scripting",
+        "notifications"
+    ],
+    "host_permissions": [
+        "http://*/*",
+        "https://*/*",
+        "http://localhost:*/*"
+    ],
+    "action": {
+        "default_icon": {
+            "16": "extension/icon16.png",
+            "48": "extension/icon48.png",
+            "128": "extension/icon128.png"
+        }
+    },
+    "options_page": "extension/settings.html",
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "extension/popup.html",
+                "extension/popup-enhanced.html",
+                "extension/popup.js",
+                "extension/settings.html",
+                "extension/settings.js",
+                "extension/settings-styles.css",
+                "extension/config.js",
+                "extension/toon_utils.js",
+                "extension/images/*"
+            ],
+            "matches": [
+                "http://*/*",
+                "https://*/*"
+            ]
+        }
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "http://*/*",
+                "https://*/*"
+            ],
+            "js": [
+                "extension/toon_utils.js",
+                "extension/config.js",
+                "extension/content.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ],
+    "background": {
+        "service_worker": "extension/background.js"
+    }
+}
