@@ -28,12 +28,12 @@ export function ExportDropdown({ onExportCSV, onExportWithImages, disabled = fal
                 <>
                     {/* Backdrop */}
                     <div 
-                        className="fixed inset-0 z-10" 
+                        className="fixed inset-0 z-[200]" 
                         onClick={() => setIsOpen(false)}
                     />
                     
                     {/* Dropdown Menu */}
-                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-20 overflow-hidden">
+                    <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-[201] overflow-hidden">
                         <div className="py-1">
                             {/* CSV Export */}
                             <button
