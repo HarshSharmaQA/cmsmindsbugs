@@ -5,20 +5,13 @@ import Link from "next/link";
 import { Bug, ChevronDown, Menu, X, BarChart3, LogOut, Settings } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useAppContext } from "@/contexts/AppContext";
 
 type NavLink = { label: string; path: string; dropdown?: boolean; subLinks?: { label: string; path: string }[] };
 
 function NavbarContent() {
-    const [devToken, setDevToken] = useState<string | null>(null);
+    const { currentUser: user, settings, devToken } = useAppContext();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-    useEffect(() => {
-        const stored = localStorage.getItem("bugscribe_dev_token");
-        if (stored) {
-            setDevToken(stored);
-        }
-    }, []);
-
     const [profileOpen, setProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
 
@@ -30,13 +23,14 @@ function NavbarContent() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    const user = useQuery(api.users.currentUser, { devToken: devToken || undefined });
     const isSuperAdmin = user?.role === "super_admin";
+
+    // Still need pages.list for menu fallback — but only if no custom links set
     const publishedPages = useQuery(api.pages.list, { devToken: undefined }) ?? [];
 
-    // ── Custom menu links from globalSettings ──────────────────────────────
-    const customLinksRaw = useQuery(api.globalSettings.get, { key: "nav_header_links" });
-    const navLayout = (useQuery(api.globalSettings.get, { key: "nav_layout" }) as string) || "center";
+    // Read from shared settings map (one subscription for the whole app)
+    const customLinksRaw = settings["nav_header_links"];
+    const navLayout = (settings["nav_layout"] as string) || "center";
     const customLinks: NavLink[] = Array.isArray(customLinksRaw) ? (customLinksRaw as NavLink[]) : [];
 
     // prefer custom links; fall back to published pages marked showInMenu

@@ -33,6 +33,15 @@ export const get = query({
     },
 });
 
+// Fetch ALL settings in one query — use this instead of multiple `get` calls
+export const getAll = query({
+    args: {},
+    handler: async (ctx) => {
+        const settings = await ctx.db.query("globalSettings").collect();
+        return Object.fromEntries(settings.map((s) => [s.key, s.value]));
+    },
+});
+
 export const setSetting = mutation({
     args: {
         key: v.string(),

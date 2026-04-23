@@ -5,6 +5,7 @@ import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { AppProvider } from "@/contexts/AppContext";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -134,8 +135,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <body suppressHydrationWarning>
                 <ServiceWorkerRegistration />
                 <ConvexClientProvider>
-                    {children}
-                    <PWAInstallPrompt />
+                    <AppProvider>
+                        {children}
+                        <PWAInstallPrompt />
+                    </AppProvider>
                 </ConvexClientProvider>
             </body>
         </html>

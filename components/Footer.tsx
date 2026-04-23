@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import Link from "next/link";
 import { Bug, Twitter, Facebook, Instagram, Linkedin, Youtube, Github } from "lucide-react";
+import { useAppContext } from "@/contexts/AppContext";
 
 type FooterLink = { label: string; path: string; subLinks?: { label: string; path: string }[] };
 
@@ -18,13 +17,15 @@ const SOCIAL_ICONS: Record<string, React.ElementType> = {
 };
 
 export function Footer() {
-    // ── Fetch all settings from globalSettings ─────────────────────────────────
-    const footerLinksRaw  = useQuery(api.globalSettings.get, { key: "nav_footer_links" });
-    const footerTitle     = useQuery(api.globalSettings.get, { key: "nav_footer_title" }) as string | undefined;
-    const footerDesc      = useQuery(api.globalSettings.get, { key: "footer_description" }) as string | undefined;
-    const copyright       = useQuery(api.globalSettings.get, { key: "footer_copyright" }) as string | undefined;
-    const siteName        = useQuery(api.globalSettings.get, { key: "site_name" }) as string | undefined;
-    const socialRaw       = useQuery(api.globalSettings.get, { key: "social_media" }) as Record<string, string> | undefined;
+    // ── All settings from shared context (one subscription for the whole app) ──
+    const { settings } = useAppContext();
+
+    const footerLinksRaw  = settings["nav_footer_links"];
+    const footerTitle     = settings["nav_footer_title"] as string | undefined;
+    const footerDesc      = settings["footer_description"] as string | undefined;
+    const copyright       = settings["footer_copyright"] as string | undefined;
+    const siteName        = settings["site_name"] as string | undefined;
+    const socialRaw       = settings["social_media"] as Record<string, string> | undefined;
 
     const footerLinks: FooterLink[] = Array.isArray(footerLinksRaw)
         ? (footerLinksRaw as FooterLink[]).filter(l => l.label)
