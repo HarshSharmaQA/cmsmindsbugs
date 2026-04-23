@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 "use client";
 
 import { useQuery, useMutation } from "convex/react";
@@ -21,6 +22,8 @@ import { formatDistanceToNow } from "date-fns";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { GrammarChecker } from "@/components/GrammarChecker";
 import { ImportBugsModal } from "@/components/ImportBugsModal";
+import { ExportDropdown } from "@/components/ExportDropdown";
+import { exportBugsWithImages } from "@/lib/exportWithImages";
 
 export const dynamic = 'force-dynamic';
 
@@ -122,7 +125,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
 
 // ─── KanbanColumn ─────────────────────────────────────────────────────────────
 
-function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateToLocation, canReorder, isFirst, isLast, onMoveLeft, onMoveRight, isReordering, onDeleteBucket, isSuperAdmin, onAddIssue, showScreenshot }: {
+function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateToLocation, canReorder, isFirst, isLast, onMoveLeft, onMoveRight, isReordering, onDeleteBucket, isSuperAdmin, onAddIssue, showScreenshot, members }: {
     status: Status; label: string; icon: React.ReactNode; color: string;
     bugs: any[]; onSelect: (id: Id<"bugs">) => void;
     onNavigateToLocation: (bug: any) => void;
@@ -136,6 +139,7 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
     isSuperAdmin?: boolean;
     onAddIssue?: (status: string) => void;
     showScreenshot?: boolean;
+    members?: any[];
 }) {
     return (
         <Droppable droppableId={status}>
@@ -262,7 +266,7 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                                                 </div>
 
                                                 {/* Title */}
-                                                <h4 className="text-sm font-semibold text-slate-800 leading-snug line-clamp-2 mb-3">
+                                                <h4 className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 mb-2">
                                                     {bug.title}
                                                 </h4>
 
@@ -271,6 +275,23 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                                                     <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 mb-3">
                                                         {bug.description}
                                                     </p>
+                                                )}
+
+                                                {/* Tags + Assignee Row */}
+                                                {(bug.tags?.length > 0 || bug.assigneeId) && (
+                                                    <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                                                        {(bug.tags as string[])?.slice(0, 3).map((tag: string) => (
+                                                            <span key={tag} className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                                                #{tag}
+                                                            </span>
+                                                        ))}
+                                                        {bug.assigneeId && members?.find((m: any) => m.userId === bug.assigneeId) && (
+                                                            <span className="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 text-[9px] font-semibold">
+                                                                <User className="w-2.5 h-2.5" />
+                                                                {members?.find((m: any) => m.userId === bug.assigneeId)?.name?.split(' ')[0] || members?.find((m: any) => m.userId === bug.assigneeId)?.email?.split('@')[0] || 'Assigned'}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 )}
 
                                                 {/* Priority Badge */}
@@ -911,6 +932,17 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
     const [deleting, setDeleting] = useState(false);
     const [activeTab, setActiveTab] = useState<"details" | "screenshot" | "env" | "console" | "network" | "activity" | "comments">("details");
     const [showLightbox, setShowLightbox] = useState(false);
+    const [zoomLevel, setZoomLevel] = useState(1);
+
+    const handleZoomIn = (e: React.MouseEvent) => { e.stopPropagation(); setZoomLevel(z => Math.min(+(z + 0.25).toFixed(2), 5)); };
+    const handleZoomOut = (e: React.MouseEvent) => { e.stopPropagation(); setZoomLevel(z => Math.max(+(z - 0.25).toFixed(2), 0.25)); };
+    const handleZoomReset = (e: React.MouseEvent) => { e.stopPropagation(); setZoomLevel(1); };
+
+    // Autosuggest state
+    const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
+    const [titleNextWords, setTitleNextWords] = useState<string[]>([]);
+    const [suggestLoading, setSuggestLoading] = useState(false);
+    const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Editable field states
     const [tagInput, setTagInput] = useState<string[]>([]);
@@ -944,6 +976,9 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                 setDueDate("");
             }
         }
+        // Reset zoom whenever a different bug is opened
+        setZoomLevel(1);
+        setShowLightbox(false);
     }, [bug?._id]);
 
     const shareUrl = typeof window !== "undefined" && bug ? `${window.location.origin}/dashboard/${bug.projectId}?bugId=${bug._id}` : "";
@@ -1101,46 +1136,122 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                 ) : (
                     <>
                         {/* Left Side: Image/Video */}
-                        <div className="w-[50%] bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-6 relative border-r border-slate-200">
+                        <div className="w-[50%] bg-gradient-to-br from-slate-50 via-white to-slate-50 flex flex-col border-r border-slate-200 relative">
                             {bug.screenshotUrl ? (
-                                <div 
-                                    className="w-full h-full flex items-center justify-center cursor-pointer group relative"
-                                    onClick={() => setShowLightbox(true)}
-                                >
-                                    {bug.mediaType === "video" ? (
-                                        <div className="relative w-full h-full flex items-center justify-center">
-                                            <video
-                                                src={bug.screenshotUrl}
-                                                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl border-2 border-slate-200"
-                                            />
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors rounded-xl">
-                                                <div className="p-5 rounded-full bg-white/95 border-2 border-slate-300 text-slate-700 group-hover:scale-110 transition-transform shadow-xl">
-                                                    <Video className="w-8 h-8" />
+                                <>
+                                    {/* Zoom Controls */}
+                                    <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-lg p-1">
+                                        <button
+                                            onClick={handleZoomOut}
+                                            disabled={zoomLevel <= 0.25}
+                                            title="Zoom Out (−)"
+                                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-base font-bold"
+                                        >
+                                            −
+                                        </button>
+                                        <button
+                                            onClick={handleZoomReset}
+                                            title="Reset to 100%"
+                                            className="px-2 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 transition-all text-[11px] font-bold min-w-[44px] tabular-nums"
+                                        >
+                                            {Math.round(zoomLevel * 100)}%
+                                        </button>
+                                        <button
+                                            onClick={handleZoomIn}
+                                            disabled={zoomLevel >= 5}
+                                            title="Zoom In (+)"
+                                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all text-base font-bold"
+                                        >
+                                            +
+                                        </button>
+                                        <div className="w-px h-4 bg-slate-200 mx-0.5" />
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setShowLightbox(true); }}
+                                            title="Full screen"
+                                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 transition-all"
+                                        >
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+                                                <path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    {/* Scroll-to-zoom hint */}
+                                    {zoomLevel === 1 && (
+                                        <div className="absolute top-3 right-3 z-10 px-2 py-1 bg-black/40 backdrop-blur-sm rounded-lg text-[10px] text-white/80 font-medium pointer-events-none">
+                                            Scroll to zoom
+                                        </div>
+                                    )}
+
+                                    {/* Image container with scroll+pan */}
+                                    <div
+                                        className="flex-1 overflow-auto relative"
+                                        style={{ cursor: zoomLevel > 1 ? 'grab' : 'zoom-in' }}
+                                        onWheel={(e) => {
+                                            e.preventDefault();
+                                            const delta = e.deltaY > 0 ? -0.15 : 0.15;
+                                            setZoomLevel(z => Math.min(Math.max(z + delta, 0.25), 5));
+                                        }}
+                                        onClick={() => { if (zoomLevel === 1) setShowLightbox(true); }}
+                                    >
+                                        {bug.mediaType === "video" ? (
+                                            <div className="min-w-full min-h-full flex items-center justify-center p-6">
+                                                <div className="relative" style={{ transform: `scale(${zoomLevel})`, transformOrigin: "center center", transition: "transform 0.15s ease" }}>
+                                                    <video
+                                                        src={bug.screenshotUrl}
+                                                        className="max-w-full max-h-[calc(90vh-200px)] object-contain rounded-xl shadow-2xl border-2 border-slate-200"
+                                                        onClick={e => e.stopPropagation()}
+                                                        controls
+                                                    />
                                                 </div>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <img
-                                                src={bug.screenshotUrl}
-                                                alt="Bug Screenshot"
-                                                className="max-w-full max-h-[calc(90vh-200px)] object-contain rounded-xl shadow-2xl border-2 border-slate-200 group-hover:shadow-3xl transition-all"
-                                            />
-                                            {/* Hover overlay */}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none" />
-                                        </>
-                                    )}
-                                    
-                                    {/* Click to expand hint */}
-                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-y-0 translate-y-2">
-                                        <div className="px-4 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-300 text-xs font-semibold text-slate-700 flex items-center gap-2 shadow-xl">
-                                            <ImageIcon className="w-4 h-4" />
-                                            Click to view full size
+                                        ) : (
+                                            <div
+                                                className="flex items-center justify-center p-6"
+                                                style={{
+                                                    minWidth: "100%",
+                                                    minHeight: "100%",
+                                                    width: zoomLevel > 1 ? `${zoomLevel * 100}%` : "100%",
+                                                    height: zoomLevel > 1 ? `${zoomLevel * 100}%` : "100%",
+                                                }}
+                                            >
+                                                <img
+                                                    src={bug.screenshotUrl}
+                                                    alt="Bug Screenshot"
+                                                    draggable={false}
+                                                    className="rounded-xl shadow-2xl border-2 border-slate-200 select-none"
+                                                    style={{
+                                                        maxWidth: zoomLevel <= 1 ? "100%" : "none",
+                                                        maxHeight: zoomLevel <= 1 ? "calc(90vh - 200px)" : "none",
+                                                        width: zoomLevel > 1 ? `${zoomLevel * 100}%` : "auto",
+                                                        height: zoomLevel > 1 ? "auto" : "auto",
+                                                        objectFit: "contain",
+                                                        transition: "width 0.15s ease, height 0.15s ease",
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Bottom hint bar */}
+                                    <div className="shrink-0 flex items-center justify-between px-3 py-1.5 border-t border-slate-100 bg-white/80 text-[10px] text-slate-400 font-medium">
+                                        <span>Scroll to zoom · Drag to pan when zoomed</span>
+                                        <div className="flex items-center gap-2">
+                                            {[0.5, 1, 1.5, 2].map(level => (
+                                                <button
+                                                    key={level}
+                                                    onClick={(e) => { e.stopPropagation(); setZoomLevel(level); }}
+                                                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all ${zoomLevel === level ? 'bg-slate-800 text-white' : 'hover:bg-slate-100 text-slate-500'}`}
+                                                >
+                                                    {level * 100}%
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
-                                </div>
+                                </>
                             ) : (
-                                <div className="flex flex-col items-center justify-center text-slate-400 gap-4">
+                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-4">
                                     <div className="p-8 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300">
                                         <ImageIcon className="w-20 h-20" />
                                     </div>
@@ -1168,38 +1279,119 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                         </div>
                                         
                                         {isEditingTitle && isSuperAdmin ? (
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={bugTitle}
-                                                    onChange={(e) => setBugTitle(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === "Enter") handleTitleSave();
-                                                        if (e.key === "Escape") {
-                                                            setBugTitle(bug?.title ?? "");
-                                                            setIsEditingTitle(false);
-                                                        }
-                                                    }}
-                                                    className="flex-1 text-xl font-bold text-slate-900 bg-white border-2 border-blue-400 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200"
-                                                    autoFocus
-                                                    disabled={savingTitle}
-                                                />
-                                                <button
-                                                    onClick={handleTitleSave}
-                                                    disabled={savingTitle}
-                                                    className="p-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-all"
-                                                >
-                                                    <Check className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setBugTitle(bug?.title ?? "");
-                                                        setIsEditingTitle(false);
-                                                    }}
-                                                    className="p-2 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-all"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
+                                            <div className="flex flex-col gap-1.5 flex-1">
+                                                {/* Next-word chips */}
+                                                {titleNextWords.length > 0 && (
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {titleNextWords.map((word, i) => (
+                                                            <button
+                                                                key={i}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const newTitle = bugTitle.trimEnd() + ' ' + word;
+                                                                    setBugTitle(newTitle);
+                                                                    // Re-fetch suggestions for new value
+                                                                    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+                                                                    suggestTimerRef.current = setTimeout(async () => {
+                                                                        const res = await fetch('/api/autosuggest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: newTitle, bugType: bug?.type, pageUrl: bug?.url }) });
+                                                                        const data = await res.json();
+                                                                        setTitleSuggestions(data.suggestions ?? []);
+                                                                        setTitleNextWords(data.nextWords ?? []);
+                                                                    }, 100);
+                                                                }}
+                                                                className="px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold hover:bg-blue-100 hover:border-blue-400 transition-all"
+                                                            >
+                                                                {word}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* Input row */}
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex-1 relative">
+                                                        <input
+                                                            type="text"
+                                                            value={bugTitle}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setBugTitle(val);
+                                                                setTitleSuggestions([]);
+                                                                setTitleNextWords([]);
+                                                                if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+                                                                if (val.trim().length >= 3) {
+                                                                    setSuggestLoading(true);
+                                                                    suggestTimerRef.current = setTimeout(async () => {
+                                                                        try {
+                                                                            const res = await fetch('/api/autosuggest', {
+                                                                                method: 'POST',
+                                                                                headers: { 'Content-Type': 'application/json' },
+                                                                                body: JSON.stringify({ text: val, bugType: bug?.type, pageUrl: bug?.url })
+                                                                            });
+                                                                            const data = await res.json();
+                                                                            setTitleSuggestions(data.suggestions ?? []);
+                                                                            setTitleNextWords(data.nextWords ?? []);
+                                                                        } catch {}
+                                                                        setSuggestLoading(false);
+                                                                    }, 300);
+                                                                } else {
+                                                                    setSuggestLoading(false);
+                                                                }
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter") { handleTitleSave(); setTitleSuggestions([]); setTitleNextWords([]); }
+                                                                if (e.key === "Escape") {
+                                                                    setBugTitle(bug?.title ?? "");
+                                                                    setIsEditingTitle(false);
+                                                                    setTitleSuggestions([]);
+                                                                    setTitleNextWords([]);
+                                                                }
+                                                                if (e.key === "Tab" && titleSuggestions.length > 0) {
+                                                                    e.preventDefault();
+                                                                    setBugTitle(titleSuggestions[0]);
+                                                                    setTitleSuggestions([]);
+                                                                    setTitleNextWords([]);
+                                                                }
+                                                            }}
+                                                            className="w-full text-xl font-bold text-slate-900 bg-white border-2 border-blue-400 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 pr-8"
+                                                            autoFocus
+                                                            disabled={savingTitle}
+                                                            placeholder="Describe the bug..."
+                                                        />
+                                                        {suggestLoading && (
+                                                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                                                                <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <button onClick={() => { handleTitleSave(); setTitleSuggestions([]); setTitleNextWords([]); }} disabled={savingTitle} className="p-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-all shrink-0">
+                                                        <Check className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={() => { setBugTitle(bug?.title ?? ""); setIsEditingTitle(false); setTitleSuggestions([]); setTitleNextWords([]); }} className="p-2 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-all shrink-0">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+
+                                                {/* Full suggestion dropdown */}
+                                                {titleSuggestions.length > 0 && (
+                                                    <div className="bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-50">
+                                                        <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Suggestions</span>
+                                                            <span className="text-[10px] text-slate-400">Tab to accept first</span>
+                                                        </div>
+                                                        {titleSuggestions.map((s, i) => (
+                                                            <button
+                                                                key={i}
+                                                                type="button"
+                                                                onClick={() => { setBugTitle(s); setTitleSuggestions([]); setTitleNextWords([]); }}
+                                                                className="w-full text-left px-3 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-slate-50 last:border-0 flex items-center gap-2"
+                                                            >
+                                                                <span className="w-4 h-4 rounded bg-blue-100 text-blue-600 text-[9px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                                                                <span className="flex-1 truncate">{s}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : (
                                             <div className="flex items-start gap-2 group/title">
@@ -2182,7 +2374,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
     const isProjectAdmin = Boolean(
         project?.userId === currentUser?.tokenIdentifier ||
-        members?.find((m: any) => m.userId === currentUser?.tokenIdentifier && (m.role === "owner" || m.role === "admin")) ||
+        members?.find((m) => m.userId === currentUser?.tokenIdentifier && (m.role === "owner" || m.role === "admin")) ||
         currentUser?.role === "super_admin"
     );
 
@@ -2231,9 +2423,11 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             (typeFilter === "general" ? (!bug.type || bug.type === "general") : bug.type === typeFilter);
         const matchesStatus = statusFilter === "all" || bug.status === statusFilter;
         const matchesPriority = priorityFilter === "all" || bug.priority === priorityFilter;
-        const matchesAssignee = assigneeFilter === "all" || 
-            (assigneeFilter === "unassigned" ? !bug.assigneeId : bug.assigneeId === assigneeFilter);
-        return matchesSearch && matchesType && matchesStatus && matchesPriority && matchesAssignee;
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        const matchesAssignee = assigneeFilter === "all" ||
+            (assigneeFilter === "unassigned" ? !bug.assigneeId : bug.assigneeId === assigneeFilter) ||
+            (assigneeFilter === "recent" ? (new Date(bug._creationTime).getTime() > oneDayAgo || new Date(bug.createdAt).getTime() > oneDayAgo) : bug.assigneeId === assigneeFilter);
+        return matchesSearch && matchesType && matchesStatus && matchesPriority && (assigneeFilter === "all" || assigneeFilter === "unassigned" || assigneeFilter === "recent" ? matchesAssignee : bug.assigneeId === assigneeFilter);
     });
 
     // Sort filtered bugs
@@ -2256,16 +2450,18 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const bugsByAssignee = (assigneeId: string | null) => sortedBugs.filter((b: any) => 
         assigneeId === null ? !b.assigneeId : b.assigneeId === assigneeId
     );
-    const kanbanColumns = ((projectStatuses && projectStatuses.length ? projectStatuses : DEFAULT_COLUMNS) as any[]).map((status: any) => {
-        const normalizedStatus = status.value ?? status.status;
-        const fallback = DEFAULT_COLUMNS.find(c => c.status === normalizedStatus);
-        return {
-            status: normalizedStatus,
-            label: status.label ?? fallback?.label ?? normalizedStatus,
-            color: status.color ?? fallback?.color ?? "text-slate-400",
-            icon: fallback?.icon ?? <CircleDot className="w-4 h-4" />,
-        };
-    });
+    const kanbanColumns = ((projectStatuses && projectStatuses.length ? projectStatuses : DEFAULT_COLUMNS) as any[])
+        .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)) // Sort by order field
+        .map((status: any) => {
+            const normalizedStatus = status.value ?? status.status;
+            const fallback = DEFAULT_COLUMNS.find(c => c.status === normalizedStatus);
+            return {
+                status: normalizedStatus,
+                label: status.label ?? fallback?.label ?? normalizedStatus,
+                color: status.color ?? fallback?.color ?? "text-slate-400",
+                icon: fallback?.icon ?? <CircleDot className="w-4 h-4" />,
+            };
+        });
 
     const buildBugLocationUrl = (bug: any) => {
         if (bug?.trackerUrl) return bug.trackerUrl;
@@ -2781,6 +2977,50 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         document.body.removeChild(link);
     };
 
+    const handleExportWithImages = async () => {
+        if (!bugs || bugs.length === 0) return;
+
+        // Map members for assignee lookup
+        const memberMap: Record<string, string> = {};
+        members?.forEach((m: any) => {
+            memberMap[m.userId] = m.name || m.email || m.userId;
+        });
+
+        // Convert bugs to export format
+        const exportData = bugs.map((bug: any) => ({
+            _id: bug._id,
+            title: bug.title,
+            status: bug.status,
+            priority: bug.priority,
+            type: bug.type || "general",
+            category: bug.category,
+            assigneeId: bug.assigneeId,
+            reporterName: bug.reporterName || "Widget",
+            reporterEmail: bug.reporterEmail || "N/A",
+            createdAt: bug.createdAt,
+            url: bug.url,
+            browser: bug.browser,
+            os: bug.os,
+            screenWidth: bug.screenWidth,
+            screenHeight: bug.screenHeight,
+            description: bug.description,
+            consoleErrors: bug.consoleErrors,
+            screenshotUrl: bug.screenshotUrl,
+            tags: bug.tags
+        }));
+
+        try {
+            await exportBugsWithImages(
+                exportData,
+                project?.name || "BugScribe",
+                memberMap
+            );
+        } catch (error) {
+            console.error("Export with images failed:", error);
+            alert("Failed to export with images. Please try again.");
+        }
+    };
+
     const handleAddIssueToColumn = (status: string) => {
         setInitialStatus(status);
         setShowCreateBugModal(true);
@@ -3000,14 +3240,11 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                         <Globe className="w-4 h-4" />
                                         HTML
                                     </button>
-                                    <button
-                                        onClick={handleExport}
-                                        className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
-                                        title="Export to CSV"
-                                    >
-                                        <Download className="w-4 h-4" />
-                                        CSV
-                                    </button>
+                                    <ExportDropdown
+                                        onExportCSV={handleExport}
+                                        onExportWithImages={handleExportWithImages}
+                                        disabled={bugs.length === 0}
+                                    />
                                 </>
                             )}
                         </div>
@@ -3016,18 +3253,62 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                     {/* Filter Bar */}
                     {(view === "kanban" || view === "list") && (
                         <div className="sticky top-0 z-30 bg-white px-4 py-3 flex flex-col lg:flex-row gap-3 lg:items-center justify-between shadow-sm">
-                            {/* Left: Search */}
-                            <div className="relative flex-1 max-w-xs">
-                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                <input
-                                    type="text"
-                                    className="w-full pl-9 pr-3 h-9 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-slate-300 transition-all placeholder:text-slate-400"
-                                    placeholder="Search feedback"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
+                            {/* Left: Search + Quick Filters */}
+                            <div className="flex items-center gap-3 flex-1">
+                                <div className="relative max-w-xs">
+                                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                    <input
+                                        type="text"
+                                        className="w-full pl-9 pr-3 h-9 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-slate-300 transition-all placeholder:text-slate-400"
+                                        placeholder="Search bugs..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Quick Filter Chips */}
+                                <div className="hidden md:flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Quick:</span>
+                                    <button
+                                        onClick={() => setAssigneeFilter(currentUser?.tokenIdentifier ? currentUser.tokenIdentifier : "all")}
+                                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
+                                            assigneeFilter !== "all" && assigneeFilter !== "unassigned"
+                                                ? 'bg-cyan-500 text-white border-cyan-600 shadow-sm'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-cyan-300 hover:bg-cyan-50'
+                                        }`}
+                                    >
+                                        My Issues
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+                                            if (assigneeFilter === "recent") {
+                                                setAssigneeFilter("all");
+                                            } else {
+                                                setAssigneeFilter("recent");
+                                            }
+                                        }}
+                                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
+                                            assigneeFilter === "recent"
+                                                ? 'bg-purple-500 text-white border-purple-600 shadow-sm'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-purple-300 hover:bg-purple-50'
+                                        }`}
+                                    >
+                                        Recent
+                                    </button>
+                                    <button
+                                        onClick={() => setPriorityFilter((stats?.critical ?? 0) > 0 ? "critical" : "all")}
+                                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
+                                            priorityFilter === "critical"
+                                                ? 'bg-red-500 text-white border-red-600 shadow-sm animate-pulse'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-red-300 hover:bg-red-50'
+                                        }`}
+                                    >
+                                        {(stats?.critical ?? 0) > 0 && <span className="mr-1">⚠️</span>}Critical
+                                    </button>
+                                </div>
                             </div>
-                            
+
                             {/* Right: Filters */}
                             <div className="flex items-center gap-2 flex-wrap">
                                 {/* Type Filter */}
@@ -3373,6 +3654,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                                         isSuperAdmin={isSuperAdmin}
                                                         onAddIssue={handleAddIssueToColumn}
                                                         showScreenshot={showScreenshot}
+                                                        members={members}
                                                     />
                                                 </div>
                                             ))}

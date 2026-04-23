@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { ChevronDown, MapPin, Maximize2, SlidersHorizontal, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { demoMapLocations, demoMapCenter, demoMapZoom } from './demo/map'
 
 /**
@@ -163,9 +164,11 @@ function HotelCard({
       {/* Image */}
       {location.image && (
         <div className="relative shrink-0">
-          <img
+          <Image
             src={location.image}
             alt={location.name || 'Location image'}
+            width={96}
+            height={80}
             className="w-24 h-20 rounded-lg object-cover pointer-events-none"
             draggable={false}
           />
@@ -232,9 +235,11 @@ function LocationListCard({
       {/* Thumbnail */}
       {location.image && (
         <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-muted">
-          <img
+          <Image
             src={location.image}
             alt={location.name || 'Location image'}
+            width={80}
+            height={80}
             className="h-full w-full object-cover"
           />
         </div>

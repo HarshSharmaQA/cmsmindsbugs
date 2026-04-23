@@ -1251,7 +1251,7 @@ function SplitFaqBlock({ data }: { data: any }) {
     );
 }
 
-export function RenderBlock({ block, pageSlug, isFirst }: { block: { id: string; type: string; data: any }; pageSlug: string; isFirst?: boolean }) {
+function RenderBlock({ block, pageSlug, isFirst }: { block: { id: string; type: string; data: any }; pageSlug: string; isFirst?: boolean }) {
     switch (block.type) {
         case "startup_hero": return <StartupHeroBlock data={block.data} isFirst={isFirst} />;
         case "startup_team": return <StartupTeamBlock data={block.data} />;
@@ -1299,7 +1299,7 @@ export function RenderBlock({ block, pageSlug, isFirst }: { block: { id: string;
     }
 }
 
-export function PublicPageContent({ slug }: { slug: string }) {
+function PublicPageContent({ slug }: { slug: string }) {
     const page = useQuery(api.pages.getBySlug, { slug });
 
 

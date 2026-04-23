@@ -220,7 +220,7 @@ export function decode(input: string): unknown {
       // List Array: [N]: val1,val2,val3 or key[N]: val1,val2,val3
       const listMatch = trimmed.match(/^(?:(.+?))?\[(\d+)\]:\s*(.+)$/);
       if (listMatch) {
-        const [_, key, count, valuesStr] = listMatch;
+        const [_, key, _count, valuesStr] = listMatch;
         
         // Remove truncation suffix if present
         const cleanValues = valuesStr.replace(/\s*\.\.\.\s*\(\d+\s+total\)$/, '');

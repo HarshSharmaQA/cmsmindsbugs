@@ -2,16 +2,45 @@ importScripts('toon_utils.js');
 
 console.log("BugScribe Ext: Background Service Worker Active v2.1");
 
-// Handle extension icon click - do nothing or show notification
+// Handle extension icon click - inject widget on active tab and open it
 chrome.action.onClicked.addListener((tab) => {
-    console.log("Extension icon clicked - use the side tab to open BugScribe");
-    // Optionally show a notification
-    chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon128.png',
-        title: 'BugScribe Reporter',
-        message: 'Look for the purple tab on the right side of your screen to report bugs!',
-        priority: 1
+    if (!tab.id || tab.url.startsWith("chrome://") || tab.url.startsWith("chrome-extension://")) {
+        chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icon128.png',
+            title: 'BugScribe Reporter',
+            message: 'Navigate to a webpage first, then look for the purple "Report Bug" tab on the right side of the screen.',
+            priority: 1
+        });
+        return;
+    }
+
+    // Inject content script if not already there, then open the widget
+    chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+            const container = document.getElementById('bugscribe-iframe-widget-container');
+            if (container) {
+                // Widget exists - toggle it open
+                const shadow = container.shadowRoot;
+                if (shadow) {
+                    const iframeWrapper = shadow.getElementById('iframeWrapper');
+                    const sideTabBtn = shadow.getElementById('sideTabBtn');
+                    if (iframeWrapper && !iframeWrapper.classList.contains('show')) {
+                        iframeWrapper.classList.add('show');
+                        if (sideTabBtn) {
+                            sideTabBtn.classList.add('active');
+                            const tabText = sideTabBtn.querySelector('.side-tab-text');
+                            if (tabText) tabText.textContent = 'Close';
+                        }
+                    }
+                }
+            }
+            // If widget doesn't exist, content script will inject it on next load
+        }
+    }).catch(() => {
+        // Content script not loaded yet - send message to inject
+        chrome.tabs.sendMessage(tab.id, { action: "OPEN_WIDGET" }).catch(() => {});
     });
 });
 

@@ -662,7 +662,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             // Get API endpoint
-            let apiEndpoint = "http://localhost:3000/api/reports";
+            let apiEndpoint = "https://cmsmindsqa.vercel.app/api/reports"; // Production Vercel deployment
             try {
                 if (typeof BugScribeConfig !== 'undefined') {
                     const configEndpoint = await BugScribeConfig.get('apiEndpoint');

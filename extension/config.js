@@ -7,7 +7,7 @@ const BugScribeConfig = {
     // Default configuration values
     defaults: {
         // API Configuration
-        apiEndpoint: 'http://localhost:3000/api/reports', // Default to localhost for development
+        apiEndpoint: 'https://cmsmindsqa.vercel.app/api/reports', // Production Vercel deployment
         apiTimeout: 30000,
         
         // UI Preferences

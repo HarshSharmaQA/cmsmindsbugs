@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import Image from "next/image";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
@@ -260,7 +261,7 @@ export function BookingWidget({ data, pageSlug }: { data: BookingData; pageSlug:
                         {/* Host info */}
                         <div className="flex items-center gap-2.5 mb-4 pb-4 border-b border-surface-border">
                             {data.hostAvatar ? (
-                                <img src={data.hostAvatar} alt={data.hostName} className="w-9 h-9 rounded-full object-cover border-2" style={{ borderColor: accent }} />
+                                <Image src={data.hostAvatar} alt={data.hostName} width={36} height={36} className="w-9 h-9 rounded-full object-cover border-2" style={{ borderColor: accent }} />
                             ) : (
                                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-base font-bold text-white" style={{ background: accent + "22", border: `2px solid ${accent}` }}>
                                     {data.hostName?.[0] || "B"}

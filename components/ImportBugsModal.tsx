@@ -31,7 +31,24 @@ export function ImportBugsModal({ projectId, devToken, onClose, onSuccess }: Imp
         }
     };
 
-    const parseCSV = (text: string): any[] => {
+    type BugImport = {
+        title: string;
+        description?: string;
+        status?: string;
+        priority?: "low" | "medium" | "high" | "critical";
+        type?: string;
+        category?: string;
+        assigneeEmail?: string;
+        tags?: string[];
+        reporterName?: string;
+        reporterEmail?: string;
+        browser?: string;
+        os?: string;
+        url?: string;
+        dueDate?: string;
+    };
+
+    const parseCSV = (text: string): BugImport[] => {
         const lines = text.trim().split('\n');
         if (lines.length < 2) throw new Error("CSV must have at least a header row and one data row");
 
@@ -78,7 +95,7 @@ export function ImportBugsModal({ projectId, devToken, onClose, onSuccess }: Imp
 
         console.log('Header mapping:', headerMap);
 
-        const bugs: any[] = [];
+        const bugs: BugImport[] = [];
 
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i];
@@ -102,17 +119,15 @@ export function ImportBugsModal({ projectId, devToken, onClose, onSuccess }: Imp
             }
             values.push(current.trim());
 
-            const bug: any = {};
+            const bug: Record<string, string | string[]> = {};
             let hasTitle = false;
 
             values.forEach((value, index) => {
                 const field = headerMap[index.toString()];
                 if (!field) return;
 
-                // Clean the value
                 const cleanValue = value.replace(/^"|"$/g, '').trim();
-                
-                // Skip empty or "Unknown" values
+
                 if (!cleanValue || cleanValue === '' || cleanValue === 'Unknown') return;
 
                 if (field === 'title') {
@@ -152,7 +167,22 @@ export function ImportBugsModal({ projectId, devToken, onClose, onSuccess }: Imp
 
             if (hasTitle) {
                 console.log(`Row ${i}: Found bug with title:`, bug.title);
-                bugs.push(bug);
+                bugs.push({
+                    title: bug.title as string,
+                    description: bug.description as string | undefined,
+                    status: bug.status as string | undefined,
+                    priority: bug.priority as "low" | "medium" | "high" | "critical" | undefined,
+                    type: bug.type as string | undefined,
+                    category: bug.category as string | undefined,
+                    assigneeEmail: bug.assigneeEmail as string | undefined,
+                    tags: (bug.tags as string[]) || undefined,
+                    reporterName: bug.reporterName as string | undefined,
+                    reporterEmail: bug.reporterEmail as string | undefined,
+                    browser: bug.browser as string | undefined,
+                    os: bug.os as string | undefined,
+                    url: bug.url as string | undefined,
+                    dueDate: bug.dueDate as string | undefined,
+                });
             } else {
                 console.log(`Row ${i}: Skipped - no title found. Values:`, values.slice(0, 3));
             }
@@ -174,7 +204,7 @@ export function ImportBugsModal({ projectId, devToken, onClose, onSuccess }: Imp
 
         try {
             const text = await file.text();
-            let bugs: any[];
+            let bugs: BugImport[];
 
             if (file.name.endsWith('.json')) {
                 const parsed = JSON.parse(text);
@@ -201,8 +231,9 @@ export function ImportBugsModal({ projectId, devToken, onClose, onSuccess }: Imp
                     onSuccess();
                 }, 2000);
             }
-        } catch (err: any) {
-            setError(err.message || "Failed to import bugs");
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message || "Failed to import bugs");
         } finally {
             setImporting(false);
         }
@@ -236,8 +267,9 @@ export function ImportBugsModal({ projectId, devToken, onClose, onSuccess }: Imp
             a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
-        } catch (err: any) {
-            setError(err.message || "Failed to download template");
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message || "Failed to download template");
         }
     };
 

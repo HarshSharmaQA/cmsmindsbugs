@@ -1,0 +1,12 @@
+.next
+node_modules
+.vercel
+.git
+.github
+.vscode
+*.zip
+ios
+extension
+tests
+playwright-report
+test-results

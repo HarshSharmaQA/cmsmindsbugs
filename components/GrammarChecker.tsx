@@ -18,17 +18,6 @@ export function GrammarChecker({ text, onApplySuggestion, className = "" }: Gram
   const [rephrasingOptions, setRephrasingOptions] = useState<RephrasingOption[]>([]);
   const [loadingRephrase, setLoadingRephrase] = useState(false);
 
-  useEffect(() => {
-    // Debounce grammar check
-    const timer = setTimeout(() => {
-      if (text && text !== lastChecked && text.trim().length >= 5) {
-        performCheck();
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [text, lastChecked]);
-
   const performCheck = async () => {
     setLoading(true);
     console.log('🔍 Starting grammar check for:', text.substring(0, 50));
@@ -43,6 +32,17 @@ export function GrammarChecker({ text, onApplySuggestion, className = "" }: Gram
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Debounce grammar check
+    const timer = setTimeout(() => {
+      if (text && text !== lastChecked && text.trim().length >= 5) {
+        performCheck();
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [text, lastChecked]);
 
   const performRephrase = async () => {
     setLoadingRephrase(true);

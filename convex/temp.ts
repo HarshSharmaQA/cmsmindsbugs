@@ -1,6 +1,5 @@
-import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { getEffectiveIdentity } from "./users";
+import { v } from "convex/values";
 
 export const getFirstProject = query({
     args: {},

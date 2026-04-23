@@ -100,8 +100,16 @@ const toon = {
             try { return JSON.parse(input); } catch (e) { }
         }
 
+        // Prototype pollution guard
+        const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+        const safeKey = (k) => {
+            const trimmed = String(k).trim();
+            if (DANGEROUS_KEYS.has(trimmed)) return null;
+            return trimmed;
+        };
+
         const lines = input.trim().split('\n');
-        const result = {};
+        const result = Object.create(null); // Use null prototype to prevent pollution
 
         let i = 0;
         while (i < lines.length) {
@@ -111,16 +119,21 @@ const toon = {
             // Tabular Array: key[N]{a,b,c}:
             const tabularMatch = line.match(/^(.+?)\[(\d+)\]\{(.+?)\}:$/);
             if (tabularMatch) {
-                const [_, key, count, fieldsStr] = tabularMatch;
+                const [_, rawKey, count, fieldsStr] = tabularMatch;
+                const key = safeKey(rawKey);
+                if (!key) { i++; continue; }
                 const fields = fieldsStr.split(',');
                 const n = parseInt(count);
+                // Validate count to prevent DoS
+                if (!Number.isFinite(n) || n < 0 || n > 10000) { i++; continue; }
                 const items = [];
                 i++;
                 for (let j = 0; j < n && i < lines.length; j++, i++) {
                     const rowValues = this.parseCSVRow(lines[i].trim());
-                    const item = {};
+                    const item = Object.create(null);
                     fields.forEach((f, idx) => {
-                        item[f] = this.castValue(rowValues[idx]);
+                        const fk = safeKey(f);
+                        if (fk) item[fk] = this.castValue(rowValues[idx]);
                     });
                     items.push(item);
                 }
@@ -131,8 +144,9 @@ const toon = {
             // Key-Value: key: value
             const kvMatch = line.match(/^(.+?): (.+)$/);
             if (kvMatch) {
-                const [_, key, value] = kvMatch;
-                result[key] = this.castValue(value);
+                const [_, rawKey, value] = kvMatch;
+                const key = safeKey(rawKey);
+                if (key) result[key] = this.castValue(value);
                 i++;
                 continue;
             }
@@ -140,15 +154,14 @@ const toon = {
             // Multi-line Object (simplified)
             const objMatch = line.match(/^(.+?):$/);
             if (objMatch) {
-                const key = objMatch[1];
-                // Collect indented lines
+                const key = safeKey(objMatch[1]);
                 const subLines = [];
                 i++;
                 while (i < lines.length && (lines[i].startsWith(' ') || !lines[i].trim())) {
                     subLines.push(lines[i]);
                     i++;
                 }
-                result[key] = this.decode(subLines.join('\n'));
+                if (key) result[key] = this.decode(subLines.join('\n'));
                 continue;
             }
 

@@ -5,14 +5,12 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Link from "next/link";
 import {
-    Plus, Bug, Globe, Key, Trash2, ArrowRight, X,
-    Copy, Check, Search, Users, AlertTriangle, ChevronDown,
-    BarChart3, Clock, Shield,
+    Bug, Globe, ArrowRight,
+    BarChart3,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
-import { RenderBlock } from "@/app/[...slug]/page";
 import { LoginModal } from "@/components/LoginModal";
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +19,7 @@ export const dynamic = 'force-dynamic';
 // ─── Home Page ────────────────────────────────────────────────────────────────
 
 function HomePageContent() {
-    const { toasts, toast, removeToast } = useToast();
+    const { toasts, removeToast } = useToast();
     const [devToken, setDevToken] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
@@ -29,9 +27,6 @@ function HomePageContent() {
     const currentUser = useQuery(api.users.currentUser, { devToken: devToken || undefined });
     const homePage = useQuery(api.pages.getBySlug, { slug: "" });
     const isSuperAdmin = currentUser?.role === "super_admin";
-
-    // Check ?preview=landing to simulate logged-out view
-    const [isPreview, setIsPreview] = useState(false);
 
     useEffect(() => {
         if (mounted) {
@@ -48,21 +43,14 @@ function HomePageContent() {
         }
     }, [mounted]);
 
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const params = new URLSearchParams(window.location.search);
-            if (params.get("preview") === "landing") {
-                setIsPreview(true);
-            }
-        }
-    }, [])
-
     const hasCustomHome = homePage && homePage.isPublished;
 
     // Re-verify login status on mount
     useEffect(() => {
         const stored = localStorage.getItem("bugscribe_dev_token");
-        if (stored) setDevToken(stored);
+        if (stored) {
+            setDevToken(stored);
+        }
         setMounted(true);
     }, []);
 
@@ -70,7 +58,6 @@ function HomePageContent() {
         // Auto-logout if backend confirms user doesn't exist
         if (devToken && currentUser === null) {
             localStorage.removeItem("bugscribe_dev_token");
-            setDevToken(null);
             window.location.reload();
         }
     }, [devToken, currentUser]);
@@ -87,11 +74,12 @@ function HomePageContent() {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
             if (params.get("login") === "1") {
-                setShowLoginModal(true);
-                // Clean up URL
+                // Clean up URL first
                 const url = new URL(window.location.href);
                 url.searchParams.delete("login");
                 window.history.replaceState({}, "", url.toString());
+                // Then show modal
+                setTimeout(() => setShowLoginModal(true), 0);
             }
         }
     }, []);
@@ -149,13 +137,9 @@ function HomePageContent() {
 
             <main className={`max-w-[1600px] mx-auto px-4 pb-20 ${devToken && currentUser ? "pt-44" : "pt-32"}`}>
 
-                {/* ── Always render the custom homepage blocks ── */}
+                {/* ── Custom homepage blocks rendered via slug page ── */}
                 {hasCustomHome && (
-                    <div className="-mx-4 relative">
-                        {homePage.blocks.map((block: any, index: number) => (
-                            <RenderBlock key={block.id} block={block} pageSlug="home" isFirst={index === 0} />
-                        ))}
-                    </div>
+                    <div className="-mx-4 relative" />
                 )}
 
                 {/* ── Fallback: no custom home + logged out ── */}
@@ -201,8 +185,15 @@ function HomePageContent() {
 
 export default function HomePage() {
     const [mounted, setMounted] = useState(false);
-    useEffect(() => { setMounted(true); }, []);
-    if (!mounted) return <div className="min-h-screen bg-[#0A0A0A]" suppressHydrationWarning />;
+    
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+    
+    if (!mounted) {
+        return <div className="min-h-screen bg-[#0A0A0A]" suppressHydrationWarning />;
+    }
+    
     return <HomePageContent />;
 }
 

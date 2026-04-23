@@ -136,15 +136,17 @@ function buildSelector(element) {
 
 function updateLatestBugContext(event) {
     if (!event || !event.target || event.target.closest('#bugscribe-recording-overlay')) return;
+    const href = window.location.href;
+    const safeUrl = (href.startsWith("http://") || href.startsWith("https://")) ? href.substring(0, 2048) : "";
     latestBugContext = {
-        page_url: window.location.href,
-        x_coordinate: Math.round(event.clientX),
-        y_coordinate: Math.round(event.clientY),
-        scroll_position: Math.round(window.scrollY),
-        scrollX: Math.round(window.scrollX),
-        scrollY: Math.round(window.scrollY),
+        page_url:         safeUrl,
+        x_coordinate:     Number.isFinite(event.clientX) ? Math.round(event.clientX) : 0,
+        y_coordinate:     Number.isFinite(event.clientY) ? Math.round(event.clientY) : 0,
+        scroll_position:  Math.round(window.scrollY || 0),
+        scrollX:          Math.round(window.scrollX || 0),
+        scrollY:          Math.round(window.scrollY || 0),
         element_selector: buildSelector(event.target),
-        created_at: Date.now(),
+        created_at:       Date.now(),
     };
 }
 
@@ -183,27 +185,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         try {
             const truncateEntries = (entries) => {
                 try {
-                    return JSON.stringify(entries.slice(0, 30).map(([k, v]) => [k, typeof v === 'string' && v.length > 200 ? v.substring(0, 200) + '...' : v]));
+                    return JSON.stringify(entries.slice(0, 30).map(([k, v]) => [
+                        String(k).substring(0, 100),
+                        typeof v === 'string' && v.length > 200 ? v.substring(0, 200) + '...' : v
+                    ]));
                 } catch { return "[]"; }
             };
-            const pageLoadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
+            const pageLoadTime = window.performance?.timing
+                ? window.performance.timing.loadEventEnd - window.performance.timing.navigationStart
+                : 0;
+            const href = window.location.href;
+            const safeHref = (href.startsWith("http://") || href.startsWith("https://")) ? href.substring(0, 2048) : "";
             sendResponse(toon.encode({
-                localStorage: truncateEntries(Object.entries(localStorage)),
-                sessionStorage: truncateEntries(Object.entries(sessionStorage)),
-                cookies: document.cookie.substring(0, 1000),
-                windowSize: `${window.innerWidth}x${window.innerHeight}`,
+                localStorage:     truncateEntries(Object.entries(localStorage)),
+                sessionStorage:   truncateEntries(Object.entries(sessionStorage)),
+                cookies:          document.cookie.substring(0, 500), // truncate cookies
+                windowSize:       `${window.innerWidth}x${window.innerHeight}`,
                 screenResolution: `${window.screen.width}x${window.screen.height}`,
-                userAgent: navigator.userAgent,
-                pageLoadTime: pageLoadTime > 0 ? pageLoadTime : "Still loading",
-                consoleErrors: toon.encode(consoleErrors),
-                networkLogs: toon.encode(networkLogs),
-                deviceType: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? "Mobile" : "Desktop"
+                userAgent:        navigator.userAgent.substring(0, 500), // truncate UA
+                pageLoadTime:     (Number.isFinite(pageLoadTime) && pageLoadTime > 0) ? pageLoadTime : "Unknown",
+                consoleErrors:    toon.encode(consoleErrors.slice(0, 20)),
+                networkLogs:      toon.encode(networkLogs.slice(0, 20)),
+                deviceType:       /Mobile|Android|iPhone/i.test(navigator.userAgent) ? "Mobile" : "Desktop",
+                pageUrl:          safeHref,
             }));
         } catch (e) {
-            console.error("Error collecting environment data:", e);
-            sendResponse(toon.encode({ error: e.message }));
+            sendResponse(toon.encode({ error: "Failed to collect environment data" }));
         }
-        return true; // Keep channel open
+        return true;
     } else if (request.action === "GET_BUG_CONTEXT") {
         try {
             const fallbackX = Math.round(window.innerWidth / 2);
@@ -237,6 +246,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         closeWidget();
         sendResponse(toon.encode({ status: "closed" }));
         return true; // Keep channel open
+    } else if (request.action === "OPEN_WIDGET") {
+        // Ensure widget is injected then open it
+        injectIframeWidget();
+        setTimeout(() => {
+            const container = document.getElementById('bugscribe-iframe-widget-container');
+            if (container && container.shadowRoot) {
+                const iframeWrapper = container.shadowRoot.getElementById('iframeWrapper');
+                const sideTabBtn = container.shadowRoot.getElementById('sideTabBtn');
+                if (iframeWrapper && !iframeWrapper.classList.contains('show')) {
+                    iframeWrapper.classList.add('show');
+                    if (sideTabBtn) {
+                        sideTabBtn.classList.add('active');
+                        const tabText = sideTabBtn.querySelector('.side-tab-text');
+                        if (tabText) tabText.textContent = 'Close';
+                    }
+                }
+            }
+        }, 100);
+        sendResponse(toon.encode({ status: "opened" }));
+        return true;
     } else if (request.action === "START_ANNOTATE") {
         startAnnotation();
         sendResponse(toon.encode({ status: "started" }));
@@ -331,23 +360,48 @@ function stopRecording() {
 }
 
 function saveRecording() {
+    if (!recordedChunks || recordedChunks.length === 0) {
+        alert("BugScribe: No recording data found.");
+        return;
+    }
     const blob = new Blob(recordedChunks, { type: 'video/webm' });
     const reader = new FileReader();
     reader.readAsDataURL(blob);
+    reader.onerror = () => {
+        console.error("BugScribe: Failed to read recording blob");
+        alert("BugScribe: Failed to process recording. Please try again.");
+    };
     reader.onloadend = () => {
         const base64data = reader.result;
+        if (!base64data || base64data === "data:") {
+            alert("BugScribe: Recording data is empty. Please try again.");
+            return;
+        }
         chrome.storage.local.set({
             bugscribe_pending_media: base64data,
             bugscribe_pending_mediatype: "video",
             bugscribe_pending_steps: steps
         }, () => {
-            // Let the widget handle it instead of alerting
             const wdw = document.getElementById('bugscribe-iframe-widget-container');
             if (wdw) {
-                const iframe = wdw.shadowRoot.querySelector('iframe');
-                if (iframe) iframe.src = chrome.runtime.getURL('popup.html?v=' + Date.now()); // force reload
+                const iframe = wdw.shadowRoot ? wdw.shadowRoot.querySelector('iframe') : null;
+                if (iframe) iframe.src = chrome.runtime.getURL('popup.html?v=' + Date.now());
+                // Also open the widget if it's closed
+                const shadow = wdw.shadowRoot;
+                if (shadow) {
+                    const iframeWrapper = shadow.getElementById('iframeWrapper');
+                    const sideTabBtn = shadow.getElementById('sideTabBtn');
+                    if (iframeWrapper && !iframeWrapper.classList.contains('show')) {
+                        iframeWrapper.classList.add('show');
+                        if (sideTabBtn) {
+                            sideTabBtn.classList.add('active');
+                            const tabText = sideTabBtn.querySelector('.side-tab-text');
+                            if (tabText) tabText.textContent = 'Close';
+                        }
+                    }
+                }
             } else {
-                alert("BugScribe: Recording saved! Click the extension icon to submit the bug.");
+                alert("BugScribe: Recording saved! Open the side tab to submit the bug.");
             }
         });
     };
@@ -371,8 +425,13 @@ function closeWidget() {
     }
 }
 
-// Listen for postMessage from the iframe popup
+// Listen for postMessage from the iframe popup — validate origin
 window.addEventListener("message", (event) => {
+    // Only accept from our own extension or same origin
+    const extensionOrigin = chrome.runtime.getURL("").replace(/\/$/, "");
+    if (event.origin !== window.location.origin && event.origin !== extensionOrigin) {
+        return; // Reject messages from unknown origins
+    }
     if (event.data === "CLOSE_BUGScribe_IFRAME") {
         closeWidget();
     }
@@ -395,11 +454,12 @@ function startAnnotation() {
 
     // Canvas on top of page
     const canvas = document.createElement('canvas');
-    canvas.width = window.innerWidth * window.devicePixelRatio;
-    canvas.height = window.innerHeight * window.devicePixelRatio;
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
     canvas.style.cssText = 'width:100%;height:100%;';
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.scale(dpr, dpr);
 
     overlay.appendChild(canvas);
 
@@ -529,8 +589,10 @@ function startAnnotation() {
     let snapshot = null;
 
     const drawArrow = (x1, y1, x2, y2) => {
+        if (x1 === x2 && y1 === y2) return; // Skip zero-length arrows
         const headlen = 15;
         const angle = Math.atan2(y2 - y1, x2 - x1);
+        if (!Number.isFinite(angle)) return;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -647,8 +709,12 @@ function startAnnotation() {
     canvas.addEventListener('mouseout', () => isDrawing = false);
 }
 
-chrome.storage.local.get(["bugscribeConnectionKey"], (res) => {
-    if (res.bugscribeConnectionKey) {
+chrome.storage.local.get(["bugscribeConnectionKey", "bugscribeProjects", "bugscribeActiveProject"], (res) => {
+    // Inject if legacy key exists OR if any projects are configured
+    const hasLegacyKey = !!res.bugscribeConnectionKey;
+    const hasProjects = Array.isArray(res.bugscribeProjects) && res.bugscribeProjects.length > 0;
+    
+    if (hasLegacyKey || hasProjects) {
         injectIframeWidget();
     }
 });
@@ -726,7 +792,14 @@ function showLocationHighlight() {
         if (payload.selector) {
             try {
                 const selector = decodeURIComponent(payload.selector);
-                const el = document.querySelector(selector);
+                // Validate selector is safe before using it
+                let el = null;
+                try {
+                    document.createDocumentFragment().querySelector(selector);
+                    el = document.querySelector(selector);
+                } catch (_) {
+                    el = null;
+                }
                 if (el) {
                     showElementBox(el.getBoundingClientRect());
                     return;
@@ -739,13 +812,21 @@ function showLocationHighlight() {
 
 showLocationHighlight();
 
+// Always inject the widget so users can access setup even without a project configured
+injectIframeWidget();
+
 chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'local' && changes.bugscribeConnectionKey) {
-        if (changes.bugscribeConnectionKey.newValue) {
-            injectIframeWidget();
-        } else {
-            const w = document.getElementById('bugscribe-iframe-widget-container');
-            if (w) w.remove();
+    if (namespace === 'local') {
+        if (changes.bugscribeProjects) {
+            const projects = changes.bugscribeProjects.newValue;
+            if (!projects || projects.length === 0) {
+                chrome.storage.local.get(["bugscribeConnectionKey"], (res) => {
+                    if (!res.bugscribeConnectionKey) {
+                        const w = document.getElementById('bugscribe-iframe-widget-container');
+                        if (w) w.remove();
+                    }
+                });
+            }
         }
     }
 });

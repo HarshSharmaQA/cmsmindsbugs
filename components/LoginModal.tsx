@@ -82,8 +82,9 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
             localStorage.setItem("bugscribe_dev_token", token);
             resetForm();
             onSuccess();
-        } catch (err: any) {
-            setError(err.message || "Login failed. Please try again.");
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message || "Login failed. Please try again.");
         } finally {
             setLoggingIn(false);
         }

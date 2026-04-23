@@ -1,4 +1,3 @@
-
 # Advanced Component Patterns
 
 Additional patterns for Convex components that go beyond the basics covered in the main skill file.

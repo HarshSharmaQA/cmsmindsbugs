@@ -18,10 +18,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Dynamic builder pages
     let dynamicRoutes: MetadataRoute.Sitemap = [];
     try {
-        const pages: any[] = await fetchQuery(api.pages.list, {});
+        const pages: Array<{ isPublished?: boolean; slug?: string; updatedAt?: number }> = await fetchQuery(api.pages.list, {});
         dynamicRoutes = pages
-            .filter((p: any) => p.isPublished && p.slug !== undefined)
-            .map((p: any) => ({
+            .filter((p) => p.isPublished && p.slug !== undefined)
+            .map((p) => ({
                 url: `${SITE_URL}/${p.slug}`.replace(/\/+$/, ""),
                 lastModified: new Date(p.updatedAt ?? Date.now()),
                 changeFrequency: "weekly" as const,

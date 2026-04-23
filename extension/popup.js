@@ -1,32 +1,59 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const setupView = document.getElementById("setupView");
-    const nameView = document.getElementById("nameView");
-    const reportView = document.getElementById("reportView");
-    const successView = document.getElementById("successView");
-    const disabledView = document.getElementById("disabledView");
-    const settingsBtn = document.getElementById("settingsBtn");
+document.addEventListener("DOMContentLoaded", async () => {
+    // Guard: toon_utils.js must be loaded
+    if (typeof toon === 'undefined') {
+        document.body.innerHTML = `
+            <div style="padding:24px;text-align:center;font-family:sans-serif;color:#ef4444;">
+                <p style="font-weight:700;font-size:15px;">Extension Error</p>
+                <p style="font-size:12px;color:#64748b;">Failed to load required scripts.<br>Please reload the extension.</p>
+            </div>`;
+        return;
+    }
 
-    const bugType = document.getElementById("bugType");
-    const bugTitle = document.getElementById("bugTitle");
+    // ── Constants ────────────────────────────────────────────────────────────
+    const MAX_NAME_LEN       = 100;
+    const MAX_TITLE_LEN      = 200;
+    const MAX_DESC_LEN       = 2000;
+    const MAX_PROJECT_NAME   = 100;
+    const MAX_PROJECTS       = 20;
+    const ALLOWED_PRIORITIES = ["low", "medium", "high", "critical"];
+    const ALLOWED_TYPES      = ["general", "ui_ux", "performance", "security", "crash", "network"];
+    const ALLOWED_COLORS     = ["#ef4444", "#facc15", "#22c55e", "#3b82f6", "#a855f7", "#ffffff"];
+    const ALLOWED_TOOLS      = ["pen", "arrow", "box", "circle", "blur", "text"];
+    const EMAIL_RE           = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{1,63}$/;
+    const PROJECT_ID_RE      = /^[a-zA-Z0-9_-]{8,128}$/;
+    const API_KEY_RE         = /^[a-zA-Z0-9_-]{8,256}$/;
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+    const setupView    = document.getElementById("setupView");
+    const nameView     = document.getElementById("nameView");
+    const reportView   = document.getElementById("reportView");
+    const successView  = document.getElementById("successView");
+    const disabledView = document.getElementById("disabledView");
+    const settingsBtn  = document.getElementById("settingsBtn");
+    const bugType      = document.getElementById("bugType");
+    const bugTitle     = document.getElementById("bugTitle");
     const bugDescription = document.getElementById("bugDescription");
-    const bugPriority = document.getElementById("bugPriority");
-    const submitBtn = document.getElementById("submitBtn");
+    const bugPriority  = document.getElementById("bugPriority");
+    const submitBtn    = document.getElementById("submitBtn");
     const errorMessage = document.getElementById("errorMessage");
 
-    let currentMediaBlob = null;
-    let currentMediaType = "image";
-    let currentSteps = [];
-    let pageUrl = "Unknown";
-    let currentDrawTool = "pen";
-    let annotationColor = "#ef4444";
-    let strokeHistory = []; 
-    let baseImageData = null;
-    let bugLocationContext = null;
-    let reportingEnabled = true;
-    let allProjects = [];
-    let activeProjectId = null;
+    // ── State ─────────────────────────────────────────────────────────────────
+    let currentMediaBlob    = null;
+    let currentMediaType    = "image";
+    let currentSteps        = [];
+    let pageUrl             = "Unknown";
+    let currentDrawTool     = "pen";
+    let annotationColor     = "#ef4444";
+    let strokeHistory       = [];
+    let baseImageData       = null;
+    let bugLocationContext  = null;
+    let allProjects         = [];
+    let activeProjectId     = null;
+    let isInitialized       = false;
 
-    // Sanitize user-supplied strings before inserting into DOM
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /** Escape HTML — always use for user data inserted into DOM */
     function escapeHtml(str) {
         if (typeof str !== "string") return String(str ?? "");
         return str
@@ -37,22 +64,78 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/'/g, "&#39;");
     }
 
-    // Load all projects
+    /** Validate a project ID from storage/input */
+    function isValidProjectId(id) {
+        return typeof id === "string" && PROJECT_ID_RE.test(id);
+    }
+
+    /** Validate an API key from storage/input */
+    function isValidApiKey(key) {
+        return typeof key === "string" && API_KEY_RE.test(key);
+    }
+
+    /** Validate and sanitize a project object from storage */
+    function validateProject(p) {
+        if (!p || typeof p !== "object") return null;
+        if (typeof p.id !== "string" || !p.id) return null;
+        if (!isValidProjectId(p.projectId)) return null;
+        if (!isValidApiKey(p.apiKey)) return null;
+        return {
+            id:            String(p.id).substring(0, 64),
+            name:          typeof p.name === "string" ? p.name.substring(0, MAX_PROJECT_NAME) : "Unnamed",
+            projectId:     p.projectId,
+            apiKey:        p.apiKey,
+            connectionKey: typeof p.connectionKey === "string" ? p.connectionKey.substring(0, 512) : "",
+            addedAt:       Number.isFinite(p.addedAt) ? p.addedAt : Date.now(),
+        };
+    }
+
+    /** Validate a data URL (only allow image/* and video/*) */
+    function isValidMediaDataUrl(url) {
+        if (typeof url !== "string") return false;
+        return /^data:(image\/(png|jpeg|webp|gif)|video\/webm);base64,[A-Za-z0-9+/]+=*$/.test(url.substring(0, 64));
+    }
+
+    /** Validate numeric coordinate */
+    function safeCoord(v) {
+        const n = Number(v);
+        return Number.isFinite(n) ? Math.round(n) : null;
+    }
+
+    // Load all projects (validates data from storage)
     async function loadProjects() {
         return new Promise((resolve) => {
             chrome.storage.local.get(["bugscribeProjects", "bugscribeActiveProject"], (result) => {
-                allProjects = result.bugscribeProjects || [];
-                activeProjectId = result.bugscribeActiveProject || null;
+                if (chrome.runtime.lastError) {
+                    console.error("Storage read error:", chrome.runtime.lastError.message);
+                    allProjects = [];
+                    activeProjectId = null;
+                    resolve();
+                    return;
+                }
+                // Validate every project from storage — never trust stored data blindly
+                const raw = Array.isArray(result.bugscribeProjects) ? result.bugscribeProjects : [];
+                allProjects = raw
+                    .map(validateProject)
+                    .filter(Boolean)
+                    .slice(0, MAX_PROJECTS);
+                activeProjectId = typeof result.bugscribeActiveProject === "string"
+                    ? result.bugscribeActiveProject
+                    : null;
                 resolve();
             });
         });
     }
 
-    // Save projects
+    // Save projects (with storage error handling)
     function saveProjects() {
         chrome.storage.local.set({
             bugscribeProjects: allProjects,
             bugscribeActiveProject: activeProjectId
+        }, () => {
+            if (chrome.runtime.lastError) {
+                console.error("Storage write error:", chrome.runtime.lastError.message);
+            }
         });
     }
 
@@ -65,43 +148,68 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Set active project
-    function setActiveProject(projectId) {
-        activeProjectId = projectId;
-        const project = allProjects.find(p => p.id === projectId);
-        if (project) {
+    async function setActiveProject(projectId) {
+        try {
+            const project = allProjects.find(p => p.id === projectId);
+            if (!project) {
+                console.error("Project not found:", projectId);
+                showSetupView();
+                return;
+            }
+
+            // Only set after validation
+            activeProjectId = projectId;
+            renderProjects();
+
             // Set legacy storage for compatibility
-            chrome.storage.local.set({
-                bugscribeProjectId: project.projectId,
-                bugscribeApiKey: project.apiKey,
-                bugscribeConnectionKey: project.connectionKey,
-                bugscribeActiveProject: projectId
-            }, async () => {
-                renderProjects();
-                
-                // Check if reporting is enabled
-                const reportingEnabled = await checkReportingStatus();
-                
-                if (!reportingEnabled) {
-                    showDisabledView();
-                } else {
-                    // Check if user has provided their name
-                    chrome.storage.local.get(["bugscribeUserName"], (result) => {
-                        if (!result.bugscribeUserName) {
-                            showNameView();
-                        } else {
-                            showReportView();
-                        }
-                    });
-                }
+            await new Promise((resolve) => {
+                chrome.storage.local.set({
+                    bugscribeProjectId: project.projectId,
+                    bugscribeApiKey: project.apiKey,
+                    bugscribeConnectionKey: project.connectionKey,
+                    bugscribeActiveProject: projectId
+                }, resolve);
             });
+
+            // Check if user has provided their name FIRST (fast, local check)
+            const nameResult = await new Promise((resolve) => {
+                chrome.storage.local.get(["bugscribeUserName"], resolve);
+            });
+
+            if (!nameResult.bugscribeUserName) {
+                showNameView();
+                return;
+            }
+
+            // Show report view immediately — don't wait for network
+            await showReportView();
+
+            // Check reporting status in background (non-blocking)
+            checkReportingStatus().then(enabled => {
+                if (!enabled) {
+                    showDisabledView();
+                }
+            }).catch(() => {
+                // Ignore — default to enabled
+            });
+
+        } catch (error) {
+            console.error("Error setting active project:", error);
+            // Still try to show report view rather than going back to setup
+            try {
+                await showReportView();
+            } catch {
+                showSetupView();
+            }
         }
     }
 
-    // Render projects list
+    // Render projects list — uses DOM methods, never innerHTML for user data
     function renderProjects() {
         const container = document.getElementById("projectsContainer");
         const projectsList = document.getElementById("projectsList");
-        
+        if (!container || !projectsList) return;
+
         if (!allProjects || allProjects.length === 0) {
             projectsList.style.display = "none";
             return;
@@ -112,44 +220,84 @@ document.addEventListener("DOMContentLoaded", () => {
 
         allProjects.forEach(project => {
             const card = document.createElement("div");
-            card.className = `project-card ${project.id === activeProjectId ? 'active' : ''}`;
-            
-            card.innerHTML = `
-                <div class="project-card-content">
-                    <div class="project-card-name">${escapeHtml(project.name || 'Unnamed Project')}</div>
-                    <div class="project-card-id">${escapeHtml(project.projectId.substring(0, 12))}...</div>
-                </div>
-                <div class="project-card-actions">
-                    <button class="project-card-btn delete" data-id="${project.id}" title="Remove">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
-                    </button>
-                </div>
-            `;
+            card.className = `project-card ${project.id === activeProjectId ? "active" : ""}`;
+
+            // Build card content with DOM — no innerHTML for user data
+            const content = document.createElement("div");
+            content.className = "project-card-content";
+
+            const nameDiv = document.createElement("div");
+            nameDiv.className = "project-card-name";
+            nameDiv.textContent = project.name || "Unnamed Project"; // textContent is XSS-safe
+
+            const idDiv = document.createElement("div");
+            idDiv.className = "project-card-id";
+            idDiv.textContent = project.projectId.substring(0, 12) + "...";
+
+            content.appendChild(nameDiv);
+            content.appendChild(idDiv);
+
+            const actions = document.createElement("div");
+            actions.className = "project-card-actions";
+
+            const useBtn = document.createElement("button");
+            useBtn.className = "project-card-btn use";
+            useBtn.title = "Use this project";
+            useBtn.textContent = "Use";
+            useBtn.style.cssText = "background:#4f46e5;border-color:#4f46e5;color:white;font-size:10px;padding:4px 8px;border-radius:6px;font-weight:700;";
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "project-card-btn delete";
+            deleteBtn.title = "Remove";
+            deleteBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+
+            actions.appendChild(useBtn);
+            actions.appendChild(deleteBtn);
+            card.appendChild(content);
+            card.appendChild(actions);
 
             card.addEventListener("click", (e) => {
-                if (!e.target.closest('.project-card-btn')) {
-                    setActiveProject(project.id);
-                }
+                if (!e.target.closest(".project-card-btn")) setActiveProject(project.id);
             });
-
-            const deleteBtn = card.querySelector('.delete');
-            deleteBtn.addEventListener("click", (e) => {
+            useBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
-                if (confirm(`Remove "${project.name || 'this project'}"?`)) {
-                    allProjects = allProjects.filter(p => p.id !== project.id);
-                    if (activeProjectId === project.id) {
-                        activeProjectId = allProjects.length > 0 ? allProjects[0].id : null;
-                    }
-                    saveProjects();
-                    renderProjects();
-                    
-                    if (allProjects.length === 0) {
-                        chrome.storage.local.remove(["bugscribeProjectId", "bugscribeApiKey", "bugscribeConnectionKey"]);
-                    } else if (activeProjectId) {
-                        setActiveProject(activeProjectId);
-                    }
+                setActiveProject(project.id);
+            });
+            deleteBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const displayName = project.name || "this project";
+                if (!confirm(`Remove "${escapeHtml(displayName)}"?`)) return;
+
+                // Atomic delete — re-read from storage to avoid race condition
+                await new Promise((resolve) => {
+                    chrome.storage.local.get(["bugscribeProjects"], (res) => {
+                        let projects = Array.isArray(res.bugscribeProjects) ? res.bugscribeProjects : [];
+                        projects = projects.filter(p => p.id !== project.id);
+                        let newActiveId = activeProjectId;
+                        if (newActiveId === project.id) {
+                            newActiveId = projects.length > 0 ? projects[0].id : null;
+                        }
+                        allProjects = projects.map(validateProject).filter(Boolean);
+                        activeProjectId = newActiveId;
+                        chrome.storage.local.set({
+                            bugscribeProjects: allProjects,
+                            bugscribeActiveProject: activeProjectId
+                        }, () => {
+                            if (chrome.runtime.lastError) console.error("Storage error:", chrome.runtime.lastError.message);
+                            resolve();
+                        });
+                    });
+                });
+
+                renderProjects();
+
+                if (allProjects.length === 0) {
+                    await new Promise((resolve) => {
+                        chrome.storage.local.remove(["bugscribeProjectId", "bugscribeApiKey", "bugscribeConnectionKey"], resolve);
+                    });
+                    showSetupView();
+                } else if (activeProjectId) {
+                    await setActiveProject(activeProjectId);
                 }
             });
 
@@ -158,9 +306,70 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     settingsBtn.addEventListener("click", () => {
+        // Clear name inputs so they don't show stale values
+        const userNameEl = document.getElementById("userName");
+        const userEmailEl = document.getElementById("userEmail");
+        if (userNameEl) userNameEl.value = "";
+        if (userEmailEl) userEmailEl.value = "";
         showSetupView();
         renderProjects();
     });
+
+    // Initialize the extension
+    async function initialize() {
+        if (isInitialized) return;
+        isInitialized = true;
+
+        try {
+            await loadProjects();
+        } catch (e) {
+            console.error("Failed to load projects:", e);
+            showSetupView();
+            return;
+        }
+
+        try {
+            if (allProjects.length === 0) {
+                showSetupView();
+                return;
+            }
+
+            if (!activeProjectId) {
+                activeProjectId = allProjects[0].id;
+            }
+
+            const activeProject = getActiveProject();
+            if (!activeProject) {
+                showSetupView();
+                return;
+            }
+
+            // Check name first (local, instant)
+            const nameResult = await new Promise((resolve) => {
+                chrome.storage.local.get(["bugscribeUserName"], resolve);
+            });
+
+            if (!nameResult.bugscribeUserName) {
+                showNameView();
+                return;
+            }
+
+            // Show report view immediately
+            await showReportView();
+
+            // Check reporting status in background (non-blocking)
+            checkReportingStatus().then(enabled => {
+                if (!enabled) showDisabledView();
+            }).catch(() => {});
+
+        } catch (error) {
+            console.error("Initialization error:", error);
+            showSetupView();
+        }
+    }
+
+    // Start initialization
+    initialize();
 
     // --- Check if reporting is enabled ---
     async function checkReportingStatus() {
@@ -170,26 +379,53 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             if (!result.bugscribeProjectId || !result.bugscribeApiKey) {
-                return true; // Not configured yet
+                return true; // Not configured yet, allow reporting
             }
 
-            const response = await fetch(`https://bugscribe.convex.site/api/check-reporting-status`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    projectId: result.bugscribeProjectId,
-                    apiKey: result.bugscribeApiKey
-                })
-            });
+            // Determine the API base URL from the active tab's origin
+            // Falls back to production URL if we can't get the tab
+            let apiBase = "https://cmsmindsqa.vercel.app";
+            try {
+                const tabs = await Promise.race([
+                    chrome.tabs.query({ active: true, currentWindow: true }),
+                    new Promise(resolve => setTimeout(() => resolve([]), 1000))
+                ]);
+                const tab = tabs[0];
+                if (tab && tab.url) {
+                    const url = new URL(tab.url);
+                    // Use localhost if on localhost, otherwise use production
+                    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+                        apiBase = `${url.protocol}//${url.host}`;
+                    }
+                }
+            } catch (_) {}
 
-            if (response.ok) {
-                const data = await response.json();
-                return data.enabled !== false;
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 3000);
+
+            try {
+                const response = await fetch(`${apiBase}/api/check-reporting-status`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        projectId: result.bugscribeProjectId,
+                        apiKey: result.bugscribeApiKey
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(timer);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.enabled !== false;
+                }
+            } catch (_) {
+                clearTimeout(timer);
             }
+
+            return true; // Default to enabled
+        } catch (_) {
             return true;
-        } catch (error) {
-            console.error("Error checking reporting status:", error);
-            return true; // Allow reporting if check fails
         }
     }
 
@@ -201,6 +437,9 @@ document.addEventListener("DOMContentLoaded", () => {
         successView.style.display = "none";
         disabledView.style.display = "none";
         settingsBtn.style.display = "flex";
+        // Clear any previous error messages
+        const setupErr = document.getElementById("setupErrorMsg");
+        if (setupErr) { setupErr.style.display = "none"; setupErr.textContent = ""; }
     }
 
     function showNameView() {
@@ -210,6 +449,11 @@ document.addEventListener("DOMContentLoaded", () => {
         successView.style.display = "none";
         disabledView.style.display = "none";
         settingsBtn.style.display = "flex";
+        // Reset name form state
+        const saveNameBtn = document.getElementById("saveNameBtn");
+        if (saveNameBtn) { saveNameBtn.disabled = false; saveNameBtn.textContent = "✅ Continue"; }
+        const nameErr = document.getElementById("nameErrorMsg");
+        if (nameErr) { nameErr.style.display = "none"; nameErr.textContent = ""; }
     }
 
     function showDisabledView() {
@@ -229,67 +473,82 @@ document.addEventListener("DOMContentLoaded", () => {
         disabledView.style.display = "none";
         settingsBtn.style.display = "flex";
 
+        // Reset form fields every time report view is shown
+        if (bugTitle) bugTitle.value = "";
+        if (bugDescription) bugDescription.value = "";
+        if (bugPriority) bugPriority.value = "medium";
+        if (bugType) bugType.value = "general";
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "🚀 Submit Bug Report"; }
+        if (errorMessage) { errorMessage.style.display = "none"; errorMessage.textContent = ""; }
+
         try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            pageUrl = tab.url || "Unknown";
-            if (tab && tab.id) {
-                try {
-                    bugLocationContext = await new Promise((resolve) => {
+            // Get tab info with a hard 2s timeout
+            const tab = await Promise.race([
+                chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => tabs[0]),
+                new Promise(resolve => setTimeout(() => resolve(null), 2000))
+            ]);
+
+            if (tab && tab.url && !tab.url.startsWith("chrome")) {
+                pageUrl = tab.url;
+                if (tab.id) {
+                    // Get bug context with timeout — non-blocking
+                    new Promise((resolve) => {
+                        const timeout = setTimeout(() => resolve(null), 1500);
                         chrome.tabs.sendMessage(tab.id, { action: "GET_BUG_CONTEXT" }, (res) => {
-                            resolve(toon.decode(res) || null);
+                            clearTimeout(timeout);
+                            if (chrome.runtime.lastError) { resolve(null); return; }
+                            try { resolve(toon.decode(res) || null); } catch { resolve(null); }
                         });
-                    });
-                } catch (e) {
-                    bugLocationContext = null;
+                    }).then(ctx => { bugLocationContext = ctx; });
                 }
             }
-
-            chrome.storage.local.get(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"], (data) => {
-                if (data.bugscribe_pending_media) {
-                    currentMediaType = data.bugscribe_pending_mediatype || "video";
-                    currentSteps = Array.isArray(data.bugscribe_pending_steps)
-                        ? data.bugscribe_pending_steps
-                        : (toon.decode(data.bugscribe_pending_steps) || []);
-
-                    if (currentMediaType === "video") {
-                        document.getElementById("screenshotPreview").style.display = "none";
-                        document.getElementById("screenshotCanvas").style.display = "none";
-                        document.getElementById("annotationToolbar").style.display = "none";
-                        const videoEl = document.getElementById("videoPreview");
-                        videoEl.style.display = "block";
-                        videoEl.src = data.bugscribe_pending_media;
-                    } else {
-                        document.getElementById("videoPreview").style.display = "none";
-                        const imgEl = document.getElementById("screenshotPreview");
-                        imgEl.src = data.bugscribe_pending_media;
-                        imgEl.style.display = "block";
-                        document.getElementById("screenshotPreviewContainer").style.display = "block";
-                        initCanvas(data.bugscribe_pending_media);
-                    }
-
-                    fetch(data.bugscribe_pending_media)
-                        .then(res => res.blob())
-                        .then(blob => currentMediaBlob = blob);
-
-                    if (currentSteps.length > 0) {
-                        const stepsContainer = document.getElementById("stepsContainer");
-                        const stepsList = document.getElementById("stepsList");
-                        stepsContainer.style.display = "block";
-                        // Build steps safely via DOM — never innerHTML with user data
-                        stepsList.innerHTML = "";
-                        currentSteps.forEach(s => {
-                            const li = document.createElement("li");
-                            li.textContent = s; // textContent auto-escapes
-                            stepsList.appendChild(li);
-                        });
-                    }
-                } else {
-                    captureScreenshot();
-                }
-            });
         } catch (err) {
-            console.error(err);
+            // Tab query failed — that's fine, continue without URL context
         }
+
+        // Load pending media from storage
+        chrome.storage.local.get(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"], (data) => {
+            if (data.bugscribe_pending_media && isValidMediaDataUrl(data.bugscribe_pending_media)) {
+                currentMediaType = data.bugscribe_pending_mediatype || "video";
+                currentSteps = Array.isArray(data.bugscribe_pending_steps)
+                    ? data.bugscribe_pending_steps
+                    : (toon.decode(data.bugscribe_pending_steps) || []);
+
+                if (currentMediaType === "video") {
+                    document.getElementById("screenshotPreview").style.display = "none";
+                    document.getElementById("screenshotCanvas").style.display = "none";
+                    document.getElementById("annotationToolbar").style.display = "none";
+                    const videoEl = document.getElementById("videoPreview");
+                    videoEl.style.display = "block";
+                    videoEl.src = data.bugscribe_pending_media;
+                } else {
+                    document.getElementById("videoPreview").style.display = "none";
+                    const imgEl = document.getElementById("screenshotPreview");
+                    imgEl.src = data.bugscribe_pending_media;
+                    imgEl.style.display = "block";
+                    document.getElementById("screenshotPreviewContainer").style.display = "block";
+                    initCanvas(data.bugscribe_pending_media);
+                }
+
+                fetch(data.bugscribe_pending_media)
+                    .then(res => res.blob())
+                    .then(blob => { currentMediaBlob = blob; });
+
+                if (currentSteps.length > 0) {
+                    const stepsContainer = document.getElementById("stepsContainer");
+                    const stepsList = document.getElementById("stepsList");
+                    stepsContainer.style.display = "block";
+                    stepsList.innerHTML = "";
+                    currentSteps.forEach(s => {
+                        const li = document.createElement("li");
+                        li.textContent = s;
+                        stepsList.appendChild(li);
+                    });
+                }
+            } else {
+                captureScreenshot();
+            }
+        });
     }
 
     function initCanvas(mediaUrl) {
@@ -457,19 +716,26 @@ document.addEventListener("DOMContentLoaded", () => {
         imgEl.style.display = "block";
 
         chrome.runtime.sendMessage({ action: "CAPTURE_SCREENSHOT" }, (response) => {
-            const decodedResponse = toon.decode(response);
-            if (chrome.runtime.lastError || !decodedResponse || !decodedResponse.dataUrl) {
-                console.error(chrome.runtime.lastError || decodedResponse?.error);
+            if (chrome.runtime.lastError) {
+                console.error("Screenshot error:", chrome.runtime.lastError.message);
+                document.getElementById("screenshotPreviewContainer").style.display = "none";
+                document.getElementById("annotationToolbar").style.display = "none";
+                return;
+            }
+            let decodedResponse = null;
+            try { decodedResponse = response ? toon.decode(response) : null; } catch (_) {}
+            // Validate data URL before using it
+            if (!decodedResponse?.dataUrl || !isValidMediaDataUrl(decodedResponse.dataUrl)) {
                 document.getElementById("screenshotPreviewContainer").style.display = "none";
                 document.getElementById("annotationToolbar").style.display = "none";
             } else {
                 imgEl.src = decodedResponse.dataUrl;
                 document.getElementById("screenshotPreviewContainer").style.display = "block";
                 initCanvas(decodedResponse.dataUrl);
-                
                 fetch(decodedResponse.dataUrl)
                     .then(res => res.blob())
-                    .then(blob => currentMediaBlob = blob);
+                    .then(blob => currentMediaBlob = blob)
+                    .catch(() => {});
             }
         });
     }
@@ -524,42 +790,64 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("recordBtn").addEventListener("click", async (e) => {
-        if (e.target.disabled) return;
-        e.target.disabled = true;
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        chrome.tabs.sendMessage(tab.id, { action: "START_RECORDING" }, (res) => {
-            const decodedRes = toon.decode(res);
-            if (chrome.runtime.lastError) {
-                console.error(chrome.runtime.lastError);
-                alert("Please refresh the page before starting a recording.");
-            } else {
-                window.parent.postMessage("CLOSE_BUGScribe_IFRAME", "*");
-                window.close();
+        const btn = e.currentTarget;
+        if (btn.disabled) return;
+        btn.disabled = true;
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab || !tab.id || tab.url.startsWith("chrome")) {
+                alert("Please navigate to a webpage before starting a recording.");
+                btn.disabled = false;
+                return;
             }
-        });
+            chrome.tabs.sendMessage(tab.id, { action: "START_RECORDING" }, (res) => {
+                if (chrome.runtime.lastError) {
+                    console.error(chrome.runtime.lastError);
+                    alert("Please refresh the page before starting a recording.");
+                    btn.disabled = false;
+                } else {
+                    window.parent.postMessage("CLOSE_BUGScribe_IFRAME", "*");
+                    window.close();
+                }
+            });
+        } catch (err) {
+            console.error("Record error:", err);
+            btn.disabled = false;
+        }
     });
 
     document.getElementById("annotatePageBtn").addEventListener("click", async (e) => {
-        if (e.target.disabled) return;
-        e.target.disabled = true;
-        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-        if (tab && tab.id) {
+        const btn = e.currentTarget;
+        if (btn.disabled) return;
+        btn.disabled = true;
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+            if (!tab || !tab.id || tab.url.startsWith("chrome")) {
+                alert("Please navigate to a webpage before annotating.");
+                btn.disabled = false;
+                return;
+            }
             chrome.tabs.sendMessage(tab.id, { action: "START_ANNOTATE" }, (res) => {
-                const decodedRes = toon.decode(res);
                 if (chrome.runtime.lastError) {
                     alert("Please refresh the page before annotating.");
+                    btn.disabled = false;
                 } else {
                     window.close();
                 }
             });
+        } catch (err) {
+            console.error("Annotate error:", err);
+            btn.disabled = false;
         }
     });
 
     // --- Save Credentials ---
     document.getElementById("saveBtn").addEventListener("click", async () => {
         const connectionKey = document.getElementById("setupConnectionKey").value.trim();
-        const projectName = document.getElementById("projectName").value.trim();
-        const errorMsg = document.getElementById("setupErrorMsg");
+        const projectName   = document.getElementById("projectName").value.trim();
+        const errorMsg      = document.getElementById("setupErrorMsg");
+        const saveBtn       = document.getElementById("saveBtn");
+
         errorMsg.style.display = "none";
         errorMsg.textContent = "";
 
@@ -568,65 +856,103 @@ document.addEventListener("DOMContentLoaded", () => {
             errorMsg.style.display = "block";
             return;
         }
+        if (connectionKey.length > 1024) {
+            errorMsg.textContent = "Connection key is too long.";
+            errorMsg.style.display = "block";
+            return;
+        }
+        if (projectName.length > MAX_PROJECT_NAME) {
+            errorMsg.textContent = `Project name must be under ${MAX_PROJECT_NAME} characters.`;
+            errorMsg.style.display = "block";
+            return;
+        }
+        if (allProjects.length >= MAX_PROJECTS) {
+            errorMsg.textContent = `Maximum ${MAX_PROJECTS} projects allowed.`;
+            errorMsg.style.display = "block";
+            return;
+        }
 
         try {
-            const decoded = atob(connectionKey);
-            const parts = decoded.split('|');
+            saveBtn.disabled = true;
+            saveBtn.textContent = "Adding...";
 
-            if (parts.length >= 2) {
-                const projectId = parts[0];
-                const apiKey = parts[1];
-
-                // Check if project already exists
-                const existingProject = allProjects.find(p => p.projectId === projectId);
-                if (existingProject) {
-                    errorMsg.textContent = "This project is already added.";
-                    errorMsg.style.display = "block";
-                    return;
-                }
-
-                // Add new project
-                const newProject = {
-                    id: Date.now().toString(),
-                    name: projectName || `Project ${allProjects.length + 1}`,
-                    projectId: projectId,
-                    apiKey: apiKey,
-                    connectionKey: connectionKey,
-                    addedAt: Date.now()
-                };
-
-                allProjects.push(newProject);
-                saveProjects();
-
-                const msg = document.getElementById("savedMsg");
-                msg.style.display = "block";
-                
-                // Clear inputs
-                document.getElementById("setupConnectionKey").value = "";
-                document.getElementById("projectName").value = "";
-                
-                setTimeout(async () => {
-                    msg.style.display = "none";
-                    renderProjects();
-                    
-                    // Set as active project
-                    await setActiveProject(newProject.id);
-                }, 1000);
-            } else {
-                throw new Error("Invalid key format");
+            let decoded;
+            try {
+                decoded = atob(connectionKey);
+            } catch (_) {
+                throw new Error("Invalid connection key — not valid base64.");
             }
+
+            const parts = decoded.split("|");
+            if (parts.length < 2) throw new Error("Invalid key format.");
+
+            const projectId = parts[0].trim();
+            const apiKey    = parts[1].trim();
+
+            if (!isValidProjectId(projectId)) throw new Error("Invalid project ID in key.");
+            if (!isValidApiKey(apiKey))       throw new Error("Invalid API key in key.");
+
+            if (allProjects.find(p => p.projectId === projectId)) {
+                errorMsg.textContent = "This project is already added.";
+                errorMsg.style.display = "block";
+                saveBtn.disabled = false;
+                saveBtn.textContent = "➕ Add Project";
+                return;
+            }
+
+            const newProject = validateProject({
+                id:            Date.now().toString(),
+                name:          projectName || `Project ${allProjects.length + 1}`,
+                projectId,
+                apiKey,
+                connectionKey,
+                addedAt:       Date.now(),
+            });
+            if (!newProject) throw new Error("Failed to validate project data.");
+
+            allProjects.push(newProject);
+            saveProjects();
+
+            const msg = document.getElementById("savedMsg");
+            if (msg) msg.style.display = "block";
+            document.getElementById("setupConnectionKey").value = "";
+            document.getElementById("projectName").value = "";
+
+            setTimeout(async () => {
+                if (msg) msg.style.display = "none";
+                saveBtn.disabled = false;
+                saveBtn.textContent = "➕ Add Project";
+                renderProjects();
+                await setActiveProject(newProject.id);
+            }, 1000);
+
         } catch (e) {
-            errorMsg.textContent = "Invalid connection key. Please copy the exact key from your dashboard.";
+            errorMsg.textContent = e.message || "Invalid connection key. Please copy the exact key from your dashboard.";
             errorMsg.style.display = "block";
+            saveBtn.disabled = false;
+            saveBtn.textContent = "➕ Add Project";
         }
     });
 
+    // --- Back to setup from name view ---
+    document.getElementById("backToSetupBtn").addEventListener("click", () => {
+        showSetupView();
+        renderProjects();
+    });
+
+    // --- Back to setup from disabled view ---
+    document.getElementById("disabledBackBtn").addEventListener("click", () => {
+        showSetupView();
+        renderProjects();
+    });
+
     // --- Save User Name ---
-    document.getElementById("saveNameBtn").addEventListener("click", () => {
-        const userName = document.getElementById("userName").value.trim();
-        const userEmail = document.getElementById("userEmail").value.trim();
-        const errorMsg = document.getElementById("nameErrorMsg");
-        
+    document.getElementById("saveNameBtn").addEventListener("click", async () => {
+        const userName    = document.getElementById("userName").value.trim();
+        const userEmail   = document.getElementById("userEmail").value.trim();
+        const errorMsg    = document.getElementById("nameErrorMsg");
+        const saveNameBtn = document.getElementById("saveNameBtn");
+
         errorMsg.style.display = "none";
         errorMsg.textContent = "";
 
@@ -635,29 +961,63 @@ document.addEventListener("DOMContentLoaded", () => {
             errorMsg.style.display = "block";
             return;
         }
-
-        if (userName.length < 2) {
-            errorMsg.textContent = "Name must be at least 2 characters.";
+        if (userName.length < 2 || userName.length > MAX_NAME_LEN) {
+            errorMsg.textContent = `Name must be 2–${MAX_NAME_LEN} characters.`;
+            errorMsg.style.display = "block";
+            return;
+        }
+        if (userEmail && !EMAIL_RE.test(userEmail)) {
+            errorMsg.textContent = "Please enter a valid email address.";
             errorMsg.style.display = "block";
             return;
         }
 
-        chrome.storage.local.set({
-            bugscribeUserName: userName,
-            bugscribeUserEmail: userEmail || ""
-        }, () => {
-            showReportView();
-        });
+        try {
+            saveNameBtn.disabled = true;
+            saveNameBtn.textContent = "Saving...";
+
+            await new Promise((resolve, reject) => {
+                chrome.storage.local.set({
+                    bugscribeUserName:  userName.substring(0, MAX_NAME_LEN),
+                    bugscribeUserEmail: userEmail.substring(0, 254),
+                }, () => {
+                    if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                    else resolve();
+                });
+            });
+
+            await showReportView();
+        } catch (error) {
+            errorMsg.textContent = "Failed to save. Please try again.";
+            errorMsg.style.display = "block";
+            saveNameBtn.disabled = false;
+            saveNameBtn.textContent = "✅ Continue";
+        }
     });
 
     // --- Submit Bug Report ---
     submitBtn.addEventListener("click", async () => {
-        // Validate title
-        if (!bugTitle.value.trim()) {
-            errorMessage.textContent = "⚠️ Title is required";
+        const titleVal = bugTitle.value.trim();
+        const descVal  = bugDescription.value.trim();
+
+        if (!titleVal) {
+            errorMessage.textContent = "Title is required.";
             errorMessage.style.display = "block";
             return;
         }
+        if (titleVal.length > MAX_TITLE_LEN) {
+            errorMessage.textContent = `Title must be under ${MAX_TITLE_LEN} characters.`;
+            errorMessage.style.display = "block";
+            return;
+        }
+        if (descVal.length > MAX_DESC_LEN) {
+            errorMessage.textContent = `Description must be under ${MAX_DESC_LEN} characters.`;
+            errorMessage.style.display = "block";
+            return;
+        }
+
+        const priorityVal = ALLOWED_PRIORITIES.includes(bugPriority.value) ? bugPriority.value : "medium";
+        const typeVal     = ALLOWED_TYPES.includes(bugType.value) ? bugType.value : "general";
 
         if (submitBtn.disabled) return;
         submitBtn.disabled = true;
@@ -665,210 +1025,158 @@ document.addEventListener("DOMContentLoaded", () => {
         errorMessage.style.display = "none";
 
         try {
-            // Get credentials
-            const creds = await new Promise((resolve) => {
-                chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey", "bugscribeUserName", "bugscribeUserEmail"], resolve);
+            const creds = await new Promise((resolve, reject) => {
+                chrome.storage.local.get(["bugscribeProjectId", "bugscribeApiKey", "bugscribeUserName", "bugscribeUserEmail"], (res) => {
+                    if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                    else resolve(res);
+                });
             });
 
-            if (!creds.bugscribeProjectId || !creds.bugscribeApiKey) {
-                throw new Error("⚠️ Please connect your extension first. Click the settings icon.");
-            }
+            if (!isValidProjectId(creds.bugscribeProjectId)) throw new Error("No valid project configured. Click the settings icon.");
+            if (!isValidApiKey(creds.bugscribeApiKey))       throw new Error("No valid API key configured. Click the settings icon.");
 
-            // Get user name
-            const userName = creds.bugscribeUserName || "Anonymous";
-            const userEmail = creds.bugscribeUserEmail || "";
+            const userName  = typeof creds.bugscribeUserName  === "string" ? creds.bugscribeUserName.substring(0, MAX_NAME_LEN)  : "Anonymous";
+            const userEmail = typeof creds.bugscribeUserEmail === "string" ? creds.bugscribeUserEmail.substring(0, 254) : "";
 
-            console.log("🔍 Submitting bug report...");
-            console.log("Project ID:", creds.bugscribeProjectId);
-            console.log("Reporter:", userName);
-            console.log("Page URL:", pageUrl);
+            const safePageUrl = (typeof pageUrl === "string" && (pageUrl.startsWith("http://") || pageUrl.startsWith("https://")))
+                ? pageUrl.substring(0, 2048) : "Unknown";
 
-            // Prepare form data
             const formData = new FormData();
-            formData.append("projectId", creds.bugscribeProjectId);
-            formData.append("apiKey", creds.bugscribeApiKey);
-            formData.append("title", bugTitle.value.trim());
-            formData.append("description", bugDescription.value.trim() || "No description provided");
-            formData.append("priority", bugPriority.value);
-            formData.append("type", bugType.value);
-            formData.append("url", pageUrl);
-            formData.append("page_url", bugLocationContext?.page_url || pageUrl);
+            formData.append("projectId",    creds.bugscribeProjectId);
+            formData.append("apiKey",       creds.bugscribeApiKey);
+            formData.append("title",        titleVal.substring(0, MAX_TITLE_LEN));
+            formData.append("description",  descVal.substring(0, MAX_DESC_LEN) || "No description provided");
+            formData.append("priority",     priorityVal);
+            formData.append("type",         typeVal);
+            formData.append("url",          safePageUrl);
+            formData.append("page_url",     bugLocationContext?.page_url ? String(bugLocationContext.page_url).substring(0, 2048) : safePageUrl);
             formData.append("reporterName", userName);
             formData.append("reporterEmail", userEmail);
-            
-            // Add location context
-            if (bugLocationContext?.x_coordinate !== undefined) {
-                formData.append("x_coordinate", String(bugLocationContext.x_coordinate));
-            }
-            if (bugLocationContext?.y_coordinate !== undefined) {
-                formData.append("y_coordinate", String(bugLocationContext.y_coordinate));
-            }
-            if (bugLocationContext?.scroll_position !== undefined) {
-                formData.append("scroll_position", String(bugLocationContext.scroll_position));
-            }
-            if (bugLocationContext?.scrollX !== undefined) {
-                formData.append("scrollX", String(bugLocationContext.scrollX));
-            }
-            if (bugLocationContext?.scrollY !== undefined) {
-                formData.append("scrollY", String(bugLocationContext.scrollY));
-            }
-            if (bugLocationContext?.element_selector) {
-                formData.append("element_selector", bugLocationContext.element_selector);
-            }
-            formData.append("created_at", String(bugLocationContext?.created_at || Date.now()));
+            formData.append("created_at",   String(Date.now()));
 
-            // Get environment data
+            const cx = safeCoord(bugLocationContext?.x_coordinate);
+            const cy = safeCoord(bugLocationContext?.y_coordinate);
+            const cs = safeCoord(bugLocationContext?.scroll_position);
+            const csx = safeCoord(bugLocationContext?.scrollX);
+            const csy = safeCoord(bugLocationContext?.scrollY);
+            if (cx !== null) formData.append("x_coordinate", String(cx));
+            if (cy !== null) formData.append("y_coordinate", String(cy));
+            if (cs !== null) formData.append("scroll_position", String(cs));
+            if (csx !== null) formData.append("scrollX", String(csx));
+            if (csy !== null) formData.append("scrollY", String(csy));
+            if (typeof bugLocationContext?.element_selector === "string") {
+                formData.append("element_selector", bugLocationContext.element_selector.substring(0, 500));
+            }
+
+            // Environment data (non-blocking, with timeout)
             try {
-                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                const tabs = await Promise.race([
+                    chrome.tabs.query({ active: true, currentWindow: true }),
+                    new Promise(r => setTimeout(() => r([]), 1500))
+                ]);
+                const tab = tabs[0];
                 if (tab && tab.id) {
                     const envData = await new Promise((resolve) => {
-                        // Set a timeout to prevent hanging
-                        const timeout = setTimeout(() => {
-                            console.warn("Environment data collection timed out");
-                            resolve(null);
-                        }, 2000);
-
+                        const timeout = setTimeout(() => resolve(null), 2000);
                         chrome.tabs.sendMessage(tab.id, { action: "GET_ENV_DATA" }, (res) => {
                             clearTimeout(timeout);
-                            if (chrome.runtime.lastError) {
-                                console.warn("Could not get environment data:", chrome.runtime.lastError.message);
-                                resolve(null);
-                            } else {
-                                try {
-                                    resolve(toon.decode(res));
-                                } catch (e) {
-                                    console.warn("Failed to decode environment data:", e);
-                                    resolve(null);
-                                }
-                            }
+                            if (chrome.runtime.lastError) { resolve(null); return; }
+                            try { resolve(toon.decode(res)); } catch { resolve(null); }
                         });
                     });
-                    
-                    if (envData) {
+                    if (envData && typeof envData === "object") {
                         formData.append("environmentData", JSON.stringify(envData));
-                        console.log("✅ Environment data collected");
                     }
                 }
-            } catch (e) {
-                console.warn("Could not get environment data:", e);
-            }
+            } catch (_) {}
 
-            // Add media type and steps
-            formData.append("mediaType", currentMediaType);
-            formData.append("steps", JSON.stringify(currentSteps));
-            formData.append("browser", navigator.userAgent);
-            formData.append("os", navigator.platform);
+            formData.append("mediaType", currentMediaType === "video" ? "video" : "image");
+            formData.append("steps",     JSON.stringify(Array.isArray(currentSteps) ? currentSteps.slice(0, 100) : []));
+            formData.append("browser",   navigator.userAgent.substring(0, 500));
+            formData.append("os",        navigator.platform.substring(0, 100));
 
-            console.log("Media type:", currentMediaType);
-            console.log("Steps count:", currentSteps.length);
-
-            // Handle screenshot/video
+            // Canvas → blob with WebP/PNG fallback
             if (currentMediaType === "image") {
                 const canvas = document.getElementById("screenshotCanvas");
                 if (canvas && canvas.style.display !== "none") {
-                    console.log("📸 Converting canvas to blob...");
-                    currentMediaBlob = await new Promise(resolve => {
-                        canvas.toBlob(resolve, "image/webp", 0.6);
+                    currentMediaBlob = await new Promise((resolve, reject) => {
+                        canvas.toBlob(blob => {
+                            if (blob) { resolve(blob); return; }
+                            canvas.toBlob(blob2 => {
+                                if (blob2) resolve(blob2);
+                                else reject(new Error("Failed to create screenshot blob"));
+                            }, "image/png");
+                        }, "image/webp", 0.6);
                     });
                 }
             }
 
             if (currentMediaBlob) {
-                const filename = currentMediaType === "video" ? "recording.webm" : "screenshot.webp";
-                formData.append("screenshot", currentMediaBlob, filename);
-                console.log("✅ Media attached:", filename, "Size:", Math.round(currentMediaBlob.size / 1024), "KB");
-            } else {
-                console.warn("⚠️ No media blob available");
+                const ext = currentMediaType === "video" ? "webm" : (currentMediaBlob.type === "image/png" ? "png" : "webp");
+                formData.append("screenshot", currentMediaBlob, `screenshot.${ext}`);
             }
 
-            // Get API endpoint from config or use default
-            let apiEndpoint = "http://localhost:3000/api/reports"; // Default to localhost
+            // Determine API endpoint
+            let apiEndpoint = "https://cmsmindsqa.vercel.app/api/reports";
             try {
-                if (typeof BugScribeConfig !== 'undefined') {
-                    const configEndpoint = await BugScribeConfig.get('apiEndpoint');
-                    if (configEndpoint && configEndpoint.trim()) {
-                        apiEndpoint = configEndpoint.trim();
+                const tabs2 = await Promise.race([
+                    chrome.tabs.query({ active: true, currentWindow: true }),
+                    new Promise(r => setTimeout(() => r([]), 1000))
+                ]);
+                const tab2 = tabs2[0];
+                if (tab2?.url) {
+                    const u = new URL(tab2.url);
+                    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+                        apiEndpoint = `http://${u.host}/api/reports`;
                     }
                 }
-            } catch (e) {
-                console.log("Using default API endpoint:", e.message);
-            }
-
-            console.log("🌐 Sending to:", apiEndpoint);
-
-            // Submit the report with better error handling
-            let response;
-            try {
-                response = await fetch(apiEndpoint, {
-                    method: "POST",
-                    body: formData,
-                    // Add timeout
-                    signal: AbortSignal.timeout(30000)
-                });
-            } catch (fetchError) {
-                if (fetchError.name === 'AbortError') {
-                    throw new Error("⏱️ Request timed out. Please check your server and try again.");
+                if (typeof BugScribeConfig !== "undefined") {
+                    const cfg = await BugScribeConfig.get("apiEndpoint");
+                    if (cfg && typeof cfg === "string" && cfg.startsWith("https://")) {
+                        apiEndpoint = cfg.trim();
+                    }
                 }
-                throw new Error(`🌐 Network error: ${fetchError.message}. Make sure your server is running.`);
-            }
+            } catch (_) {}
 
-            console.log("📡 Response status:", response.status);
+            const response = await fetch(apiEndpoint, {
+                method: "POST",
+                body: formData,
+                signal: AbortSignal.timeout(30000),
+            });
 
             if (!response.ok) {
-                let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+                let msg = `Server error: ${response.status}`;
                 try {
-                    const contentType = response.headers.get("content-type");
-                    if (contentType && contentType.includes("application/json")) {
-                        const errObj = await response.json();
-                        errorMessage = errObj.error || errObj.message || errorMessage;
-                        console.error("Server error details:", errObj);
-                    } else {
-                        const textError = await response.text();
-                        console.error("Server response (text):", textError);
-                        if (textError.length < 200) {
-                            errorMessage = textError;
-                        }
+                    const ct = response.headers.get("content-type") || "";
+                    if (ct.includes("application/json")) {
+                        const err = await response.json();
+                        if (typeof err?.error === "string") msg = err.error;
                     }
-                } catch (e) {
-                    console.error("Could not parse error response:", e);
-                }
-                throw new Error(errorMessage);
+                } catch (_) {}
+                throw new Error(msg);
             }
 
             const result = await response.json();
-            console.log("✅ Bug report submitted successfully:", result);
+            if (!result || typeof result !== "object") throw new Error("Invalid server response.");
 
-            // Clear pending media
             chrome.storage.local.remove(["bugscribe_pending_media", "bugscribe_pending_steps", "bugscribe_pending_mediatype"]);
 
-            // Show success view
             reportView.style.display = "none";
             settingsBtn.style.display = "none";
             successView.style.display = "block";
 
-            // Auto-reset after 3 seconds
-            setTimeout(() => {
-                resetFormForNewBug();
-            }, 3000);
+            if (window._resetTimer) clearTimeout(window._resetTimer);
+            window._resetTimer = setTimeout(() => resetFormForNewBug(), 3000);
 
         } catch (err) {
-            console.error("❌ Failed to submit bug report:", err);
-            
-            // Show user-friendly error message
-            let userMessage = err.message || "Failed to send bug report";
-            
-            // Add helpful hints based on error type
-            if (userMessage.includes("Failed to fetch") || userMessage.includes("NetworkError")) {
-                userMessage = "🌐 Network error. Please check your internet connection and try again.";
-            } else if (userMessage.includes("401") || userMessage.includes("403")) {
-                userMessage = "🔒 Authentication failed. Please reconnect your extension in settings.";
-            } else if (userMessage.includes("404")) {
-                userMessage = "❌ API endpoint not found. Please check your configuration.";
-            } else if (userMessage.includes("500") || userMessage.includes("502") || userMessage.includes("503")) {
-                userMessage = "⚠️ Server error. Please try again in a moment.";
-            }
-            
-            errorMessage.textContent = userMessage;
+            let msg = err?.message || "Failed to send bug report.";
+            if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) msg = "Network error. Check your connection.";
+            else if (msg.includes("401") || msg.includes("403")) msg = "Authentication failed. Reconnect in settings.";
+            else if (msg.includes("404")) msg = "API endpoint not found. Check your configuration.";
+            else if (msg.includes("500") || msg.includes("502") || msg.includes("503")) msg = "Server error. Please try again.";
+            else if (msg.includes("timed out") || msg.includes("AbortError")) msg = "Request timed out. Check your server.";
+
+            errorMessage.textContent = msg;
             errorMessage.style.display = "block";
             submitBtn.disabled = false;
             submitBtn.textContent = "🚀 Submit Bug Report";
@@ -884,7 +1192,9 @@ document.addEventListener("DOMContentLoaded", () => {
         bugPriority.value = "medium";
         bugType.value = "general";
         submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Bug Report";
+        submitBtn.textContent = "🚀 Submit Bug Report";
+        errorMessage.style.display = "none";
+        errorMessage.textContent = "";
         currentMediaBlob = null;
         currentMediaType = "image";
         currentSteps = [];
@@ -894,10 +1204,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     document.getElementById("reportAnotherBtn").addEventListener("click", () => {
+        if (window._resetTimer) { clearTimeout(window._resetTimer); window._resetTimer = null; }
         resetFormForNewBug();
     });
 
     document.getElementById("closeBtn").addEventListener("click", () => {
+        // Send to extension origin specifically, not wildcard
+        try {
+            const extOrigin = chrome.runtime.getURL("").replace(/\/$/, "");
+            window.parent.postMessage("CLOSE_BUGScribe_IFRAME", extOrigin);
+        } catch (_) {
+            try { window.parent.postMessage("CLOSE_BUGScribe_IFRAME", "*"); } catch (_2) {}
+        }
         window.close();
     });
 });

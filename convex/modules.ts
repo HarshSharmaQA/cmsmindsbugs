@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
 import { getEffectiveIdentity } from "./users";
 
 // ── Super Admin Checks ──────────────────────────────────────────────────────
@@ -21,7 +20,7 @@ async function isSuperAdmin(ctx: QueryCtx, devToken?: string) {
 
 export const listModules = query({
     args: { devToken: v.optional(v.string()) },
-    handler: async (ctx, args) => {
+    handler: async (ctx, _args) => {
         // Anyone logged in can see the modules, they just define the tabs
         return await ctx.db
             .query("dashboardModules")

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Bug, ShieldAlert, ChevronDown, Menu, X, BarChart3, Layout, LogOut, Settings } from "lucide-react";
+import { Bug, ChevronDown, Menu, X, BarChart3, LogOut, Settings } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
@@ -14,7 +14,9 @@ function NavbarContent() {
 
     useEffect(() => {
         const stored = localStorage.getItem("bugscribe_dev_token");
-        setDevToken(stored);
+        if (stored) {
+            setDevToken(stored);
+        }
     }, []);
 
     const [profileOpen, setProfileOpen] = useState(false);
@@ -40,7 +42,7 @@ function NavbarContent() {
     // prefer custom links; fall back to published pages marked showInMenu
     const menuPages = customLinks.length > 0
         ? customLinks.filter(l => l.label)
-        : (publishedPages as any[]).filter(p => p.showInMenu && p.slug !== "").map((p: any) => ({ label: p.title, path: `/${p.slug}` }));
+        : (publishedPages as Array<{ showInMenu?: boolean; slug: string; title: string }>).filter(p => p.showInMenu && p.slug !== "").map((p) => ({ label: p.title, path: `/${p.slug}` }));
 
     const visibleCount = 5;
     const hasMore = menuPages.length > visibleCount;
@@ -297,7 +299,10 @@ function NavbarContent() {
 
 export function Navbar() {
     const [mounted, setMounted] = useState(false);
-    useEffect(() => { setMounted(true); }, []);
+    
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     if (!mounted) {
         return (

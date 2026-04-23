@@ -109,6 +109,8 @@ export default defineSchema({
         mediaType: v.optional(v.string()), // 'image' or 'video'
         steps: v.optional(v.array(v.string())), // auto-generated steps
         environmentData: v.optional(v.any()), // auto-captured local storage, cookies, etc.
+        customField: v.optional(v.any()), // Custom field data from backup imports
+        trackerUrl: v.optional(v.string()), // External tracker URL from backup imports
 
         createdAt: v.number(),
         created_at: v.optional(v.number()),
