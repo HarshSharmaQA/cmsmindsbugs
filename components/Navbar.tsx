@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Bug, ChevronDown, Menu, X, BarChart3, LogOut, Settings } from "lucide-react";
+import { Bug, ChevronDown, Menu, X, BarChart3, LogOut, Settings, ArrowUp } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAppContext } from "@/contexts/AppContext";
+import { NotificationBell } from "@/components/NotificationBell";
 
 type NavLink = { label: string; path: string; dropdown?: boolean; subLinks?: { label: string; path: string }[] };
 
@@ -13,31 +14,71 @@ function NavbarContent() {
     const { currentUser: user, settings, devToken } = useAppContext();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [navHidden, setNavHidden] = useState(false);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+    const lastScrollY = useRef(0);
     const profileRef = useRef<HTMLDivElement>(null);
 
+    // Hide navbar on scroll down, show on scroll up
     useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
+        const handleScroll = () => {
+            const currentY = window.scrollY;
+            const diff = currentY - lastScrollY.current;
+
+            if (currentY < 80) {
+                // Always show near top
+                setNavHidden(false);
+            } else if (diff > 6) {
+                // Scrolling down — hide
+                setNavHidden(true);
+            } else if (diff < -6) {
+                // Scrolling up — show
+                setNavHidden(false);
+            }
+
+            setShowScrollTop(currentY > 400);
+            lastScrollY.current = currentY;
         };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
+
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        return () => window.removeEventListener("scroll", handleScroll);
     }, []);
+
+    // Memoize event handlers to prevent recreation on every render
+    const handleClickOutside = useCallback((e: MouseEvent) => {
+        if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+            setProfileOpen(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [handleClickOutside]);
 
     const isSuperAdmin = user?.role === "super_admin";
 
-    // Still need pages.list for menu fallback — but only if no custom links set
-    // Use the real devToken from context (not hardcoded undefined) for consistent auth
-    const publishedPages = useQuery(api.pages.list, { devToken: devToken ?? undefined }) ?? [];
+    // Only query pages if no custom links are set (optimization)
+    const customLinksRaw = settings["nav_header_links"];
+    const customLinks: NavLink[] = Array.isArray(customLinksRaw) ? (customLinksRaw as NavLink[]) : [];
+    const shouldQueryPages = customLinks.length === 0;
+    
+    const publishedPages = useQuery(
+        api.pages.list, 
+        shouldQueryPages ? { devToken: devToken ?? undefined } : "skip"
+    ) ?? [];
 
     // Read from shared settings map (one subscription for the whole app)
-    const customLinksRaw = settings["nav_header_links"];
     const navLayout = (settings["nav_layout"] as string) || "center";
-    const customLinks: NavLink[] = Array.isArray(customLinksRaw) ? (customLinksRaw as NavLink[]) : [];
 
-    // prefer custom links; fall back to published pages marked showInMenu
-    const menuPages = customLinks.length > 0
-        ? customLinks.filter(l => l.label)
-        : (publishedPages as Array<{ showInMenu?: boolean; slug: string; title: string }>).filter(p => p.showInMenu && p.slug !== "").map((p) => ({ label: p.title, path: `/${p.slug}` }));
+    // Memoize menu pages calculation
+    const menuPages = useMemo(() => {
+        return customLinks.length > 0
+            ? customLinks.filter(l => l.label)
+            : (publishedPages as Array<{ showInMenu?: boolean; slug: string; title: string }>)
+                .filter(p => p.showInMenu && p.slug !== "")
+                .map((p) => ({ label: p.title, path: `/${p.slug}` }));
+    }, [customLinks, publishedPages]);
 
     const visibleCount = 5;
     const hasMore = menuPages.length > visibleCount;
@@ -49,8 +90,8 @@ function NavbarContent() {
     const rightMenu = displayedPages.slice(half);
 
     return (
-        <div className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-4 pointer-events-none" suppressHydrationWarning>
-            {/* Mobile Menu Backdrop */}
+        <>
+        <div className={`fixed top-6 left-0 right-0 z-[100] flex justify-center px-4 pointer-events-none transition-transform duration-300 ${navHidden ? "-translate-y-[120%]" : "translate-y-0"}`} suppressHydrationWarning>            {/* Mobile Menu Backdrop */}
             {mobileMenuOpen && (
                 <div 
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[101] md:hidden pointer-events-auto"
@@ -234,7 +275,9 @@ function NavbarContent() {
                     {/* Action Area */}
                     <div className="flex items-center gap-2 ml-2 sm:ml-4 pl-4 border-l border-white/5 h-1/2">
                         {user ? (
-                            <div className="relative" ref={profileRef}>
+                            <>
+                                <NotificationBell />
+                                <div className="relative" ref={profileRef}>
                                 <button 
                                     onClick={() => setProfileOpen(!profileOpen)}
                                     className="w-8 h-8 rounded-full overflow-hidden border border-brand-500/30 hover:border-brand-400 transition-all flex items-center justify-center bg-brand-500/10 text-brand-400 text-[11px] font-bold uppercase"
@@ -271,6 +314,7 @@ function NavbarContent() {
                                     </div>
                                 )}
                             </div>
+                            </>
                         ) : (
                             <button
                                 onClick={() => {
@@ -289,6 +333,18 @@ function NavbarContent() {
                 </div>
             </nav>
         </div>
+
+            {/* Scroll to top button */}
+            <button
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className={`fixed bottom-6 right-6 z-[99] w-10 h-10 rounded-full bg-white border border-slate-200 shadow-lg flex items-center justify-center text-slate-600 hover:text-slate-900 hover:shadow-xl hover:scale-110 transition-all duration-300 pointer-events-auto ${
+                    showScrollTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+                }`}
+                aria-label="Scroll to top"
+            >
+                <ArrowUp className="w-4 h-4" />
+            </button>
+        </>
     );
 }
 

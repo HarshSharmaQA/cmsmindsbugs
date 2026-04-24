@@ -249,7 +249,28 @@ export default defineSchema({
         color: v.string(),           // Tailwind text color class, e.g. "text-blue-400"
         icon: v.optional(v.string()), // Lucide icon name
         order: v.number(),
+        hidden: v.optional(v.boolean()), // Admin can hide this status from non-admins
     })
         .index("by_project", ["projectId"])
         .index("by_project_order", ["projectId", "order"]),
+
+    // ── Notifications (OneSignal Integration) ─────────────────────────────────
+    // One row per user per event — enables correct per-user read state and efficient queries.
+    notifications: defineTable({
+        type: v.string(),            // "new_bug" | "bug_status_change" | "comment_added" | "bug_assigned"
+        bugId: v.optional(v.id("bugs")),
+        projectId: v.id("projects"),
+        userId: v.string(),          // tokenIdentifier of the recipient
+        title: v.string(),
+        message: v.string(),
+        sentAt: v.number(),
+        read: v.boolean(),
+        readAt: v.optional(v.number()),
+        oneSignalId: v.optional(v.string()), // OneSignal notification ID for tracking
+        actionUrl: v.optional(v.string()),   // Deep-link URL for the notification
+    })
+        .index("by_user", ["userId"])
+        .index("by_user_read", ["userId", "read"])
+        .index("by_project", ["projectId"])
+        .index("by_bug", ["bugId"]),
 });

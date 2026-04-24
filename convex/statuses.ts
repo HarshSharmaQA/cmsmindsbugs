@@ -137,10 +137,17 @@ export const moveStatus = mutation({
             .collect()).sort((a, b) => a.order - b.order);
 
         const currentIndex = statuses.findIndex((s) => s.value === args.statusValue);
-        if (currentIndex === -1) throw new Error("Status not found");
+        if (currentIndex === -1) {
+            console.error("Status not found. Looking for:", args.statusValue);
+            console.error("Available statuses:", statuses.map(s => ({ value: s.value, label: s.label, order: s.order })));
+            throw new Error(`Status "${args.statusValue}" not found in project`);
+        }
 
         const targetIndex = args.direction === "left" ? currentIndex - 1 : currentIndex + 1;
-        if (targetIndex < 0 || targetIndex >= statuses.length) return;
+        if (targetIndex < 0 || targetIndex >= statuses.length) {
+            console.log("Cannot move further in direction:", args.direction);
+            return;
+        }
 
         const current = statuses[currentIndex];
         const target = statuses[targetIndex];
@@ -187,5 +194,61 @@ export const removeStatus = mutation({
         }
 
         await ctx.db.delete(args.statusId);
+    },
+});
+
+/** Toggle visibility of a status label (admin/owner only) */
+export const toggleStatusVisibility = mutation({
+    args: {
+        projectId: v.id("projects"),
+        statusValue: v.string(),
+        hidden: v.boolean(),
+        devToken: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await getEffectiveIdentity(ctx, args.devToken);
+        if (!identity) throw new Error("Unauthenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_token_identifier", (q) => q.eq("tokenIdentifier", identity.subject))
+            .unique();
+
+        const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS || "harshsharmaqa@gmail.com").split(",").map(e => e.trim());
+        const isSuperAdmin = user?.role === "super_admin" || superAdminEmails.includes(identity.email ?? "");
+
+        const membership = await ctx.db
+            .query("projectMembers")
+            .withIndex("by_project_user", (q) =>
+                q.eq("projectId", args.projectId).eq("userId", identity.subject)
+            )
+            .unique();
+
+        const canToggle =
+            isSuperAdmin ||
+            (membership && (membership.role === "admin" || membership.role === "owner"));
+        if (!canToggle) throw new Error("Unauthorized");
+
+        // Seed defaults if needed
+        const existing = await ctx.db
+            .query("projectStatuses")
+            .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+            .collect();
+
+        if (existing.length === 0) {
+            for (const s of DEFAULT_STATUSES) {
+                await ctx.db.insert("projectStatuses", { projectId: args.projectId, ...s });
+            }
+        }
+
+        const status = await ctx.db
+            .query("projectStatuses")
+            .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+            .filter((q) => q.eq(q.field("value"), args.statusValue))
+            .unique();
+
+        if (!status) throw new Error(`Status "${args.statusValue}" not found`);
+
+        await ctx.db.patch(status._id, { hidden: args.hidden });
     },
 });

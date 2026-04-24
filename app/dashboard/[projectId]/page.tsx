@@ -61,8 +61,8 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = 
 
 function Skeleton({ className }: { className?: string }) {
     return (
-        <div className={`relative overflow-hidden bg-surface-border/50 rounded ${className}`} suppressHydrationWarning>
-            <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" suppressHydrationWarning />
+        <div className={`relative overflow-hidden bg-slate-200/60 rounded ${className}`} suppressHydrationWarning>
+            <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent" suppressHydrationWarning />
         </div>
     );
 }
@@ -116,7 +116,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
         setTimeout(() => setCopied(false), 2000);
     };
     return (
-        <button onClick={copy} className="btn-ghost text-xs flex items-center gap-1.5 h-8 px-3">
+        <button onClick={copy} className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all border border-slate-200 bg-white">
             {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
             {label ?? (copied ? "Copied!" : "Copy")}
         </button>
@@ -1521,7 +1521,7 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                         {/* Left: Main Content */}
                                         <div className="px-6 py-6 border-r border-slate-200">
                                             {/* User Description */}
-                                            <div className="flex gap-3">
+                                            <div className="flex gap-3 mb-6">
                                                 <div className="w-8 h-8 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center shrink-0 text-sm font-bold text-orange-600">
                                                     {(bug.reporterName || 'U')[0].toUpperCase()}
                                                 </div>
@@ -1536,6 +1536,39 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                                         {bug.description || "No description provided."}
                                                     </div>
                                                 </div>
+                                            </div>
+
+                                            {/* Assignee Info */}
+                                            <div className="flex gap-3 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200">
+                                                {bug.assigneeId ? (() => {
+                                                    const assignee = projectMembers.find((m: any) => m._id === bug.assigneeId);
+                                                    return (
+                                                        <>
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-base font-bold text-white shadow-lg shrink-0">
+                                                                {(assignee?.name || assignee?.email || 'A')[0].toUpperCase()}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-[10px] text-blue-600 font-bold uppercase tracking-wider mb-1">Assigned To</div>
+                                                                <div className="text-sm text-slate-900 font-bold truncate">
+                                                                    {assignee?.name || assignee?.email || "Unknown User"}
+                                                                </div>
+                                                                {assignee?.email && assignee?.name && (
+                                                                    <div className="text-xs text-slate-600 truncate mt-0.5">{assignee.email}</div>
+                                                                )}
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })() : (
+                                                    <>
+                                                        <div className="w-10 h-10 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center shrink-0">
+                                                            <User className="w-5 h-5 text-slate-400" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Assigned To</div>
+                                                            <div className="text-sm text-slate-500 font-medium">Unassigned</div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1552,12 +1585,53 @@ function BugDetailDrawer({ bugId, onClose, onStatusChange, devToken, canDelete, 
                                                 </div>
                                             </div>
 
+                                            {/* Assignee Info */}
+                                            <div className="space-y-2.5">
+                                                <label className="text-[10px] text-slate-500 font-bold block uppercase tracking-[0.1em]">Assignee</label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={selectedAssignee ?? ""}
+                                                        onChange={e => handleAssigneeChange(e.target.value)}
+                                                        disabled={!canUpdate || savingAssignee}
+                                                        className="w-full appearance-none p-3 pr-8 rounded-xl bg-white border border-slate-200 shadow-sm text-sm text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 disabled:opacity-60 disabled:cursor-not-allowed transition-all cursor-pointer hover:border-slate-300"
+                                                    >
+                                                        <option value="">Unassigned</option>
+                                                        {projectMembers.map((m: any) => (
+                                                            <option key={m._id} value={m._id}>
+                                                                {m.name || m.email}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                                                        {savingAssignee
+                                                            ? <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                                            : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             {/* Type */}
                                             <div className="space-y-2.5">
                                                 <label className="text-[10px] text-slate-500 font-bold block uppercase tracking-[0.1em]">Type</label>
-                                                <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-                                                    <div className="text-sm text-slate-800 font-semibold capitalize">
-                                                        {bug.type && bug.type !== "general" ? bug.type.replace(/-/g, ' ') : 'General'}
+                                                <div className="relative">
+                                                    <select
+                                                        value={bugType}
+                                                        onChange={e => handleTypeChange(e.target.value)}
+                                                        disabled={!canUpdate || savingType}
+                                                        className="w-full appearance-none p-3 pr-8 rounded-xl bg-white border border-slate-200 shadow-sm text-sm text-slate-800 font-semibold capitalize focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 disabled:opacity-60 disabled:cursor-not-allowed transition-all cursor-pointer hover:border-slate-300"
+                                                    >
+                                                        <option value="general">General</option>
+                                                        <option value="ui">UI</option>
+                                                        <option value="performance">Performance</option>
+                                                        <option value="security">Security</option>
+                                                        <option value="crash">Crash</option>
+                                                    </select>
+                                                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                                                        {savingType
+                                                            ? <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                                            : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                                        }
                                                     </div>
                                                 </div>
                                             </div>
@@ -1946,26 +2020,24 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
                 <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                     {/* Header */}
-                    <div className="relative px-6 py-5 border-b border-slate-200 bg-white">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-cyan-500 flex items-center justify-center shadow-sm">
-                                <Plus className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="text-base font-bold text-slate-900">New Issue</h3>
-                                <p className="text-xs text-slate-500">Create a new bug report or issue</p>
-                            </div>
-                            <button 
-                                onClick={onClose} 
-                                className="ml-auto w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-all flex items-center justify-center"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
+                    <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100">
+                        <div className="w-9 h-9 rounded-xl bg-cyan-500 flex items-center justify-center shrink-0">
+                            <Plus className="w-4 h-4 text-white" />
                         </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900">New Issue</h3>
+                            <p className="text-xs text-slate-400">Fill in the details below to create a new issue</p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="ml-auto w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition-all flex items-center justify-center"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
                     </div>
 
                     {/* Form */}
-                    <form onSubmit={handleSubmit} className="p-6 space-y-5 bg-white max-h-[calc(90vh-120px)] overflow-y-auto">
+                    <form onSubmit={handleSubmit} className="p-6 space-y-5 bg-white max-h-[calc(90vh-80px)] overflow-y-auto">
                         {/* Title Input */}
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-xs text-slate-700 font-bold uppercase tracking-wider">
@@ -1977,8 +2049,8 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                                 <input 
                                     value={title} 
                                     onChange={(e) => setTitle(e.target.value)} 
-                                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
-                                    placeholder="Short, clear bug title" 
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all" 
+                                    placeholder="Short, clear description of the issue" 
                                     required 
                                 />
                                 {title && (
@@ -2002,8 +2074,8 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                             <textarea 
                                 value={description} 
                                 onChange={(e) => setDescription(e.target.value)} 
-                                rows={4} 
-                                className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all resize-none" 
+                                rows={3} 
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all resize-none" 
                                 placeholder="Steps to reproduce, expected vs. actual behavior..."
                             />
                             <GrammarChecker
@@ -2026,7 +2098,7 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                                     <select 
                                         value={priority} 
                                         onChange={(e) => setPriority(e.target.value as Priority)} 
-                                        className="w-full px-4 py-3 bg-slate-900 border-2 border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all appearance-none cursor-pointer"
+                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all appearance-none cursor-pointer"
                                     >
                                         <option value="low">🟢 Low</option>
                                         <option value="medium">🔵 Medium</option>
@@ -2057,7 +2129,7 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                                     <select 
                                         value={type} 
                                         onChange={(e) => setType(e.target.value)} 
-                                        className="w-full px-4 py-3 bg-slate-900 border-2 border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all appearance-none cursor-pointer"
+                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all appearance-none cursor-pointer"
                                     >
                                         <option value="general">🐛 General Bug</option>
                                         {(customModules || []).map((mod: any) => (
@@ -2079,7 +2151,7 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                             <input 
                                 value={category} 
                                 onChange={(e) => setCategory(e.target.value)} 
-                                className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all" 
                                 placeholder="e.g. Header, Billing, API..." 
                             />
                         </div>
@@ -2095,7 +2167,7 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                                 type="url"
                                 value={url} 
                                 onChange={(e) => setUrl(e.target.value)} 
-                                className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all" 
                                 placeholder="https://example.com/page-with-bug" 
                             />
                         </div>
@@ -2169,7 +2241,7 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                                     <select 
                                         value={assignee} 
                                         onChange={(e) => setAssignee(e.target.value)} 
-                                        className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all appearance-none cursor-pointer"
+                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all appearance-none cursor-pointer"
                                     >
                                         <option value="">Unassigned</option>
                                         {(members || []).map((m: any) => (
@@ -2191,7 +2263,7 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                                     type="date"
                                     value={dueDate} 
                                     onChange={(e) => setDueDate(e.target.value)} 
-                                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all" 
                                 />
                             </div>
                         </div>
@@ -2213,13 +2285,13 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                                             handleAddTag();
                                         }
                                     }}
-                                    className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all" 
+                                    className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all" 
                                     placeholder="Add tags..." 
                                 />
                                 <button
                                     type="button"
                                     onClick={handleAddTag}
-                                    className="px-4 py-3 bg-slate-100 border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-all"
+                                    className="px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-all"
                                 >
                                     Add
                                 </button>
@@ -2243,18 +2315,18 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-3 pt-2">
+                        <div className="flex gap-3 pt-2 pb-1">
                             <button 
                                 type="button" 
                                 onClick={onClose} 
-                                className="flex-1 px-5 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all"
+                                className="flex-1 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all"
                             >
                                 Cancel
                             </button>
                             <button 
                                 type="submit" 
                                 disabled={loading || uploadingImage || !title.trim()} 
-                                className="flex-1 px-5 py-3 bg-cyan-500 rounded-xl text-sm font-bold text-white hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                                className="flex-1 px-5 py-2.5 bg-cyan-500 rounded-xl text-sm font-bold text-white hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
                             >
                                 {loading || uploadingImage ? (
                                     <>
@@ -2331,6 +2403,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const addStatus = useMutation(api.statuses.addStatus);
     const moveStatus = useMutation(api.statuses.moveStatus);
     const deleteBucket = useMutation(api.projects.deleteBucket);
+    const toggleStatusVisibility = useMutation(api.statuses.toggleStatusVisibility);
 
     const [selectedBugId, setSelectedBugId] = useState<Id<"bugs"> | null>(null);
     const [showCreateBugModal, setShowCreateBugModal] = useState(false);
@@ -2354,6 +2427,11 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const [showSentiment, setShowSentiment] = useState(false);
     const [showBoardViewDropdown, setShowBoardViewDropdown] = useState(false);
     const [boardView, setBoardView] = useState<"status" | "priority" | "assignee">("status");
+    const [isScrolled, setIsScrolled] = useState(false);
+    const [showFloatingFilters, setShowFloatingFilters] = useState(false);
+    const [showViewsDropdown, setShowViewsDropdown] = useState(false);
+    const floatingFiltersRef = useRef<HTMLDivElement | null>(null);
+    const viewsDropdownRef = useRef<HTMLDivElement | null>(null);
     const kanbanScrollRef = useRef<HTMLDivElement | null>(null);
     const customizeRef = useRef<HTMLDivElement | null>(null);
     const boardViewRef = useRef<HTMLDivElement | null>(null);
@@ -2401,9 +2479,20 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             if (boardViewRef.current && !boardViewRef.current.contains(event.target as Node)) {
                 setShowBoardViewDropdown(false);
             }
+            if (floatingFiltersRef.current && !floatingFiltersRef.current.contains(event.target as Node)) {
+                setShowFloatingFilters(false);
+            }
+            if (viewsDropdownRef.current && !viewsDropdownRef.current.contains(event.target as Node)) {
+                setShowViewsDropdown(false);
+            }
         };
+        const handleScroll = () => setIsScrolled(window.scrollY > 140);
         document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            window.removeEventListener("scroll", handleScroll);
+        };
     }, []);
 
     if (project === undefined || bugs === undefined) return <LoadingSkeleton />;
@@ -2451,7 +2540,12 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         assigneeId === null ? !b.assigneeId : b.assigneeId === assigneeId
     );
     const kanbanColumns = ((projectStatuses && projectStatuses.length ? projectStatuses : DEFAULT_COLUMNS) as any[])
-        .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)) // Sort by order field
+        .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+        .filter((status: any) => {
+            // Non-admins cannot see hidden columns
+            if (status.hidden === true && !isProjectAdmin) return false;
+            return true;
+        })
         .map((status: any) => {
             const normalizedStatus = status.value ?? status.status;
             const fallback = DEFAULT_COLUMNS.find(c => c.status === normalizedStatus);
@@ -2460,6 +2554,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 label: status.label ?? fallback?.label ?? normalizedStatus,
                 color: status.color ?? fallback?.color ?? "text-slate-400",
                 icon: fallback?.icon ?? <CircleDot className="w-4 h-4" />,
+                hidden: status.hidden === true,
             };
         });
 
@@ -2552,6 +2647,8 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const handleMoveBucket = async (statusValue: string, direction: "left" | "right") => {
         if (!projectId) return;
         const token = devToken || localStorage.getItem("bugscribe_dev_token") || undefined;
+        console.log("Moving bucket:", statusValue, "direction:", direction);
+        console.log("Current kanbanColumns:", kanbanColumns.map(c => ({ status: c.status, label: c.label })));
         setMovingBucketStatus(statusValue);
         try {
             await moveStatus({
@@ -2561,6 +2658,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                 devToken: token,
             });
         } catch (error: any) {
+            console.error("Failed to move bucket:", error);
             alert(error.message || "Failed to reorder bucket.");
         } finally {
             setMovingBucketStatus(null);
@@ -2923,45 +3021,61 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             return;
         }
 
-        // Header row
+        // Header row with assignee name and email
         const headers = [
-            "ID", "Title", "Status", "Priority", "Type", "Category",
-            "Assignee", "Reporter Name", "Reporter Email", "Created At",
-            "URL", "Browser", "OS", "Screen Size", "Description", "Console Errors"
+            "Issue Number", "ID", "Title", "Status", "Priority", "Type", "Category",
+            "Assignee Name", "Assignee Email", "Assignee ID",
+            "Reporter Name", "Reporter Email", "Created At", "Updated At",
+            "URL", "Browser", "OS", "Screen Size", "Description", "Console Errors", "Tags"
         ];
 
-        // Map members for assignee lookup
-        const memberMap: Record<string, string> = {};
+        // Map members for assignee lookup with full details
+        const memberMap: Record<string, { name?: string; email?: string }> = {};
         members?.forEach((m: any) => {
-            memberMap[m.userId] = m.name || m.email || m.userId;
+            memberMap[m.userId] = {
+                name: m.name,
+                email: m.email
+            };
         });
 
-        // Rows
-        const rows = bugs.map((bug: any) => [
-            bug._id,
-            bug.title,
-            bug.status,
-            bug.priority,
-            bug.type || "general",
-            bug.category || "None",
-            bug.assigneeId ? (memberMap[bug.assigneeId] || bug.assigneeId) : "Unassigned",
-            bug.reporterName || "Widget",
-            bug.reporterEmail || "N/A",
-            new Date(bug.createdAt).toLocaleString(),
-            bug.url,
-            bug.browser,
-            bug.os || "N/A",
-            bug.screenWidth ? `${bug.screenWidth}x${bug.screenHeight}` : "N/A",
-            (bug.description || "").replace(/\n/g, " "),
-            (bug.consoleErrors || []).join(" | ")
-        ]);
+        // Rows with assignee name and email
+        const rows = bugs.map((bug: any) => {
+            const assignee = bug.assigneeId ? memberMap[bug.assigneeId] : null;
+            
+            return [
+                bug.issueNumber || "",
+                bug._id,
+                bug.title,
+                bug.status,
+                bug.priority,
+                bug.type || "general",
+                bug.category || "",
+                assignee?.name || "",
+                assignee?.email || "",
+                bug.assigneeId || "",
+                bug.reporterName || "Widget",
+                bug.reporterEmail || "",
+                new Date(bug.createdAt).toISOString(),
+                bug.updatedAt ? new Date(bug.updatedAt).toISOString() : "",
+                bug.url || "",
+                bug.browser || "",
+                bug.os || "",
+                bug.screenWidth ? `${bug.screenWidth}x${bug.screenHeight}` : "",
+                (bug.description || "").replace(/\n/g, " ").replace(/\r/g, ""),
+                (bug.consoleErrors || []).join(" | "),
+                (bug.tags || []).join(", ")
+            ];
+        });
 
-        // Build CSV string
+        // Build CSV string with proper escaping
         const csvContent = [
             headers.join(","),
             ...rows.map(row => row.map(val => {
-                const escaped = String(val).replace(/"/g, '""');
-                return `"${escaped}"`;
+                const str = String(val);
+                if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+                    return `"${str.replace(/"/g, '""')}"`;
+                }
+                return str;
             }).join(","))
         ].join("\n");
 
@@ -2980,24 +3094,32 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
     const handleExportWithImages = async () => {
         if (!bugs || bugs.length === 0) return;
 
-        // Map members for assignee lookup
-        const memberMap: Record<string, string> = {};
+        // Map members for assignee lookup with full details
+        const memberMap: Record<string, { name?: string; email?: string }> = {};
         members?.forEach((m: any) => {
-            memberMap[m.userId] = m.name || m.email || m.userId;
+            memberMap[m.userId] = {
+                name: m.name,
+                email: m.email
+            };
         });
 
-        // Convert bugs to export format
+        // Convert bugs to export format with all details
         const exportData = bugs.map((bug: any) => ({
             _id: bug._id,
+            issueNumber: bug.issueNumber,
             title: bug.title,
             status: bug.status,
             priority: bug.priority,
             type: bug.type || "general",
             category: bug.category,
             assigneeId: bug.assigneeId,
+            assigneeName: bug.assigneeId ? memberMap[bug.assigneeId]?.name : undefined,
+            assigneeEmail: bug.assigneeId ? memberMap[bug.assigneeId]?.email : undefined,
             reporterName: bug.reporterName || "Widget",
-            reporterEmail: bug.reporterEmail || "N/A",
+            reporterEmail: bug.reporterEmail || "",
             createdAt: bug.createdAt,
+            updatedAt: bug.updatedAt,
+            dueDate: bug.dueDate,
             url: bug.url,
             browser: bug.browser,
             os: bug.os,
@@ -3005,8 +3127,16 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             screenHeight: bug.screenHeight,
             description: bug.description,
             consoleErrors: bug.consoleErrors,
+            networkLogs: bug.networkLogs,
             screenshotUrl: bug.screenshotUrl,
-            tags: bug.tags
+            mediaType: bug.mediaType,
+            tags: bug.tags,
+            estimatedHours: bug.estimatedHours,
+            actualHours: bug.actualHours,
+            x_coordinate: bug.x_coordinate,
+            y_coordinate: bug.y_coordinate,
+            scroll_position: bug.scroll_position,
+            element_selector: bug.element_selector
         }));
 
         try {
@@ -3030,226 +3160,437 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
         kanban: "Kanban", list: "List", team: "Users", integrations: "API", settings: "Settings"
     };
 
+    const activeFilterCount = [
+        typeFilter !== "all",
+        statusFilter !== "all",
+        assigneeFilter !== "all",
+        priorityFilter !== "all",
+    ].filter(Boolean).length;
+
     return (
-        <div className="min-h-screen flex flex-col bg-slate-50" suppressHydrationWarning>
+        <div className="min-h-screen flex flex-col bg-slate-50 pt-24" suppressHydrationWarning>
             <Navbar />
-            <div className="flex-1 flex flex-col max-w-[1700px] mx-auto w-full px-6 sm:px-8 lg:px-10 py-10 gap-8">
-                <div className="rounded-[28px] border border-slate-200 bg-white backdrop-blur-2xl p-6 lg:p-8 shadow-sm">
-                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8">
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">
-                                <Link href="/" className="hover:text-brand-400 transition-all flex items-center gap-2 group">
-                                    <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" /> Projects
-                                </Link>
-                                <span className="text-slate-300">/</span>
-                                <span className="text-slate-600 truncate max-w-[240px]">{project.name}</span>
+
+            {/* ── Floating Sticky Toolbar (appears after scroll) ──────── */}
+            {(view === "kanban" || view === "list") && (
+                <div className={`fixed top-[88px] left-0 right-0 z-[90] transition-all duration-300 ${
+                    isScrolled ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-2 pointer-events-none"
+                }`}>
+                    <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8 pt-2">
+                        <div className="flex items-center gap-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg px-3 py-2">
+                            {/* Search */}
+                            <div className="relative">
+                                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    className="pl-8 pr-3 h-8 w-44 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-cyan-400 transition-all placeholder:text-slate-400"
+                                    placeholder="Search bugs..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
                             </div>
-                            <div className="flex items-center gap-4 flex-wrap">
-                                <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">
-                                    {project.name}
-                                </h1>
-                                {project.domain && (
-                                    <a 
-                                        href={project.domain.startsWith('http') ? project.domain : `https://${project.domain}`} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="p-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-brand-400 transition-all hover:border-brand-500/30 group shadow-xl"
-                                        title="Visit website"
-                                    >
-                                        <ExternalLink className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
-                                    </a>
+
+                            {/* Filters dropdown */}
+                            <div className="relative" ref={floatingFiltersRef}>
+                                <button
+                                    onClick={() => setShowFloatingFilters(!showFloatingFilters)}
+                                    className={`h-8 pl-3 pr-7 text-xs font-semibold rounded-lg border transition-all relative flex items-center gap-1.5 ${
+                                        activeFilterCount > 0
+                                            ? "bg-cyan-500 text-white border-cyan-600"
+                                            : "bg-white text-slate-700 border-slate-200 hover:border-cyan-300"
+                                    }`}
+                                >
+                                    Filters
+                                    {activeFilterCount > 0 && (
+                                        <span className="bg-white text-cyan-600 text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                    <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 ${activeFilterCount > 0 ? "text-white" : "text-slate-400"}`} />
+                                </button>
+
+                                {showFloatingFilters && (
+                                    <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-1">Filters</p>
+                                        <div className="relative">
+                                            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+                                                className={`w-full h-8 pl-3 pr-7 text-xs rounded-lg appearance-none font-semibold border cursor-pointer ${typeFilter !== "all" ? "bg-cyan-500 text-white border-cyan-600" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
+                                                <option value="all">All Types</option>
+                                                <option value="general">General</option>
+                                                {(customModules || []).map((mod: any) => <option key={mod.slug} value={mod.slug}>{mod.name}</option>)}
+                                            </select>
+                                            <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${typeFilter !== "all" ? "text-white" : "text-slate-400"}`} />
+                                        </div>
+                                        <div className="relative">
+                                            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+                                                className={`w-full h-8 pl-3 pr-7 text-xs rounded-lg appearance-none font-semibold border cursor-pointer ${statusFilter !== "all" ? "bg-cyan-500 text-white border-cyan-600" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
+                                                <option value="all">All Statuses</option>
+                                                {kanbanColumns.map((s) => <option key={s.status} value={s.status}>{s.label}</option>)}
+                                            </select>
+                                            <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${statusFilter !== "all" ? "text-white" : "text-slate-400"}`} />
+                                        </div>
+                                        <div className="relative">
+                                            <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}
+                                                className={`w-full h-8 pl-3 pr-7 text-xs rounded-lg appearance-none font-semibold border cursor-pointer ${assigneeFilter !== "all" ? "bg-cyan-500 text-white border-cyan-600" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
+                                                <option value="all">All Assignees</option>
+                                                <option value="unassigned">Unassigned</option>
+                                                {(members || []).map((m: any) => <option key={m.userId} value={m.userId}>{m.name || m.email}</option>)}
+                                            </select>
+                                            <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${assigneeFilter !== "all" ? "text-white" : "text-slate-400"}`} />
+                                        </div>
+                                        <div className="relative">
+                                            <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}
+                                                className={`w-full h-8 pl-3 pr-7 text-xs rounded-lg appearance-none font-semibold border cursor-pointer ${priorityFilter !== "all" ? "bg-cyan-500 text-white border-cyan-600" : "bg-slate-50 text-slate-700 border-slate-200"}`}>
+                                                <option value="all">All Priorities</option>
+                                                <option value="low">🟢 Low</option>
+                                                <option value="medium">🔵 Medium</option>
+                                                <option value="high">🟠 High</option>
+                                                <option value="critical">🔴 Critical</option>
+                                            </select>
+                                            <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${priorityFilter !== "all" ? "text-white" : "text-slate-400"}`} />
+                                        </div>
+                                        {activeFilterCount > 0 && (
+                                            <button
+                                                onClick={() => { setTypeFilter("all"); setStatusFilter("all"); setAssigneeFilter("all"); setPriorityFilter("all"); setShowFloatingFilters(false); }}
+                                                className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all"
+                                            >
+                                                <X className="w-3 h-3" /> Clear all filters
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                             </div>
-                            <p className="text-slate-500 text-sm leading-relaxed max-w-2xl">
-                                Real-time quality signals and operational insights for your product delivery.
-                            </p>
-                        </div>
 
-                        {stats && (
-                            <div className="flex flex-wrap gap-2 w-full xl:w-auto">
-                                {/* Total - Always colorized */}
-                                <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm hover:shadow transition-all min-w-[100px]">
-                                    <span className="p-1.5 rounded-lg bg-slate-100 text-slate-600 shrink-0"><Hash className="w-3.5 h-3.5" /></span>
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 leading-none">Total</span>
-                                        <p className="text-lg font-black text-slate-800 leading-tight">{stats.total}</p>
-                                    </div>
-                                </div>
-
-                                {/* Critical - Colorized only if count > 0 */}
-                                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm hover:shadow transition-all min-w-[100px] ${
-                                    stats.critical > 0 
-                                        ? 'border-red-200 bg-red-50' 
-                                        : 'border-slate-200 bg-slate-50'
-                                }`}>
-                                    <span className={`p-1.5 rounded-lg shrink-0 ${
-                                        stats.critical > 0 
-                                            ? 'bg-red-100 text-red-500' 
-                                            : 'bg-slate-100 text-slate-400'
-                                    }`}>
-                                        <AlertTriangle className="w-3.5 h-3.5" />
+                            {/* Active filter pills */}
+                            <div className="flex items-center gap-1.5 flex-1 overflow-x-auto min-w-0">
+                                {typeFilter !== "all" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-100 text-cyan-700 rounded-full text-[10px] font-bold whitespace-nowrap">
+                                        {typeFilter} <button onClick={() => setTypeFilter("all")}><X className="w-2.5 h-2.5" /></button>
                                     </span>
-                                    <div className="flex flex-col">
-                                        <span className={`text-[9px] font-bold uppercase tracking-wider leading-none ${
-                                            stats.critical > 0 ? 'text-red-600' : 'text-slate-400'
-                                        }`}>Critical</span>
-                                        <p className={`text-lg font-black leading-tight ${
-                                            stats.critical > 0 ? 'text-red-600' : 'text-slate-400'
-                                        }`}>{stats.critical}</p>
+                                )}
+                                {statusFilter !== "all" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-100 text-cyan-700 rounded-full text-[10px] font-bold whitespace-nowrap">
+                                        {statusFilter} <button onClick={() => setStatusFilter("all")}><X className="w-2.5 h-2.5" /></button>
+                                    </span>
+                                )}
+                                {assigneeFilter !== "all" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-100 text-cyan-700 rounded-full text-[10px] font-bold whitespace-nowrap">
+                                        {members?.find((m: any) => m.userId === assigneeFilter)?.name || assigneeFilter}
+                                        <button onClick={() => setAssigneeFilter("all")}><X className="w-2.5 h-2.5" /></button>
+                                    </span>
+                                )}
+                                {priorityFilter !== "all" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-100 text-cyan-700 rounded-full text-[10px] font-bold whitespace-nowrap">
+                                        {priorityFilter} <button onClick={() => setPriorityFilter("all")}><X className="w-2.5 h-2.5" /></button>
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* New Issue */}
+                            <button
+                                onClick={() => setShowCreateBugModal(true)}
+                                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500 text-white rounded-lg text-xs font-bold whitespace-nowrap hover:bg-cyan-600 transition-all shrink-0"
+                            >
+                                <Plus className="w-3.5 h-3.5" /> New Issue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex-1 flex flex-col max-w-[1700px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 gap-3">
+
+                {/* ── Top Project Bar ───────────────────────────────────── */}
+                <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-2.5 shadow-sm">
+
+                    {/* Project dropdown */}
+                    <div className="relative" ref={viewsDropdownRef}>
+                        <button
+                            onClick={() => setShowViewsDropdown(!showViewsDropdown)}
+                            className="flex items-center gap-2.5 group"
+                        >
+                            <div className="w-8 h-8 rounded-xl bg-cyan-500 flex items-center justify-center shrink-0 shadow-sm">
+                                <Bug className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="text-left">
+                                <div className="text-sm font-black text-slate-800 leading-tight">{project.name}</div>
+                                {project.domain && (
+                                    <div className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                                        {project.domain.replace(/^https?:\/\//, '')}
                                     </div>
+                                )}
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showViewsDropdown ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {showViewsDropdown && (
+                            <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                                {/* Project header */}
+                                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                                        <Link href="/" onClick={() => setShowViewsDropdown(false)} className="hover:text-cyan-500 transition-colors flex items-center gap-1 group">
+                                            <ArrowLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" />
+                                            Projects
+                                        </Link>
+                                    </div>
+                                    <div className="font-black text-slate-800 text-sm">{project.name}</div>
+                                    {project.domain && (
+                                        <a
+                                            href={project.domain.startsWith('http') ? project.domain : `https://${project.domain}`}
+                                            target="_blank" rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-cyan-500 transition-colors mt-0.5"
+                                            onClick={() => setShowViewsDropdown(false)}
+                                        >
+                                            <ExternalLink className="w-3 h-3" />
+                                            <span className="truncate">{project.domain.replace(/^https?:\/\//, '')}</span>
+                                        </a>
+                                    )}
                                 </div>
 
-                                {/* One card per project status - Colorized only if count > 0 */}
-                                {(projectStatuses && projectStatuses.length ? projectStatuses : DEFAULT_COLUMNS).map((ps: any) => {
-                                    const statusValue = ps.value ?? ps.status;
-                                    const statusLabel = ps.label;
-                                    const statusColor = ps.color ?? "text-slate-400";
-                                    const count = (bugs ?? []).filter((b: any) => b.status === statusValue).length;
-                                    const hasCount = count > 0;
+                                {/* Views */}
+                                <div className="px-3 py-2">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mb-1">Views</p>
+                                    {[
+                                        { id: "kanban", label: "Kanban", icon: <KanbanIcon className="w-4 h-4" /> },
+                                        { id: "list",   label: "List",   icon: <LayoutList className="w-4 h-4" /> },
+                                    ].map(item => (
+                                        <button key={item.id}
+                                            onClick={() => { setView(item.id as any); setShowViewsDropdown(false); }}
+                                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                                                view === item.id ? "bg-cyan-500 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"
+                                            }`}
+                                        >
+                                            {item.icon}
+                                            {item.label}
+                                            {view === item.id && <Check className="w-3.5 h-3.5 ml-auto" />}
+                                        </button>
+                                    ))}
+                                </div>
 
-                                    const colorMap: Record<string, { bg: string; border: string; iconBg: string; text: string; icon: React.ReactNode }> = {
-                                        "text-blue-400":   { bg: "bg-blue-50",   border: "border-blue-200",   iconBg: "bg-blue-100",   text: "text-blue-600",   icon: <CircleDot className="w-3.5 h-3.5" /> },
-                                        "text-amber-400":  { bg: "bg-amber-50",  border: "border-amber-200",  iconBg: "bg-amber-100",  text: "text-amber-600",  icon: <Clock className="w-3.5 h-3.5" /> },
-                                        "text-green-400":  { bg: "bg-green-50",  border: "border-green-200",  iconBg: "bg-green-100",  text: "text-green-600",  icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-                                        "text-slate-500":  { bg: "bg-slate-50",  border: "border-slate-200",  iconBg: "bg-slate-100",  text: "text-slate-600",  icon: <XCircle className="w-3.5 h-3.5" /> },
-                                        "text-indigo-400": { bg: "bg-indigo-50", border: "border-indigo-200", iconBg: "bg-indigo-100", text: "text-indigo-600", icon: <CircleDot className="w-3.5 h-3.5" /> },
-                                        "text-purple-400": { bg: "bg-purple-50", border: "border-purple-200", iconBg: "bg-purple-100", text: "text-purple-600", icon: <CircleDot className="w-3.5 h-3.5" /> },
-                                        "text-pink-400":   { bg: "bg-pink-50",   border: "border-pink-200",   iconBg: "bg-pink-100",   text: "text-pink-600",   icon: <CircleDot className="w-3.5 h-3.5" /> },
-                                        "text-cyan-400":   { bg: "bg-cyan-50",   border: "border-cyan-200",   iconBg: "bg-cyan-100",   text: "text-cyan-600",   icon: <CircleDot className="w-3.5 h-3.5" /> },
-                                        "text-red-400":    { bg: "bg-red-50",    border: "border-red-200",    iconBg: "bg-red-100",    text: "text-red-600",    icon: <AlertCircle className="w-3.5 h-3.5" /> },
-                                    };
-                                    const cfg = colorMap[statusColor] ?? { bg: "bg-slate-50", border: "border-slate-200", iconBg: "bg-slate-100", text: "text-slate-600", icon: <CircleDot className="w-3.5 h-3.5" /> };
-
-                                    return (
-                                        <div key={statusValue} className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm hover:shadow transition-all min-w-[100px] ${
-                                            hasCount ? `${cfg.bg} ${cfg.border}` : 'bg-slate-50 border-slate-200'
-                                        }`}>
-                                            <span className={`p-1.5 rounded-lg shrink-0 ${
-                                                hasCount ? `${cfg.iconBg} ${cfg.text}` : 'bg-slate-100 text-slate-400'
-                                            }`}>{cfg.icon}</span>
-                                            <div className="flex flex-col min-w-0">
-                                                <span className={`text-[9px] font-bold uppercase tracking-wider leading-none truncate ${
-                                                    hasCount ? cfg.text : 'text-slate-400'
-                                                }`}>{statusLabel}</span>
-                                                <p className={`text-lg font-black leading-tight ${
-                                                    hasCount ? cfg.text : 'text-slate-400'
-                                                }`}>{count}</p>
-                                            </div>
+                                {/* Manage */}
+                                {(canManageUsers || canViewApi || canViewSettings) && (
+                                    <>
+                                        <div className="h-px bg-slate-100 mx-3" />
+                                        <div className="px-3 py-2">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mb-1">Manage</p>
+                                            {canManageUsers && (
+                                                <button onClick={() => { setView("team"); setShowViewsDropdown(false); }}
+                                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${view === "team" ? "bg-cyan-500 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>
+                                                    <Users className="w-4 h-4" />Team
+                                                    {view === "team" && <Check className="w-3.5 h-3.5 ml-auto" />}
+                                                </button>
+                                            )}
+                                            {canViewApi && (
+                                                <button onClick={() => { setView("integrations"); setShowViewsDropdown(false); }}
+                                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${view === "integrations" ? "bg-cyan-500 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>
+                                                    <Zap className="w-4 h-4" />API
+                                                    {view === "integrations" && <Check className="w-3.5 h-3.5 ml-auto" />}
+                                                </button>
+                                            )}
+                                            {canViewSettings && (
+                                                <button onClick={() => { setView("settings"); setShowViewsDropdown(false); }}
+                                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${view === "settings" ? "bg-cyan-500 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>
+                                                    <Settings className="w-4 h-4" />Settings
+                                                    {view === "settings" && <Check className="w-3.5 h-3.5 ml-auto" />}
+                                                </button>
+                                            )}
                                         </div>
-                                    );
-                                })}
+                                    </>
+                                )}
+
+                                {/* Actions */}
+                                <div className="h-px bg-slate-100 mx-3" />
+                                <div className="px-3 py-2">
+                                    <button
+                                        onClick={() => { setShowCreateBugModal(true); setShowViewsDropdown(false); }}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold bg-cyan-500 text-white hover:bg-cyan-600 transition-all"
+                                    >
+                                        <Plus className="w-4 h-4" />New Issue
+                                    </button>
+                                    {isProjectAdmin && (
+                                        <div className="flex gap-1.5 mt-1.5">
+                                            <button onClick={() => { setShowImportModal(true); setShowViewsDropdown(false); }}
+                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-2 border border-slate-200 bg-white text-slate-500 rounded-lg text-xs font-medium hover:bg-slate-50 transition-all">
+                                                <Upload className="w-3.5 h-3.5" />Import
+                                            </button>
+                                            <button onClick={() => { handleExportHTML(); setShowViewsDropdown(false); }}
+                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-2 border border-slate-200 bg-white text-slate-500 rounded-lg text-xs font-medium hover:bg-slate-50 transition-all">
+                                                <Globe className="w-3.5 h-3.5" />HTML
+                                            </button>
+                                            <ExportDropdown
+                                                onExportCSV={handleExport}
+                                                onExportWithImages={handleExportWithImages}
+                                                disabled={bugs.length === 0}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
-                </div>
 
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
-                    {/* Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-4 py-3 border-b border-slate-100">
-                        {/* Left: View Tabs */}
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setView("kanban")}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                    view === "kanban" 
-                                        ? "bg-cyan-500 text-white shadow-sm" 
-                                        : "text-slate-600 hover:bg-slate-50"
+                    {/* Divider */}
+                    <div className="w-px h-8 bg-slate-200 shrink-0" />
+
+                    {/* Current view tabs — inline */}
+                    <div className="flex items-center gap-1">
+                        {[
+                            { id: "kanban", label: "Kanban", icon: <KanbanIcon className="w-3.5 h-3.5" /> },
+                            { id: "list",   label: "List",   icon: <LayoutList className="w-3.5 h-3.5" /> },
+                            ...(canManageUsers ? [{ id: "team", label: "Team", icon: <Users className="w-3.5 h-3.5" /> }] : []),
+                            ...(canViewApi ? [{ id: "integrations", label: "API", icon: <Zap className="w-3.5 h-3.5" /> }] : []),
+                            ...(canViewSettings ? [{ id: "settings", label: "Settings", icon: <Settings className="w-3.5 h-3.5" /> }] : []),
+                        ].map(item => (
+                            <button key={item.id} onClick={() => setView(item.id as any)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    view === item.id
+                                        ? "bg-cyan-500 text-white shadow-sm"
+                                        : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                 }`}
                             >
-                                <KanbanIcon className="w-4 h-4" />
-                                KANBAN
+                                {item.icon}{item.label}
                             </button>
-                            <button
-                                onClick={() => setView("list")}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                    view === "list" 
-                                        ? "bg-cyan-500 text-white shadow-sm" 
-                                        : "text-slate-600 hover:bg-slate-50"
-                                }`}
-                            >
-                                <LayoutList className="w-4 h-4" />
-                                LIST
-                            </button>
-                            
-                            {/* Admin Tabs */}
-                            {canManageUsers && (
-                                <button
-                                    onClick={() => setView("team")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                        view === "team" 
-                                            ? "bg-cyan-500 text-white shadow-sm" 
-                                            : "text-slate-600 hover:bg-slate-50"
-                                    }`}
-                                >
-                                    <Users className="w-4 h-4" />
-                                    TEAM
-                                </button>
-                            )}
-                            {canViewApi && (
-                                <button
-                                    onClick={() => setView("integrations")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                        view === "integrations" 
-                                            ? "bg-cyan-500 text-white shadow-sm" 
-                                            : "text-slate-600 hover:bg-slate-50"
-                                    }`}
-                                >
-                                    <Zap className="w-4 h-4" />
-                                    API
-                                </button>
-                            )}
-                            {canViewSettings && (
-                                <button
-                                    onClick={() => setView("settings")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                        view === "settings" 
-                                            ? "bg-cyan-500 text-white shadow-sm" 
-                                            : "text-slate-600 hover:bg-slate-50"
-                                    }`}
-                                >
-                                    <Settings className="w-4 h-4" />
-                                    SETTINGS
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Right: Action Buttons */}
-                        <div className="flex items-center gap-2">
-                            <button 
-                                onClick={() => setShowCreateBugModal(true)} 
-                                className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg text-sm font-semibold hover:bg-cyan-600 transition-all shadow-sm"
-                            >
-                                <Plus className="w-4 h-4" />
-                                NEW ISSUE
-                            </button>
-                            {isProjectAdmin && (
-                                <>
-                                    <button
-                                        onClick={() => setShowImportModal(true)}
-                                        className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
-                                        title="Import bugs from CSV/JSON"
-                                    >
-                                        <Upload className="w-4 h-4" />
-                                        IMPORT
-                                    </button>
-                                    <button
-                                        onClick={handleExportHTML}
-                                        className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
-                                        title="Export to HTML"
-                                    >
-                                        <Globe className="w-4 h-4" />
-                                        HTML
-                                    </button>
-                                    <ExportDropdown
-                                        onExportCSV={handleExport}
-                                        onExportWithImages={handleExportWithImages}
-                                        disabled={bugs.length === 0}
-                                    />
-                                </>
-                            )}
-                        </div>
+                        ))}
                     </div>
 
+                    {/* Right: New Issue + Export */}
+                    <div className="ml-auto flex items-center gap-2">
+                        {isProjectAdmin && (
+                            <>
+                                <button onClick={() => setShowImportModal(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 bg-white text-slate-500 rounded-lg text-xs font-medium hover:bg-slate-50 transition-all">
+                                    <Upload className="w-3.5 h-3.5" />Import
+                                </button>
+                                <ExportDropdown
+                                    onExportCSV={handleExport}
+                                    onExportWithImages={handleExportWithImages}
+                                    disabled={bugs.length === 0}
+                                />
+                            </>
+                        )}
+                        <button
+                            onClick={() => setShowCreateBugModal(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500 text-white rounded-lg text-xs font-bold hover:bg-cyan-600 transition-all shadow-sm"
+                        >
+                            <Plus className="w-3.5 h-3.5" />New Issue
+                        </button>
+                    </div>
+                </div>
+
+                {/* ── Main Content ──────────────────────────────────────── */}
+                <div className="flex-1 flex flex-col gap-3 min-w-0">
+
+                    {/* Stats bar — compact horizontal pills */}
+                    {stats && (
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+                            {/* Total — never hidden */}
+                            <div className="flex items-center gap-1.5 shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5">
+                                <Hash className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span className="text-[10px] font-bold text-slate-500">Total</span>
+                                <span className="text-sm font-black text-slate-800">{stats.total}</span>
+                            </div>
+                            {/* Critical — never hidden */}
+                            <div className={`flex items-center gap-1.5 shrink-0 rounded-lg border px-2.5 py-1.5 ${stats.critical > 0 ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
+                                <AlertTriangle className={`w-3 h-3 shrink-0 ${stats.critical > 0 ? 'text-red-500' : 'text-slate-400'}`} />
+                                <span className={`text-[10px] font-bold ${stats.critical > 0 ? 'text-red-500' : 'text-slate-400'}`}>Critical</span>
+                                <span className={`text-sm font-black ${stats.critical > 0 ? 'text-red-600' : 'text-slate-400'}`}>{stats.critical}</span>
+                            </div>
+                            {/* Per-status pills */}
+                            {(projectStatuses && projectStatuses.length ? projectStatuses : DEFAULT_COLUMNS).map((ps: any) => {
+                                const statusValue = ps.value ?? ps.status;
+                                const statusColor = ps.color ?? "text-slate-400";
+                                const count = (bugs ?? []).filter((b: any) => b.status === statusValue).length;
+                                const hasCount = count > 0;
+                                const isHidden = ps.hidden === true;
+
+                                // Non-admins: skip hidden statuses entirely
+                                if (isHidden && !isProjectAdmin) return null;
+
+                                const colorMap: Record<string, { bg: string; border: string; text: string; icon: React.ReactNode }> = {
+                                    "text-blue-400":   { bg: "bg-blue-50",   border: "border-blue-200",   text: "text-blue-600",   icon: <CircleDot className="w-3 h-3" /> },
+                                    "text-amber-400":  { bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-600",  icon: <Clock className="w-3 h-3" /> },
+                                    "text-green-400":  { bg: "bg-green-50",  border: "border-green-200",  text: "text-green-600",  icon: <CheckCircle2 className="w-3 h-3" /> },
+                                    "text-slate-500":  { bg: "bg-slate-50",  border: "border-slate-200",  text: "text-slate-600",  icon: <XCircle className="w-3 h-3" /> },
+                                    "text-indigo-400": { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-600", icon: <CircleDot className="w-3 h-3" /> },
+                                    "text-purple-400": { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-600", icon: <CircleDot className="w-3 h-3" /> },
+                                    "text-pink-400":   { bg: "bg-pink-50",   border: "border-pink-200",   text: "text-pink-600",   icon: <CircleDot className="w-3 h-3" /> },
+                                    "text-cyan-400":   { bg: "bg-cyan-50",   border: "border-cyan-200",   text: "text-cyan-600",   icon: <CircleDot className="w-3 h-3" /> },
+                                    "text-red-400":    { bg: "bg-red-50",    border: "border-red-200",    text: "text-red-600",    icon: <AlertCircle className="w-3 h-3" /> },
+                                };
+                                const cfg = colorMap[statusColor] ?? { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-600", icon: <CircleDot className="w-3 h-3" /> };
+
+                                return (
+                                    <div
+                                        key={statusValue}
+                                        className={`group flex items-center gap-1.5 shrink-0 rounded-lg border px-2.5 py-1.5 transition-all ${
+                                            isHidden
+                                                ? 'bg-slate-50 border-dashed border-slate-300 opacity-50'
+                                                : hasCount ? `${cfg.bg} ${cfg.border}` : 'bg-white border-slate-200'
+                                        }`}
+                                    >
+                                        <span className={`shrink-0 ${isHidden ? 'text-slate-400' : hasCount ? cfg.text : 'text-slate-400'}`}>{cfg.icon}</span>
+                                        <span className={`text-[10px] font-bold truncate max-w-[72px] ${isHidden ? 'text-slate-400 line-through' : hasCount ? cfg.text : 'text-slate-400'}`}>
+                                            {ps.label}
+                                        </span>
+                                        <span className={`text-sm font-black ${isHidden ? 'text-slate-400' : hasCount ? cfg.text : 'text-slate-400'}`}>{count}</span>
+
+                                        {/* Admin eye toggle */}
+                                        {isProjectAdmin && projectId && (
+                                            <button
+                                                onClick={async () => {
+                                                    const token = devToken || localStorage.getItem("bugscribe_dev_token") || undefined;
+                                                    try {
+                                                        await toggleStatusVisibility({
+                                                            projectId,
+                                                            statusValue,
+                                                            hidden: !isHidden,
+                                                            devToken: token,
+                                                        });
+                                                    } catch (e: any) {
+                                                        alert(e.message);
+                                                    }
+                                                }}
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5 p-0.5 rounded hover:bg-black/10"
+                                                title={isHidden ? "Show for all users" : "Hide from non-admins"}
+                                            >
+                                                {isHidden
+                                                    ? <Eye className="w-3 h-3 text-slate-500" />
+                                                    : <EyeOff className="w-3 h-3 text-slate-500" />
+                                                }
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Mobile nav tabs */}
+                    <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto pb-1">
+                        {[
+                            { id: "kanban", label: "Kanban", icon: <KanbanIcon className="w-3.5 h-3.5" /> },
+                            { id: "list",   label: "List",   icon: <LayoutList className="w-3.5 h-3.5" /> },
+                            ...(canManageUsers ? [{ id: "team", label: "Team", icon: <Users className="w-3.5 h-3.5" /> }] : []),
+                            ...(canViewApi ? [{ id: "integrations", label: "API", icon: <Zap className="w-3.5 h-3.5" /> }] : []),
+                            ...(canViewSettings ? [{ id: "settings", label: "Settings", icon: <Settings className="w-3.5 h-3.5" /> }] : []),
+                        ].map(item => (
+                            <button key={item.id} onClick={() => setView(item.id as any)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                                    view === item.id ? "bg-cyan-500 text-white" : "bg-white border border-slate-200 text-slate-600"
+                                }`}
+                            >
+                                {item.icon}{item.label}
+                            </button>
+                        ))}
+                        <button onClick={() => setShowCreateBugModal(true)}
+                            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500 text-white rounded-lg text-xs font-bold whitespace-nowrap"
+                        >
+                            <Plus className="w-3.5 h-3.5" />New
+                        </button>
+                    </div>
+
+                    {/* Content card */}
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm flex-1">
                     {/* Filter Bar */}
                     {(view === "kanban" || view === "list") && (
                         <div className="sticky top-0 z-30 bg-white px-4 py-3 flex flex-col lg:flex-row gap-3 lg:items-center justify-between shadow-sm">
@@ -3311,12 +3652,17 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
                             {/* Right: Filters */}
                             <div className="flex items-center gap-2 flex-wrap">
+
                                 {/* Type Filter */}
                                 <div className="relative">
                                     <select
                                         value={typeFilter}
                                         onChange={(e) => setTypeFilter(e.target.value)}
-                                        className="h-9 pl-3 pr-8 text-sm rounded-lg cursor-pointer transition-all appearance-none font-semibold bg-white text-slate-900 border border-slate-200 hover:border-slate-300"
+                                        className={`h-8 pl-3 pr-7 text-xs rounded-lg cursor-pointer transition-all appearance-none font-semibold border ${
+                                            typeFilter !== "all"
+                                                ? "bg-cyan-500 text-white border-cyan-600"
+                                                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                                        }`}
                                     >
                                         <option value="all">Type</option>
                                         <option value="general">General</option>
@@ -3324,7 +3670,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                             <option key={mod.slug} value={mod.slug}>{mod.name}</option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${typeFilter !== "all" ? "text-white" : "text-slate-400"}`} />
                                 </div>
 
                                 {/* Status Filter */}
@@ -3332,16 +3678,18 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                     <select
                                         value={statusFilter}
                                         onChange={(e) => setStatusFilter(e.target.value)}
-                                        className="h-9 pl-3 pr-8 text-sm rounded-lg cursor-pointer transition-all appearance-none font-semibold bg-white text-slate-900 border border-slate-200 hover:border-slate-300"
+                                        className={`h-8 pl-3 pr-7 text-xs rounded-lg cursor-pointer transition-all appearance-none font-semibold border ${
+                                            statusFilter !== "all"
+                                                ? "bg-cyan-500 text-white border-cyan-600"
+                                                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                                        }`}
                                     >
                                         <option value="all">Status</option>
                                         {kanbanColumns.map((statusCol) => (
-                                            <option key={statusCol.status} value={statusCol.status}>
-                                                {statusCol.label}
-                                            </option>
+                                            <option key={statusCol.status} value={statusCol.status}>{statusCol.label}</option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${statusFilter !== "all" ? "text-white" : "text-slate-400"}`} />
                                 </div>
 
                                 {/* Assignee Filter */}
@@ -3349,17 +3697,19 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                     <select
                                         value={assigneeFilter}
                                         onChange={(e) => setAssigneeFilter(e.target.value)}
-                                        className="h-9 pl-3 pr-8 text-sm rounded-lg cursor-pointer transition-all appearance-none font-semibold bg-white text-slate-900 border border-slate-200 hover:border-slate-300"
+                                        className={`h-8 pl-3 pr-7 text-xs rounded-lg cursor-pointer transition-all appearance-none font-semibold border ${
+                                            assigneeFilter !== "all"
+                                                ? "bg-cyan-500 text-white border-cyan-600"
+                                                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                                        }`}
                                     >
-                                        <option value="all">Assignee {members && members.length > 0 ? members.length : ''}</option>
+                                        <option value="all">Assignee</option>
                                         <option value="unassigned">Unassigned</option>
                                         {(members || []).map((m: any) => (
-                                            <option key={m.userId} value={m.userId}>
-                                                {m.name || m.email || m.userId}
-                                            </option>
+                                            <option key={m.userId} value={m.userId}>{m.name || m.email || m.userId}</option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${assigneeFilter !== "all" ? "text-white" : "text-slate-400"}`} />
                                 </div>
 
                                 {/* Priority Filter */}
@@ -3367,25 +3717,50 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                     <select
                                         value={priorityFilter}
                                         onChange={(e) => setPriorityFilter(e.target.value)}
-                                        className="h-9 pl-3 pr-8 text-sm rounded-lg cursor-pointer transition-all appearance-none font-semibold bg-white text-slate-900 border border-slate-200 hover:border-slate-300"
+                                        className={`h-8 pl-3 pr-7 text-xs rounded-lg cursor-pointer transition-all appearance-none font-semibold border ${
+                                            priorityFilter !== "all"
+                                                ? "bg-cyan-500 text-white border-cyan-600"
+                                                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                                        }`}
                                     >
                                         <option value="all">Priority</option>
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                        <option value="critical">Critical</option>
+                                        <option value="low">🟢 Low</option>
+                                        <option value="medium">🔵 Medium</option>
+                                        <option value="high">🟠 High</option>
+                                        <option value="critical">🔴 Critical</option>
                                     </select>
-                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${priorityFilter !== "all" ? "text-white" : "text-slate-400"}`} />
                                 </div>
 
-                                {/* Customize - Purple Gradient */}
+                                {/* Clear Filters — only show when any filter is active */}
+                                {(typeFilter !== "all" || statusFilter !== "all" || assigneeFilter !== "all" || priorityFilter !== "all" || searchQuery) && (
+                                    <button
+                                        onClick={() => {
+                                            setTypeFilter("all");
+                                            setStatusFilter("all");
+                                            setAssigneeFilter("all");
+                                            setPriorityFilter("all");
+                                            setSearchQuery("");
+                                        }}
+                                        className="h-8 px-3 flex items-center gap-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 transition-all"
+                                    >
+                                        <X className="w-3 h-3" />
+                                        Clear
+                                    </button>
+                                )}
+
+                                {/* Customize */}
                                 <div className="relative" ref={customizeRef}>
                                     <button
                                         onClick={() => setShowCustomizeDropdown(!showCustomizeDropdown)}
-                                        className="h-9 pl-3 pr-8 text-sm bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg hover:border-indigo-300 transition-all text-indigo-600 font-semibold shadow-sm hover:shadow relative"
+                                        className={`h-8 pl-3 pr-7 text-xs font-semibold rounded-lg border transition-all relative ${
+                                            showCustomizeDropdown
+                                                ? "bg-indigo-500 text-white border-indigo-600"
+                                                : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                                        }`}
                                     >
                                         Customize
-                                        <ChevronDown className="w-4 h-4 text-indigo-400 absolute right-2 top-1/2 -translate-y-1/2" />
+                                        <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 ${showCustomizeDropdown ? "text-white" : "text-slate-400"}`} />
                                     </button>
                                     
                                     {showCustomizeDropdown && (
@@ -3524,10 +3899,14 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                 <div className="relative" ref={boardViewRef}>
                                     <button
                                         onClick={() => setShowBoardViewDropdown(!showBoardViewDropdown)}
-                                        className="h-9 pl-3 pr-8 text-sm bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-all text-slate-600 font-medium relative"
+                                        className={`h-8 pl-3 pr-7 text-xs font-semibold rounded-lg border transition-all relative ${
+                                            showBoardViewDropdown
+                                                ? "bg-cyan-500 text-white border-cyan-600"
+                                                : "bg-white text-slate-700 border-slate-200 hover:border-cyan-300 hover:text-cyan-600"
+                                        }`}
                                     >
                                         Board View
-                                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                        <ChevronDown className={`w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${showBoardViewDropdown ? "text-white" : "text-slate-400"}`} />
                                     </button>
                                     
                                     {showBoardViewDropdown && (
@@ -3590,19 +3969,19 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
 
                 {/* Views */}
                 {bugs?.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <div className="w-20 h-20 rounded-2xl bg-surface-card border border-surface-border flex items-center justify-center mb-6 shadow-2xl">
-                            <Bug className="w-10 h-10 text-brand-400 opacity-20" />
+                    <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mb-5">
+                            <Bug className="w-8 h-8 text-slate-300" />
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-2">No bugs reported yet</h3>
-                        <p className="text-slate-500 max-w-sm mb-8 leading-relaxed">
+                        <h3 className="text-lg font-bold text-slate-700 mb-2">No bugs reported yet</h3>
+                        <p className="text-slate-400 max-w-sm mb-6 text-sm leading-relaxed">
                             Start capturing issues by connecting your website with the BugScribe extension or embedding the widget script.
                         </p>
                         <div className="flex gap-3">
-                            <button onClick={() => setView("integrations")} className="btn-primary">
+                            <button onClick={() => setView("integrations")} className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-xl text-sm font-semibold hover:bg-cyan-600 transition-all">
                                 <Zap className="w-4 h-4" /> Get Connection Key
                             </button>
-                            <button onClick={() => setShowCreateBugModal(true)} className="btn-ghost">
+                            <button onClick={() => setShowCreateBugModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all">
                                 <Plus className="w-4 h-4" /> Manual Report
                             </button>
                         </div>
@@ -3614,21 +3993,21 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                                 <div className="relative">
                                     {/* Scroll Controls Bar - Only show for status grouping */}
                                     {groupBy === "status" && (
-                                        <div className="sticky top-[72px] z-20 flex items-center justify-between gap-4 bg-white border-2 border-slate-200 rounded-2xl px-6 py-3 shadow-sm mb-4">
+                                        <div className="sticky top-[49px] z-20 flex items-center justify-between gap-4 bg-white border-b border-slate-100 px-4 py-2 shadow-sm mb-2">
                                             <button
                                                 onClick={() => kanbanScrollRef.current?.scrollBy({ left: -320, behavior: "smooth" })}
-                                                className="p-2.5 rounded-full bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50 hover:border-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95"
+                                                className="p-1.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all active:scale-95"
                                                 title="Scroll left"
                                             >
-                                                <ChevronLeft className="w-5 h-5" />
+                                                <ChevronLeft className="w-4 h-4" />
                                             </button>
-                                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Scroll to navigate</div>
+                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Scroll to navigate</div>
                                             <button
                                                 onClick={() => kanbanScrollRef.current?.scrollBy({ left: 320, behavior: "smooth" })}
-                                                className="p-2.5 rounded-full bg-white border-2 border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50 hover:border-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95"
+                                                className="p-1.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all active:scale-95"
                                                 title="Scroll right"
                                             >
-                                                <ChevronRight className="w-5 h-5" />
+                                                <ChevronRight className="w-4 h-4" />
                                             </button>
                                         </div>
                                     )}
@@ -3799,6 +4178,7 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
                         module={customModules.find((m: any) => m.slug === view)!}
                     />
                 )}
+            </div>
             </div>
 
             {/* Modals */}
@@ -4027,58 +4407,30 @@ function ModuleView({ moduleId, projectId, devToken, module }: {
 
 function LoadingSkeleton() {
     return (
-        <div className="min-h-screen flex flex-col bg-[#09090E]" suppressHydrationWarning>
+        <div className="min-h-screen flex flex-col bg-slate-50 pt-24" suppressHydrationWarning>
             <Navbar />
-            <div className="flex-1 flex flex-col max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
-                {/* Header Skeleton */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            <Skeleton className="w-20 h-4 rounded" />
-                            <div className="w-1 h-1 rounded-full bg-slate-800" />
-                            <Skeleton className="w-32 h-4 rounded" />
-                        </div>
-                        <Skeleton className="w-64 h-10 rounded-xl" />
-                    </div>
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-                        {[1, 2, 3, 4].map((i) => (
-                            <Skeleton key={i} className="min-w-[100px] h-20 rounded-2xl" />
-                        ))}
-                    </div>
+            <div className="flex-1 flex max-w-[1700px] mx-auto w-full px-6 sm:px-8 lg:px-10 py-8 gap-6" suppressHydrationWarning>
+                {/* Left sidebar skeleton */}
+                <div className="hidden lg:flex flex-col w-52 shrink-0 gap-2" suppressHydrationWarning>
+                    <Skeleton className="w-full h-8 rounded-lg" />
+                    {[1,2,3,4,5].map(i => <Skeleton key={i} className="w-full h-10 rounded-xl" />)}
                 </div>
-
-                {/* Toolbar Skeleton */}
-                <div className="bg-surface-card/30 border border-surface-border/50 rounded-2xl p-4 mb-8">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex gap-1 p-1 bg-surface-card/50 border border-surface-border rounded-xl w-full md:w-auto">
-                            {[1, 2, 3].map((i) => (
-                                <Skeleton key={i} className="w-24 h-10 rounded-lg" />
-                            ))}
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Skeleton className="w-32 h-10 rounded-xl" />
-                            <Skeleton className="w-10 h-10 rounded-xl" />
+                {/* Main content skeleton */}
+                <div className="flex-1 flex flex-col gap-4 min-w-0" suppressHydrationWarning>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4" suppressHydrationWarning>
+                        <Skeleton className="w-48 h-8 rounded-xl" />
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" suppressHydrationWarning>
+                            {[1,2,3,4].map(i => <Skeleton key={i} className="h-16 rounded-2xl" />)}
                         </div>
                     </div>
-                </div>
-
-                {/* Kanban Skeleton */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="flex flex-col gap-4">
-                            <Skeleton className="w-full h-14 rounded-xl" />
-                            {[1, 2, 3].map((j) => (
-                                <div key={j} className="p-4 rounded-2xl border border-surface-border bg-surface-card/50 space-y-4" suppressHydrationWarning>
-                                    <Skeleton className="w-full h-32 rounded-xl" />
-                                    <Skeleton className="w-3/4 h-5 rounded-lg" />
-                                    <div className="flex gap-2" suppressHydrationWarning>
-                                        <Skeleton className="w-16 h-5 rounded-full" />
-                                        <Skeleton className="w-16 h-5 rounded-full" />
-                                    </div>
-                                </div>
-                            ))}
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3" suppressHydrationWarning>
+                        <div className="flex gap-2" suppressHydrationWarning>
+                            <Skeleton className="w-48 h-9 rounded-lg" />
+                            <Skeleton className="flex-1 h-9 rounded-lg" />
+                            <Skeleton className="w-24 h-9 rounded-lg" />
                         </div>
-                    ))}
+                        {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="w-full h-12 rounded-xl" />)}
+                    </div>
                 </div>
             </div>
         </div>

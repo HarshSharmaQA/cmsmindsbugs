@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { AppProvider } from "@/contexts/AppContext";
+import { OneSignalProvider } from "@/components/OneSignalProvider";
+import Script from "next/script";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -133,11 +135,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
             </head>
             <body suppressHydrationWarning>
+                {/* OneSignal SDK — loaded before interactive so the deferred queue is ready */}
+                <Script
+                    src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+                    strategy="beforeInteractive"
+                />
                 <ServiceWorkerRegistration />
                 <ConvexClientProvider>
                     <AppProvider>
-                        {children}
-                        <PWAInstallPrompt />
+                        <OneSignalProvider>
+                            {children}
+                            <PWAInstallPrompt />
+                        </OneSignalProvider>
                     </AppProvider>
                 </ConvexClientProvider>
             </body>
