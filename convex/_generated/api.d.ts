@@ -19,6 +19,7 @@ import type * as globalSettings from "../globalSettings.js";
 import type * as import_ from "../import.js";
 import type * as mapLocations from "../mapLocations.js";
 import type * as modules from "../modules.js";
+import type * as notifications from "../notifications.js";
 import type * as pages from "../pages.js";
 import type * as permissions from "../permissions.js";
 import type * as projects from "../projects.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   import: typeof import_;
   mapLocations: typeof mapLocations;
   modules: typeof modules;
+  notifications: typeof notifications;
   pages: typeof pages;
   permissions: typeof permissions;
   projects: typeof projects;

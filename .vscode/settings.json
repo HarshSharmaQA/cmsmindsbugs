@@ -1,13 +1,22 @@
 {
-    "css.lint.unknownAtRules": "ignore",
-    "css.validate": false,
-    "tailwindCSS.experimental.classRegex": [
-        [
-            "clsx\\(([^)]*)\\)",
-            "(?:'|\"|`)([^'\"``]*)(?:'|\"|`)"
-        ]
-    ],
-    "files.associations": {
-        "*.css": "css"
-    }
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+  ]
 }

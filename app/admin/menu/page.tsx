@@ -276,16 +276,19 @@ function MenuSettingsContent() {
 
     const setSetting = useMutation(api.globalSettings.setSetting);
 
-    // ── Load saved settings
-    const savedStyle = useQuery(api.globalSettings.get, { key: "nav_style" });
-    const savedLayout = useQuery(api.globalSettings.get, { key: "nav_layout" });
-    const savedHeaderLinks = useQuery(api.globalSettings.get, { key: "nav_header_links" });
-    const savedFooterLinks = useQuery(api.globalSettings.get, { key: "nav_footer_links" });
-    const savedHeaderTitle = useQuery(api.globalSettings.get, { key: "nav_header_title" });
-    const savedFooterTitle  = useQuery(api.globalSettings.get, { key: "nav_footer_title" });
-    const savedSiteName     = useQuery(api.globalSettings.get, { key: "site_name" });
-    const savedFooterDesc   = useQuery(api.globalSettings.get, { key: "footer_description" });
-    const savedCopyright    = useQuery(api.globalSettings.get, { key: "footer_copyright" });
+    // ── Load ALL settings with single query (optimized)
+    const allSettings = useQuery(api.globalSettings.getAll, {});
+    
+    // Extract individual settings from the map
+    const savedStyle = allSettings?.["nav_style"];
+    const savedLayout = allSettings?.["nav_layout"];
+    const savedHeaderLinks = allSettings?.["nav_header_links"];
+    const savedFooterLinks = allSettings?.["nav_footer_links"];
+    const savedHeaderTitle = allSettings?.["nav_header_title"];
+    const savedFooterTitle = allSettings?.["nav_footer_title"];
+    const savedSiteName = allSettings?.["site_name"];
+    const savedFooterDesc = allSettings?.["footer_description"];
+    const savedCopyright = allSettings?.["footer_copyright"];
 
     // ── Local state
     const [navStyle, setNavStyle] = useState<string>("floating");

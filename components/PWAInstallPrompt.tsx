@@ -25,8 +25,11 @@ export function PWAInstallPrompt() {
 
     const iOS: boolean = /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window);
 
-    setIsStandalone(isStandaloneMode);
-    setIsIOS(iOS);
+    // Batch state updates to avoid cascading renders
+    Promise.resolve().then(() => {
+      setIsStandalone(isStandaloneMode);
+      setIsIOS(iOS);
+    });
 
     let handleBeforeInstallPrompt: ((e: Event) => void) | null = null;
 

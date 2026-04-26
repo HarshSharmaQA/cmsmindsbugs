@@ -204,8 +204,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 screenResolution: `${window.screen.width}x${window.screen.height}`,
                 userAgent:        navigator.userAgent.substring(0, 500), // truncate UA
                 pageLoadTime:     (Number.isFinite(pageLoadTime) && pageLoadTime > 0) ? pageLoadTime : "Unknown",
-                consoleErrors:    toon.encode(consoleErrors.slice(0, 20)),
-                networkLogs:      toon.encode(networkLogs.slice(0, 20)),
+                consoleErrors:    JSON.stringify(consoleErrors.slice(0, 20)),
+                networkLogs:      JSON.stringify(networkLogs.slice(0, 20)),
                 deviceType:       /Mobile|Android|iPhone/i.test(navigator.userAgent) ? "Mobile" : "Desktop",
                 pageUrl:          safeHref,
             }));
@@ -432,7 +432,9 @@ window.addEventListener("message", (event) => {
     if (event.origin !== window.location.origin && event.origin !== extensionOrigin) {
         return; // Reject messages from unknown origins
     }
-    if (event.data === "CLOSE_BUGScribe_IFRAME") {
+    // Handle both casing variants for safety
+    const msg = typeof event.data === "string" ? event.data : "";
+    if (msg === "CLOSE_BUGScribe_IFRAME" || msg === "CLOSE_BUGSCRIBE_IFRAME") {
         closeWidget();
     }
 });

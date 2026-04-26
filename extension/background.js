@@ -1,4 +1,4 @@
-importScripts('toon_utils.js');
+importScripts('extension/toon_utils.js');
 
 console.log("BugScribe Ext: Background Service Worker Active v2.4");
 

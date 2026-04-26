@@ -21,12 +21,16 @@ const securityHeaders = [
         value: [
             "default-src 'self'",
             isDev 
-                ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://clerk.accounts.dev https://*.clerk.accounts.dev" 
-                : "script-src 'self' 'unsafe-inline' https://clerk.accounts.dev https://*.clerk.accounts.dev",
+                ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" 
+                : "script-src 'self' 'unsafe-inline'",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com data:",
-            "img-src 'self' data: blob: https://*.convex.cloud https://*.convex.site https://img.clerk.com",
-            "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud https://clerk.accounts.dev https://*.clerk.accounts.dev https://api.clerk.dev",
+            // Allow all https images for dynamic CMS image blocks
+            "img-src 'self' data: blob: https:",
+            // Convex + Supabase connections
+            "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud https://*.supabase.co wss://*.supabase.co https://supabase.co",
+            // Allow blob: for screen recording / screenshot previews
+            "media-src 'self' blob:",
             "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",

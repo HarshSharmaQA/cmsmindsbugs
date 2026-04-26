@@ -5,6 +5,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useState, useRef, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { Id } from '@/convex/_generated/dataModel';
 
 /** Map notification type → icon */
 function NotificationIcon({ type }: { type: string }) {
@@ -64,12 +65,12 @@ export function NotificationBell() {
   };
 
   const handleNotificationClick = async (notification: {
-    _id: string;
+    _id: Id<"notifications">;
     read: boolean;
     actionUrl?: string;
   }) => {
     if (!notification.read) {
-      await markNotificationAsRead(notification._id as any);
+      await markNotificationAsRead(notification._id);
     }
     setIsOpen(false);
     if (notification.actionUrl) {
@@ -124,7 +125,7 @@ export function NotificationBell() {
                 <Bell className="w-8 h-8 text-gray-600 mb-2" />
                 <p className="text-gray-400 text-sm">No notifications yet</p>
                 <p className="text-gray-600 text-xs mt-1">
-                  You'll be notified about new bugs and status changes.
+                  You&apos;ll be notified about new bugs and status changes.
                 </p>
               </div>
             ) : (

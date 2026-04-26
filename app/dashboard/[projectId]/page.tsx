@@ -141,6 +141,8 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
     showScreenshot?: boolean;
     members?: any[];
 }) {
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
     return (
         <Droppable droppableId={status}>
             {(provided, snapshot) => (
@@ -155,10 +157,17 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                     {/* Column Header - Cleaner Design */}
                     <div className={`flex items-center justify-between px-5 py-4 border-b-2 border-slate-200/80 bg-gradient-to-r from-white via-slate-50/50 to-white rounded-t-2xl group`}>
                         <div className="flex items-center gap-3">
-                            <div className={`flex items-center gap-2.5 ${color}`}>
-                                {icon || <CircleDot className="w-5 h-5" />}
-                                <span className="text-sm font-bold text-slate-800">{label}</span>
-                            </div>
+                            <button
+                                onClick={() => setIsCollapsed(!isCollapsed)}
+                                className="flex items-center gap-2.5 hover:opacity-70 transition-opacity"
+                                title={isCollapsed ? "Expand column" : "Collapse column"}
+                            >
+                                <div className={`flex items-center gap-2.5 ${color}`}>
+                                    {icon || <CircleDot className="w-5 h-5" />}
+                                    <span className="text-sm font-bold text-slate-800">{label}</span>
+                                </div>
+                                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                            </button>
                             <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
                                 {bugs.length}
                             </span>
@@ -201,6 +210,7 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                     </div>
 
                     {/* Cards */}
+                    {!isCollapsed && (
                     <div className="flex-1 flex flex-col gap-2.5 p-3 overflow-y-auto min-h-0 custom-scrollbar">
                         {bugs.map((bug, index) => (
                             <Draggable key={bug._id} draggableId={bug._id} index={index}>
@@ -372,6 +382,7 @@ function KanbanColumn({ status, label, icon, color, bugs, onSelect, onNavigateTo
                             </button>
                         )}
                     </div>
+                    )}
                 </div>
             )}
         </Droppable>
@@ -1906,7 +1917,7 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
         if (!title.trim() || !devToken) return;
         setLoading(true);
         try {
-            let screenshotUrl: string | undefined = undefined;
+            let screenshotStorageId: Id<"_storage"> | undefined = undefined;
 
             // Upload screenshot if provided
             if (screenshot) {
@@ -1922,7 +1933,7 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                         body: screenshot,
                     });
                     const { storageId } = await result.json();
-                    screenshotUrl = storageId;
+                    screenshotStorageId = storageId;
                 } catch (err) {
                     console.error("Failed to upload screenshot:", err);
                     alert("Failed to upload screenshot. Creating issue without it.");
@@ -1931,6 +1942,7 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                 }
             }
 
+            // Create bug with all fields
             const newBugId = await createBug({
                 projectId,
                 title: title.trim(),
@@ -1938,30 +1950,18 @@ function CreateBugModal({ projectId, project, devToken, onClose, initialType, in
                 priority,
                 type: type === "general" ? undefined : type,
                 category: category.trim() || undefined,
+                assigneeId: assignee || undefined,
+                tags: tags.length > 0 ? tags : undefined,
+                dueDate: dueDate ? new Date(dueDate).getTime() : undefined,
+                url: url || undefined,
+                screenshotStorageId,
+                mediaType: screenshot ? (screenshot.type.startsWith('video/') ? 'video' : 'image') : undefined,
                 devToken
             });
             
             // If initialStatus is provided and different from default, update the status
             if (initialStatus && initialStatus !== "open" && newBugId) {
                 await updateBugStatus({ bugId: newBugId, status: initialStatus, devToken });
-            }
-
-            // Update additional fields if provided
-            if (newBugId) {
-                const updateData: any = {};
-                if (assignee) updateData.assigneeId = assignee;
-                if (dueDate) updateData.dueDate = new Date(dueDate).getTime();
-                if (tags.length > 0) updateData.tags = tags;
-                if (url) updateData.url = url;
-                if (screenshotUrl) updateData.screenshotUrl = screenshotUrl;
-
-                if (Object.keys(updateData).length > 0) {
-                    await updateBug({
-                        bugId: newBugId,
-                        ...updateData,
-                        devToken
-                    });
-                }
             }
             
             onClose();
@@ -3021,12 +3021,39 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             return;
         }
 
-        // Header row with assignee name and email
+        // Comprehensive header row with ALL fields
         const headers = [
-            "Issue Number", "ID", "Title", "Status", "Priority", "Type", "Category",
+            // Core identification
+            "Issue Number", "ID", "Title", "Description",
+            
+            // Workflow
+            "Status", "Priority", "Type", "Category", "Tags",
+            
+            // Assignment
             "Assignee Name", "Assignee Email", "Assignee ID",
-            "Reporter Name", "Reporter Email", "Created At", "Updated At",
-            "URL", "Browser", "OS", "Screen Size", "Description", "Console Errors", "Tags"
+            
+            // Reporter
+            "Reporter Name", "Reporter Email",
+            
+            // Timestamps
+            "Created At", "Updated At", "Due Date",
+            
+            // Environment
+            "URL", "Page URL", "Browser", "OS", "User Agent", "Device Type",
+            
+            // Screen/Scroll Data
+            "Screen Width", "Screen Height", "Screen Resolution",
+            "Scroll X", "Scroll Y", "X Coordinate", "Y Coordinate", "Scroll Position",
+            "Element Selector",
+            
+            // Performance & Logs
+            "Page Load Time", "Console Errors", "Network Logs",
+            
+            // Media
+            "Screenshot URL", "Media Type", "Steps",
+            
+            // Additional Data
+            "Environment Data", "Custom Field", "Tracker URL"
         ];
 
         // Map members for assignee lookup with full details
@@ -3038,32 +3065,78 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             };
         });
 
-        // Rows with assignee name and email
+        // Rows with ALL fields
         const rows = bugs.map((bug: any) => {
             const assignee = bug.assigneeId ? memberMap[bug.assigneeId] : null;
             
+            // Helper to safely stringify complex data
+            const stringify = (val: any) => {
+                if (val === null || val === undefined) return "";
+                if (typeof val === "object") return JSON.stringify(val);
+                return String(val);
+            };
+            
             return [
+                // Core identification
                 bug.issueNumber || "",
                 bug._id,
                 bug.title,
+                (bug.description || "").replace(/\n/g, " ").replace(/\r/g, ""),
+                
+                // Workflow
                 bug.status,
                 bug.priority,
                 bug.type || "general",
                 bug.category || "",
+                (bug.tags || []).join(", "),
+                
+                // Assignment
                 assignee?.name || "",
                 assignee?.email || "",
                 bug.assigneeId || "",
-                bug.reporterName || "Widget",
+                
+                // Reporter
+                bug.reporterName || "",
                 bug.reporterEmail || "",
+                
+                // Timestamps
                 new Date(bug.createdAt).toISOString(),
                 bug.updatedAt ? new Date(bug.updatedAt).toISOString() : "",
+                bug.dueDate ? new Date(bug.dueDate).toISOString() : "",
+                
+                // Environment
                 bug.url || "",
+                bug.page_url || "",
                 bug.browser || "",
                 bug.os || "",
-                bug.screenWidth ? `${bug.screenWidth}x${bug.screenHeight}` : "",
-                (bug.description || "").replace(/\n/g, " ").replace(/\r/g, ""),
-                (bug.consoleErrors || []).join(" | "),
-                (bug.tags || []).join(", ")
+                bug.userAgent || "",
+                bug.deviceType || "",
+                
+                // Screen/Scroll Data
+                bug.screenWidth || "",
+                bug.screenHeight || "",
+                bug.screenResolution || "",
+                bug.scrollX || "",
+                bug.scrollY || "",
+                bug.x_coordinate || "",
+                bug.y_coordinate || "",
+                bug.scroll_position || "",
+                bug.element_selector || "",
+                
+                // Performance & Logs
+                bug.pageLoadTime || "",
+                stringify(bug.consoleErrors),
+                stringify(bug.networkLogs),
+                
+                // Media
+                bug.screenshotUrl || (bug.customField?.screenshotUrl) || "",
+                bug.mediaType || "",
+                stringify(bug.steps),
+                
+                // Additional Data
+                stringify(bug.environmentData),
+                stringify(bug.customField),
+                bug.trackerUrl || ""
             ];
         });
 
@@ -3103,40 +3176,69 @@ function DashboardContent({ rawProjectId }: { rawProjectId: string }) {
             };
         });
 
-        // Convert bugs to export format with all details
+        // Convert bugs to export format with ALL details
         const exportData = bugs.map((bug: any) => ({
+            // Core identification
             _id: bug._id,
             issueNumber: bug.issueNumber,
             title: bug.title,
+            description: bug.description,
+            
+            // Workflow
             status: bug.status,
             priority: bug.priority,
             type: bug.type || "general",
             category: bug.category,
+            tags: bug.tags,
+            
+            // Assignment
             assigneeId: bug.assigneeId,
             assigneeName: bug.assigneeId ? memberMap[bug.assigneeId]?.name : undefined,
             assigneeEmail: bug.assigneeId ? memberMap[bug.assigneeId]?.email : undefined,
-            reporterName: bug.reporterName || "Widget",
-            reporterEmail: bug.reporterEmail || "",
+            
+            // Reporter
+            reporterName: bug.reporterName,
+            reporterEmail: bug.reporterEmail,
+            
+            // Timestamps
             createdAt: bug.createdAt,
+            created_at: bug.created_at,
             updatedAt: bug.updatedAt,
             dueDate: bug.dueDate,
+            
+            // Environment
             url: bug.url,
+            page_url: bug.page_url,
             browser: bug.browser,
             os: bug.os,
+            userAgent: bug.userAgent,
+            deviceType: bug.deviceType,
+            
+            // Screen/Scroll Data
             screenWidth: bug.screenWidth,
             screenHeight: bug.screenHeight,
-            description: bug.description,
-            consoleErrors: bug.consoleErrors,
-            networkLogs: bug.networkLogs,
-            screenshotUrl: bug.screenshotUrl,
-            mediaType: bug.mediaType,
-            tags: bug.tags,
-            estimatedHours: bug.estimatedHours,
-            actualHours: bug.actualHours,
+            screenResolution: bug.screenResolution,
+            scrollX: bug.scrollX,
+            scrollY: bug.scrollY,
             x_coordinate: bug.x_coordinate,
             y_coordinate: bug.y_coordinate,
             scroll_position: bug.scroll_position,
-            element_selector: bug.element_selector
+            element_selector: bug.element_selector,
+            
+            // Performance & Logs
+            pageLoadTime: bug.pageLoadTime,
+            consoleErrors: bug.consoleErrors,
+            networkLogs: bug.networkLogs,
+            
+            // Media
+            screenshotUrl: bug.screenshotUrl || bug.customField?.screenshotUrl,
+            mediaType: bug.mediaType,
+            steps: bug.steps,
+            
+            // Additional Data
+            environmentData: bug.environmentData,
+            customField: bug.customField,
+            trackerUrl: bug.trackerUrl
         }));
 
         try {

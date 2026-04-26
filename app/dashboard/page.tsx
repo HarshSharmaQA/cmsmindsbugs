@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Link from "next/link";
@@ -17,7 +17,7 @@ import { LoginModal } from "@/components/LoginModal";
 export const dynamic = "force-dynamic";
 
 // ─── UserRow ──────────────────────────────────────────────────────────────────
-function UserRow({
+const UserRow = memo(function UserRow({
     user, currentUserEmail, onApprove, onRoleChange, onDelete,
 }: {
     user: any;
@@ -91,7 +91,7 @@ function UserRow({
             </div>
         </div>
     );
-}
+});
 
 /**
  * ProjectCard Component
